@@ -1,0 +1,22 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "rooms": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "prayers": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "pending": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "applications": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}
