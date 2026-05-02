@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#7ea7c8"/>
+      <stop offset="100%" stop-color="#cce0ec"/>
+    </linearGradient>
+    <linearGradient id="bldg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fafaf6"/>
+      <stop offset="100%" stop-color="#cdcdc3"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill="url(#sky)"/>
+  <circle cx="600" cy="100" r="60" fill="#ffffff" opacity="0.85"/>
+  <path d="M0 380 Q 200 360 400 375 T 800 380 L 800 500 L 0 500 Z" fill="#3d3a34" opacity="0.18"/>
+  <rect x="320" y="180" width="160" height="220" fill="url(#bldg)"/>
+  <polygon points="400,100 380,180 420,180" fill="url(#bldg)"/>
+  <rect x="396" y="60" width="8" height="60" fill="#ffffff"/>
+  <rect x="380" y="78" width="40" height="8" fill="#ffffff"/>
+  <rect x="240" y="240" width="80" height="160" fill="url(#bldg)" opacity="0.85"/>
+  <rect x="480" y="240" width="80" height="160" fill="url(#bldg)" opacity="0.85"/>
+</svg>

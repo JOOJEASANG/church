@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5f6f52"/>
+      <stop offset="100%" stop-color="#45533a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g fill="#fffdf8">
+    <rect x="232" y="120" width="48" height="280" rx="6"/>
+    <rect x="160" y="200" width="192" height="48" rx="6"/>
+  </g>
+  <text x="256" y="468" text-anchor="middle" font-family="-apple-system, sans-serif" font-size="56" font-weight="900" fill="#fffdf8">남산</text>
+</svg>
