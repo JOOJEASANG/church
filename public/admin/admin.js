@@ -1,0 +1,440 @@
+/* =============================================================
+ * 천안남산교회 — 관리자 페이지
+ * ============================================================= */
+
+import { db, auth } from '/firebase-init.js';
+import {
+  ref, onValue, push, set, update, remove, get, query, orderByChild, limitToLast
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
+import {
+  signInWithEmailAndPassword, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+
+// ----- DOM -----
+const $ = (id) => document.getElementById(id);
+
+const loginPane = $('loginPane');
+const adminPane = $('adminPane');
+const loginErr = $('loginErr');
+
+// ----- 상태 -----
+const state = {
+  user: null,
+  isAdmin: false,
+  rooms: [],
+  prayers: [],
+  announcements: [],
+  apps: [],
+  admins: {},
+  sermon: null
+};
+
+// ===== 로그인 =====
+$('loginBtn').addEventListener('click', login);
+$('loginPw').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+
+async function login() {
+  const email = $('loginEmail').value.trim();
+  const pw = $('loginPw').value;
+  loginErr.textContent = '';
+  if (!email || !pw) { loginErr.textContent = '이메일과 비밀번호를 입력해주세요.'; return; }
+  try {
+    await signInWithEmailAndPassword(auth, email, pw);
+  } catch (e) {
+    loginErr.textContent = errorMessage(e.code);
+  }
+}
+
+function errorMessage(code) {
+  return ({
+    'auth/invalid-email': '이메일 형식이 올바르지 않습니다.',
+    'auth/user-not-found': '등록되지 않은 계정입니다.',
+    'auth/wrong-password': '비밀번호가 일치하지 않습니다.',
+    'auth/too-many-requests': '시도가 너무 많습니다. 잠시 후 다시 시도해주세요.',
+    'auth/invalid-credential': '이메일 또는 비밀번호가 올바르지 않습니다.'
+  })[code] || '로그인에 실패했습니다.';
+}
+
+$('logoutBtn').addEventListener('click', () => signOut(auth));
+
+// ===== 인증 상태 =====
+onAuthStateChanged(auth, async (user) => {
+  state.user = user;
+  if (!user) {
+    loginPane.style.display = 'grid';
+    adminPane.classList.remove('show');
+    return;
+  }
+
+  // 관리자 권한 확인
+  const adminRef = ref(db, `admins/${user.uid}`);
+  const snap = await get(adminRef);
+
+  if (!snap.exists()) {
+    // /admins 가 비어있으면 첫 로그인 유저를 자동 등록 (부트스트랩)
+    const allAdmins = await get(ref(db, 'admins'));
+    if (!allAdmins.exists()) {
+      await set(adminRef, {
+        email: user.email,
+        name: user.email.split('@')[0],
+        role: 'super',
+        createdAt: Date.now()
+      });
+    } else {
+      loginErr.textContent = '관리자 권한이 없는 계정입니다.';
+      await signOut(auth);
+      return;
+    }
+  }
+
+  state.isAdmin = true;
+  loginPane.style.display = 'none';
+  adminPane.classList.add('show');
+  $('whoAmI').textContent = user.email || user.uid;
+
+  attachListeners();
+});
+
+// ===== 사이드바 네비게이션 =====
+document.querySelectorAll('.nav-item').forEach((item) => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach((n) => n.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.pane').forEach((p) => p.classList.remove('active'));
+    $('pane-' + item.dataset.pane).classList.add('active');
+  });
+});
+
+// ===== 실시간 데이터 리스너 =====
+function attachListeners() {
+  onValue(ref(db, 'rooms'), (snap) => {
+    state.rooms = [];
+    snap.forEach((c) => state.rooms.push({ id: c.key, ...c.val() }));
+    state.rooms.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderApprove(); renderRooms(); renderStats();
+  });
+  onValue(ref(db, 'prayers'), (snap) => {
+    state.prayers = [];
+    snap.forEach((c) => state.prayers.push({ id: c.key, ...c.val() }));
+    state.prayers.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderPrayers(); renderStats(); renderRecent();
+  });
+  onValue(ref(db, 'announcements'), (snap) => {
+    state.announcements = [];
+    snap.forEach((c) => state.announcements.push({ id: c.key, ...c.val() }));
+    state.announcements.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderAnnouncements(); renderStats();
+  });
+  onValue(ref(db, 'applications'), (snap) => {
+    state.apps = [];
+    snap.forEach((c) => state.apps.push({ id: c.key, ...c.val() }));
+    state.apps.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderApps(); renderStats(); renderRecent();
+  });
+  onValue(ref(db, 'admins'), (snap) => {
+    state.admins = snap.val() || {};
+    renderAdmins();
+  });
+  onValue(ref(db, 'sermons/current'), (snap) => {
+    state.sermon = snap.val() || null;
+    fillSermonForm();
+  });
+}
+
+// ===== 유틸 =====
+function escapeHtml(v) {
+  return String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+}
+function fmt(ts) {
+  if (!ts) return '-';
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function tagPill(t) {
+  const map = { urgent: '중요', event: '신청', notice: '소식', praise: '감사' };
+  return `<span class="pill ${t || 'notice'}">${map[t] || '소식'}</span>`;
+}
+
+// ===== 대시보드 =====
+function renderStats() {
+  const pendingRooms = state.rooms.filter((r) => r.approved === false).length;
+  $('stats').innerHTML = `
+    <div class="stat"><div class="lbl">전체 공지</div><div class="val">${state.announcements.length}</div></div>
+    <div class="stat"><div class="lbl">기도제목</div><div class="val">${state.prayers.length}</div></div>
+    <div class="stat"><div class="lbl">재능나눔방</div><div class="val">${state.rooms.length}</div></div>
+    <div class="stat"><div class="lbl">신청 누계</div><div class="val">${state.apps.length}</div></div>
+  `;
+  const badge = $('badgeApprove');
+  if (pendingRooms > 0) {
+    badge.style.display = 'inline-block';
+    badge.textContent = pendingRooms;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function renderRecent() {
+  const items = [
+    ...state.apps.slice(0, 5).map((a) => ({ ts: a.timestamp, label: '신청', detail: `${a.kind || '재능나눔방'} · ${a.name || ''}` })),
+    ...state.prayers.slice(0, 5).map((p) => ({ ts: p.timestamp, label: '기도', detail: `${p.name || '익명'} · ${(p.text || '').slice(0, 24)}…` }))
+  ].sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 8);
+
+  $('recentActivity').innerHTML = items.length === 0 ? '<div class="empty">아직 활동이 없어요</div>' :
+    `<table><thead><tr><th>일시</th><th>구분</th><th>내용</th></tr></thead><tbody>${
+      items.map((i) => `<tr><td>${fmt(i.ts)}</td><td>${i.label}</td><td>${escapeHtml(i.detail)}</td></tr>`).join('')
+    }</tbody></table>`;
+}
+
+// ===== 공지사항 =====
+$('annSubmit').addEventListener('click', async () => {
+  const title = $('annTitle').value.trim();
+  const body = $('annBody').value.trim();
+  const tag = $('annTag').value;
+  if (!title) { alert('제목을 입력해주세요'); return; }
+  await push(ref(db, 'announcements'), { title, body, tag, timestamp: Date.now() });
+  $('annTitle').value = ''; $('annBody').value = '';
+  alert('공지가 등록되었습니다');
+});
+
+function renderAnnouncements() {
+  const list = $('annList');
+  if (!list) return;
+  if (state.announcements.length === 0) { list.innerHTML = '<div class="empty">등록된 공지가 없습니다</div>'; return; }
+  list.innerHTML = `<table><thead><tr><th>분류</th><th>제목</th><th>일시</th><th></th></tr></thead><tbody>${
+    state.announcements.map((a) => `
+      <tr>
+        <td>${tagPill(a.tag)}</td>
+        <td><b>${escapeHtml(a.title)}</b><br/><span style="color: var(--muted); font-size: 12px;">${escapeHtml((a.body || '').slice(0, 60))}${(a.body || '').length > 60 ? '…' : ''}</span></td>
+        <td>${fmt(a.timestamp)}</td>
+        <td><button class="btn btn-sm danger" data-del-ann="${a.id}">삭제</button></td>
+      </tr>
+    `).join('')
+  }</tbody></table>`;
+  list.querySelectorAll('[data-del-ann]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      if (!confirm('삭제하시겠어요?')) return;
+      await remove(ref(db, `announcements/${b.dataset.delAnn}`));
+    });
+  });
+}
+
+// ===== 설교 =====
+function fillSermonForm() {
+  if (!state.sermon) return;
+  const s = state.sermon;
+  $('sermonTitle').value = s.title || '';
+  $('sermonVerse').value = s.verse || '';
+  $('sermonMeta').value = s.meta || '';
+  $('sermonBody').value = s.body || '';
+  $('sermonPractice').value = s.practice || '';
+  $('sermonQ').value = s.question || '';
+  $('sermonUrl').value = s.videoId || '';
+  if (s.start) splitTime(s.start, 'start');
+  if (s.end) splitTime(s.end, 'end');
+  updatePreview();
+}
+
+function splitTime(sec, prefix) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  $(prefix + 'H').value = h || '';
+  $(prefix + 'M').value = m || '';
+  $(prefix + 'S').value = s || '';
+}
+
+function combineTime(prefix) {
+  const h = Number($(prefix + 'H').value || 0);
+  const m = Number($(prefix + 'M').value || 0);
+  const s = Number($(prefix + 'S').value || 0);
+  return h * 3600 + m * 60 + s;
+}
+
+function extractVideoId(input) {
+  if (!input) return '';
+  const v = input.trim();
+  // youtu.be/ID, youtube.com/watch?v=ID, youtube.com/embed/ID, just ID
+  let m;
+  if ((m = v.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/))) return m[1];
+  if ((m = v.match(/[?&]v=([a-zA-Z0-9_-]{6,})/))) return m[1];
+  if ((m = v.match(/embed\/([a-zA-Z0-9_-]{6,})/))) return m[1];
+  if (/^[a-zA-Z0-9_-]{6,}$/.test(v)) return v;
+  return v;
+}
+
+function updatePreview() {
+  const id = extractVideoId($('sermonUrl').value);
+  const start = combineTime('start');
+  const end = combineTime('end');
+  if (!id) { $('sermonPreview').textContent = '유튜브 URL 또는 영상 ID 입력 필요'; return; }
+  const params = new URLSearchParams({ rel: '0', modestbranding: '1' });
+  if (start) params.set('start', start);
+  if (end) params.set('end', end);
+  $('sermonPreview').innerHTML = `<div style="color: var(--text); font-weight: 700;">ID: ${escapeHtml(id)}</div>` +
+    `시작 ${start || 0}s · 종료 ${end || '끝까지'}s`;
+}
+
+['sermonUrl', 'startH', 'startM', 'startS', 'endH', 'endM', 'endS'].forEach((id) => {
+  $(id)?.addEventListener('input', updatePreview);
+});
+
+$('sermonSave').addEventListener('click', async () => {
+  const data = {
+    title: $('sermonTitle').value.trim(),
+    verse: $('sermonVerse').value.trim(),
+    meta: $('sermonMeta').value.trim(),
+    body: $('sermonBody').value.trim(),
+    practice: $('sermonPractice').value.trim(),
+    question: $('sermonQ').value.trim(),
+    videoId: extractVideoId($('sermonUrl').value),
+    start: combineTime('start') || 0,
+    end: combineTime('end') || 0,
+    timestamp: Date.now()
+  };
+  if (!data.title) { alert('설교 제목을 입력해주세요'); return; }
+  // 이전 설교는 history에 보관
+  if (state.sermon && state.sermon.title && state.sermon.title !== data.title) {
+    await push(ref(db, 'sermons/history'), state.sermon);
+  }
+  await set(ref(db, 'sermons/current'), data);
+  alert('이번 주 설교가 저장되었습니다');
+});
+
+// ===== 승인 대기 =====
+function renderApprove() {
+  const list = $('approveList');
+  if (!list) return;
+  const pending = state.rooms.filter((r) => r.approved === false);
+  if (pending.length === 0) { list.innerHTML = '<div class="empty">대기 중인 항목이 없어요</div>'; return; }
+  list.innerHTML = `<table><thead><tr><th>제목</th><th>분류</th><th>대상</th><th>일시</th><th></th></tr></thead><tbody>${
+    pending.map((r) => `
+      <tr>
+        <td><b>${escapeHtml(r.title)}</b><br/><span style="color: var(--muted); font-size: 12px;">${escapeHtml(r.desc || '')}</span></td>
+        <td>${escapeHtml(r.category)}</td>
+        <td>${escapeHtml(r.target)}</td>
+        <td>${fmt(r.timestamp)}</td>
+        <td>
+          <button class="btn btn-sm primary" data-ok="${r.id}">승인</button>
+          <button class="btn btn-sm danger" data-no="${r.id}">거절</button>
+        </td>
+      </tr>
+    `).join('')
+  }</tbody></table>`;
+  list.querySelectorAll('[data-ok]').forEach((b) => b.addEventListener('click', () => approveRoom(b.dataset.ok)));
+  list.querySelectorAll('[data-no]').forEach((b) => b.addEventListener('click', () => rejectRoom(b.dataset.no)));
+}
+
+async function approveRoom(id) {
+  await update(ref(db, `rooms/${id}`), { approved: true, status: '모집중' });
+  alert('승인되었습니다');
+}
+async function rejectRoom(id) {
+  if (!confirm('거절(삭제)하시겠어요?')) return;
+  await remove(ref(db, `rooms/${id}`));
+}
+
+// ===== 신청 내역 =====
+function renderApps() {
+  const tbody = document.querySelector('#appsTable tbody');
+  if (!tbody) return;
+  if (state.apps.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty">신청 내역이 없어요</td></tr>'; return; }
+  tbody.innerHTML = state.apps.map((a) => `
+    <tr>
+      <td>${fmt(a.timestamp)}</td>
+      <td>${escapeHtml(a.kind || a.roomTitle || '재능나눔')}</td>
+      <td>${escapeHtml(a.name || '')}</td>
+      <td>${escapeHtml(a.phone || '')}</td>
+      <td>${escapeHtml(a.type || a.roomTitle || a.time || '')}</td>
+    </tr>
+  `).join('');
+}
+
+// ===== 기도제목 관리 =====
+function renderPrayers() {
+  const list = $('prayerList');
+  if (!list) return;
+  if (state.prayers.length === 0) { list.innerHTML = '<div class="empty">기도제목이 없어요</div>'; return; }
+  list.innerHTML = `<table><thead><tr><th>구분</th><th>이름</th><th>내용</th><th>참여</th><th>일시</th><th></th></tr></thead><tbody>${
+    state.prayers.map((p) => {
+      const isPrivate = p.type === '교역자에게만 전달';
+      return `
+        <tr>
+          <td><span class="pill ${isPrivate ? 'urgent' : ''}">${escapeHtml(p.type || '공개')}</span></td>
+          <td>${escapeHtml(p.name || '')}</td>
+          <td>${escapeHtml(p.text || '')}</td>
+          <td>${p.count || 0}</td>
+          <td>${fmt(p.timestamp)}</td>
+          <td><button class="btn btn-sm danger" data-del-p="${p.id}">삭제</button></td>
+        </tr>
+      `;
+    }).join('')
+  }</tbody></table>`;
+  list.querySelectorAll('[data-del-p]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      if (!confirm('삭제하시겠어요?')) return;
+      await remove(ref(db, `prayers/${b.dataset.delP}`));
+    });
+  });
+}
+
+// ===== 재능나눔방 전체 =====
+function renderRooms() {
+  const list = $('roomsList');
+  if (!list) return;
+  if (state.rooms.length === 0) { list.innerHTML = '<div class="empty">재능나눔방이 없어요</div>'; return; }
+  list.innerHTML = `<table><thead><tr><th>제목</th><th>분류</th><th>대상</th><th>현황</th><th>상태</th><th></th></tr></thead><tbody>${
+    state.rooms.map((r) => `
+      <tr>
+        <td><b>${escapeHtml(r.title)}</b><br/><span style="color: var(--muted); font-size: 12px;">${escapeHtml(r.teacher || '')} · ${escapeHtml(r.schedule || '')}</span></td>
+        <td>${escapeHtml(r.category)}</td>
+        <td>${escapeHtml(r.target)}</td>
+        <td>${r.joined || 0} / ${r.capacity}</td>
+        <td>${r.approved === false ? '<span class="pill pending">대기</span>' : (r.status === '마감' || r.joined >= r.capacity) ? '<span class="pill">마감</span>' : '<span class="pill">모집중</span>'}</td>
+        <td><button class="btn btn-sm danger" data-del-r="${r.id}">삭제</button></td>
+      </tr>
+    `).join('')
+  }</tbody></table>`;
+  list.querySelectorAll('[data-del-r]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      if (!confirm('삭제하시겠어요?')) return;
+      await remove(ref(db, `rooms/${b.dataset.delR}`));
+    });
+  });
+}
+
+// ===== 관리자 =====
+$('addAdminBtn').addEventListener('click', async () => {
+  const uid = $('newAdminUid').value.trim();
+  const name = $('newAdminName').value.trim();
+  const role = $('newAdminRole').value;
+  if (!uid || !name) { alert('UID와 이름을 입력해주세요'); return; }
+  await set(ref(db, `admins/${uid}`), { name, role, addedBy: state.user.uid, addedAt: Date.now() });
+  $('newAdminUid').value = ''; $('newAdminName').value = '';
+  alert('관리자가 추가되었습니다');
+});
+
+function renderAdmins() {
+  const list = $('adminList');
+  if (!list) return;
+  const arr = Object.entries(state.admins).map(([uid, info]) => ({ uid, ...info }));
+  if (arr.length === 0) { list.innerHTML = '<div class="empty">관리자가 없습니다</div>'; return; }
+  const roleLabel = { super: '최고관리자', content: '콘텐츠', media: '미디어' };
+  list.innerHTML = `<table><thead><tr><th>이름</th><th>역할</th><th>UID</th><th>등록일</th><th></th></tr></thead><tbody>${
+    arr.map((a) => `
+      <tr>
+        <td>${escapeHtml(a.name || '')}</td>
+        <td>${escapeHtml(roleLabel[a.role] || a.role || '')}</td>
+        <td style="font-family: monospace; font-size: 11px;">${escapeHtml(a.uid)}</td>
+        <td>${fmt(a.createdAt || a.addedAt)}</td>
+        <td>${a.uid === state.user.uid ? '<span class="pill">나</span>' : `<button class="btn btn-sm danger" data-del-a="${a.uid}">제거</button>`}</td>
+      </tr>
+    `).join('')
+  }</tbody></table>`;
+  list.querySelectorAll('[data-del-a]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      if (!confirm('관리자 권한을 제거하시겠어요?')) return;
+      await remove(ref(db, `admins/${b.dataset.delA}`));
+    });
+  });
+}

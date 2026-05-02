@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#2e3428" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>관리자 · 천안남산교회</title>
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <style>
+    :root {
+      --bg: #f7f5f1;
+      --paper: #ffffff;
+      --line: #e3ddcf;
+      --text: #1f1d18;
+      --muted: #6b6760;
+      --primary: #5f6f52;
+      --primary-dark: #45533a;
+      --danger: #c44;
+      --warn: #b9814f;
+      --shadow: 0 8px 24px rgba(40,35,25,0.06);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.55;
+      word-break: keep-all;
+    }
+    button, input, select, textarea { font-family: inherit; }
+    a { color: inherit; text-decoration: none; }
+
+    /* 로그인 화면 */
+    .login {
+      min-height: 100vh; display: grid; place-items: center; padding: 24px;
+    }
+    .login-card {
+      width: 100%; max-width: 380px;
+      background: var(--paper); border: 1px solid var(--line);
+      border-radius: 22px; padding: 28px; box-shadow: var(--shadow);
+    }
+    .login-card h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.6px; }
+    .login-card .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; font-weight: 700; }
+    .field {
+      width: 100%; border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px 14px; font-size: 15px; outline: none;
+      background: var(--paper); color: var(--text);
+      transition: border-color 0.15s ease;
+    }
+    .field:focus { border-color: var(--primary); }
+    label { font-size: 12px; font-weight: 800; color: #4d4a44; margin: 12px 0 6px 4px; display: block; }
+    .btn-primary {
+      width: 100%; background: var(--primary); color: white;
+      border: 0; border-radius: 12px; padding: 13px;
+      font-weight: 900; font-size: 14px; cursor: pointer;
+      margin-top: 16px;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .err { color: var(--danger); font-size: 13px; margin-top: 10px; font-weight: 700; }
+
+    /* 관리자 본문 */
+    .admin { display: none; min-height: 100vh; }
+    .admin.show { display: block; }
+
+    .topbar {
+      background: var(--primary-dark); color: white;
+      padding: 14px 22px; display: flex; align-items: center; justify-content: space-between;
+      gap: 16px;
+    }
+    .topbar h1 { margin: 0; font-size: 17px; font-weight: 900; letter-spacing: -0.4px; }
+    .topbar .who { font-size: 12px; opacity: 0.85; font-weight: 700; }
+    .topbar button {
+      background: rgba(255,255,255,0.15); color: white; border: 0;
+      border-radius: 999px; padding: 7px 14px; font-weight: 800;
+      font-size: 12px; cursor: pointer;
+    }
+    .topbar button:hover { background: rgba(255,255,255,0.25); }
+
+    .layout {
+      display: grid; grid-template-columns: 220px 1fr;
+      max-width: 1240px; margin: 0 auto; padding: 18px;
+      gap: 18px;
+    }
+    .sidebar {
+      background: var(--paper); border: 1px solid var(--line);
+      border-radius: 16px; padding: 12px; height: fit-content;
+      position: sticky; top: 18px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 14px; border-radius: 12px; cursor: pointer;
+      font-weight: 800; font-size: 14px; color: #4d4a44;
+    }
+    .nav-item:hover { background: #f4efe3; }
+    .nav-item.active { background: var(--primary); color: white; }
+    .nav-item .ico { font-size: 16px; }
+    .nav-item .badge {
+      margin-left: auto; background: var(--danger); color: white;
+      font-size: 11px; font-weight: 900;
+      border-radius: 999px; padding: 2px 7px; min-width: 18px; text-align: center;
+    }
+    .nav-item.active .badge { background: white; color: var(--danger); }
+
+    .content { min-width: 0; }
+    .panel {
+      background: var(--paper); border: 1px solid var(--line);
+      border-radius: 16px; padding: 22px; box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+    .panel h2 { margin: 0 0 6px; font-size: 19px; letter-spacing: -0.4px; }
+    .panel .sub { color: var(--muted); font-size: 13px; font-weight: 700; margin-bottom: 14px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+    .stat {
+      background: #f7f5f1; border: 1px solid var(--line);
+      border-radius: 12px; padding: 14px;
+    }
+    .stat .lbl { font-size: 12px; color: var(--muted); font-weight: 800; }
+    .stat .val { font-size: 26px; font-weight: 900; margin-top: 4px; letter-spacing: -1px; }
+
+    .pane { display: none; }
+    .pane.active { display: block; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid #f0ebde; text-align: left; font-size: 13px; }
+    th { background: #faf8f2; font-weight: 900; color: #444; font-size: 12px; }
+    tr:last-child td { border-bottom: 0; }
+
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    select.field { padding: 11px 14px; }
+    textarea.field { min-height: 90px; resize: vertical; padding: 12px 14px; }
+
+    .btn {
+      border: 1px solid var(--line); background: var(--paper);
+      border-radius: 999px; padding: 8px 14px; font-weight: 800;
+      font-size: 12px; cursor: pointer; color: var(--text);
+    }
+    .btn:hover { border-color: #b9b1a0; }
+    .btn-sm { padding: 6px 11px; font-size: 11px; }
+    .btn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn.danger { background: var(--danger); color: white; border-color: var(--danger); }
+    .btn.warn { background: var(--warn); color: white; border-color: var(--warn); }
+
+    .pill {
+      display: inline-block; padding: 3px 9px;
+      border-radius: 999px; font-size: 11px; font-weight: 900;
+      background: #eef6e9; color: var(--primary-dark);
+    }
+    .pill.pending { background: #fff3cc; color: #785b00; }
+    .pill.urgent { background: #fff1f1; color: var(--danger); }
+    .pill.event { background: #fff0df; color: var(--warn); }
+    .pill.notice { background: #eef5ff; color: #2c5282; }
+
+    .empty { padding: 24px; text-align: center; color: var(--muted); font-weight: 700; }
+
+    @media (max-width: 760px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div class="login" id="loginPane">
+  <div class="login-card">
+    <h1>관리자 로그인</h1>
+    <p class="sub">천안남산교회 관리자 페이지</p>
+    <label>이메일</label>
+    <input class="field" id="loginEmail" type="email" placeholder="admin@example.com" autocomplete="username"/>
+    <label>비밀번호</label>
+    <input class="field" id="loginPw" type="password" autocomplete="current-password"/>
+    <button class="btn-primary" id="loginBtn" type="button">로그인</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- 관리자 본문 -->
+<div class="admin" id="adminPane">
+  <div class="topbar">
+    <h1>천안남산교회 · 관리자</h1>
+    <div class="row">
+      <span class="who" id="whoAmI"></span>
+      <button id="logoutBtn" type="button">로그아웃</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="nav-item active" data-pane="dash"><span class="ico">📊</span>대시보드</div>
+      <div class="nav-item" data-pane="ann"><span class="ico">📢</span>공지사항</div>
+      <div class="nav-item" data-pane="sermon"><span class="ico">📖</span>설교 영상</div>
+      <div class="nav-item" data-pane="approve"><span class="ico">✅</span>승인 대기 <span class="badge" id="badgeApprove" style="display:none;">0</span></div>
+      <div class="nav-item" data-pane="apps"><span class="ico">📋</span>신청 내역</div>
+      <div class="nav-item" data-pane="prayers"><span class="ico">🙏</span>기도제목</div>
+      <div class="nav-item" data-pane="rooms"><span class="ico">🤝</span>재능나눔방</div>
+      <div class="nav-item" data-pane="staff"><span class="ico">👤</span>관리자</div>
+    </aside>
+
+    <main class="content">
+      <!-- 대시보드 -->
+      <div class="pane active" id="pane-dash">
+        <div class="panel">
+          <h2>📊 한눈에 보기</h2>
+          <p class="sub">실시간 데이터 · 자동 갱신</p>
+          <div class="grid-4" id="stats"></div>
+        </div>
+        <div class="panel">
+          <h2>최근 활동</h2>
+          <p class="sub">최근 등록된 신청 및 기도제목</p>
+          <div id="recentActivity"></div>
+        </div>
+      </div>
+
+      <!-- 공지사항 -->
+      <div class="pane" id="pane-ann">
+        <div class="panel">
+          <h2>📢 공지 등록</h2>
+          <p class="sub">홈 탭 피드 카드로 자동 노출됩니다</p>
+          <div class="grid-2">
+            <div>
+              <label>분류</label>
+              <select class="field" id="annTag">
+                <option value="urgent">중요</option>
+                <option value="event">행사·신청</option>
+                <option value="notice">일반 소식</option>
+                <option value="praise">감사</option>
+              </select>
+            </div>
+            <div>
+              <label>제목</label>
+              <input class="field" id="annTitle" placeholder="예: 야외예배 신청 안내"/>
+            </div>
+          </div>
+          <label>본문</label>
+          <textarea class="field" id="annBody" placeholder="공지 내용을 입력하세요"></textarea>
+          <button class="btn primary" id="annSubmit" type="button" style="margin-top: 12px;">등록</button>
+        </div>
+        <div class="panel">
+          <h2>등록된 공지</h2>
+          <div id="annList"></div>
+        </div>
+      </div>
+
+      <!-- 설교 영상 -->
+      <div class="pane" id="pane-sermon">
+        <div class="panel">
+          <h2>📖 이번 주 설교</h2>
+          <p class="sub">유튜브 풀영상에서 설교 구간만 잘라 표시할 수 있습니다</p>
+          <div class="grid-2">
+            <div>
+              <label>설교 제목</label>
+              <input class="field" id="sermonTitle" placeholder="예: 서로 사랑하라"/>
+            </div>
+            <div>
+              <label>본문 (성경 구절)</label>
+              <input class="field" id="sermonVerse" placeholder="예: 요한복음 13장 34절"/>
+            </div>
+          </div>
+          <label>설교 안내 (날짜·설교자)</label>
+          <input class="field" id="sermonMeta" placeholder="예: 2026년 5월 첫째 주 · 담임목사 설교"/>
+
+          <label>설교 요약</label>
+          <textarea class="field" id="sermonBody" placeholder="이번 주 말씀의 핵심 메시지"></textarea>
+
+          <div class="grid-2">
+            <div>
+              <label>이번 주 실천</label>
+              <input class="field" id="sermonPractice" placeholder="예: 한 사람에게 먼저 안부 연락하기"/>
+            </div>
+            <div>
+              <label>나눔 질문</label>
+              <input class="field" id="sermonQ" placeholder="예: 이번 주 사랑할 한 사람은?"/>
+            </div>
+          </div>
+
+          <hr style="border: 0; border-top: 1px solid var(--line); margin: 22px 0;"/>
+
+          <h3 style="margin: 0 0 6px; font-size: 16px;">유튜브 영상 구간</h3>
+          <p class="sub" style="margin-bottom: 14px;">전체 영상 중 설교 부분만 자동 재생/종료</p>
+          <label>유튜브 URL 또는 영상 ID</label>
+          <input class="field" id="sermonUrl" placeholder="예: https://youtu.be/abc123 또는 abc123"/>
+
+          <div class="grid-3">
+            <div>
+              <label>시작 (시:분:초)</label>
+              <div class="row">
+                <input class="field" id="startH" type="number" min="0" placeholder="시" style="width: 33%;"/>
+                <input class="field" id="startM" type="number" min="0" max="59" placeholder="분" style="width: 33%;"/>
+                <input class="field" id="startS" type="number" min="0" max="59" placeholder="초" style="width: 33%;"/>
+              </div>
+            </div>
+            <div>
+              <label>종료 (시:분:초) — 비우면 끝까지</label>
+              <div class="row">
+                <input class="field" id="endH" type="number" min="0" placeholder="시" style="width: 33%;"/>
+                <input class="field" id="endM" type="number" min="0" max="59" placeholder="분" style="width: 33%;"/>
+                <input class="field" id="endS" type="number" min="0" max="59" placeholder="초" style="width: 33%;"/>
+              </div>
+            </div>
+            <div>
+              <label>미리보기</label>
+              <div id="sermonPreview" style="font-size: 12px; color: var(--muted); padding: 12px 14px; background: #f7f5f1; border-radius: 12px;">유튜브 ID + 시간 입력 시 미리보기 표시</div>
+            </div>
+          </div>
+
+          <button class="btn primary" id="sermonSave" type="button" style="margin-top: 16px;">저장</button>
+        </div>
+      </div>
+
+      <!-- 승인 -->
+      <div class="pane" id="pane-approve">
+        <div class="panel">
+          <h2>✅ 승인 대기</h2>
+          <p class="sub">재능나눔방 개설 신청 등 승인이 필요한 항목</p>
+          <div id="approveList"></div>
+        </div>
+      </div>
+
+      <!-- 신청 내역 -->
+      <div class="pane" id="pane-apps">
+        <div class="panel">
+          <h2>📋 신청 내역</h2>
+          <p class="sub">봉사·재능나눔방 등 모든 신청</p>
+          <div style="overflow-x: auto;">
+            <table id="appsTable"><thead><tr><th>일시</th><th>구분</th><th>이름</th><th>연락처</th><th>대상</th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 기도제목 -->
+      <div class="pane" id="pane-prayers">
+        <div class="panel">
+          <h2>🙏 기도제목 관리</h2>
+          <p class="sub">교역자 전용 비공개 항목 포함</p>
+          <div id="prayerList"></div>
+        </div>
+      </div>
+
+      <!-- 재능나눔방 -->
+      <div class="pane" id="pane-rooms">
+        <div class="panel">
+          <h2>🤝 재능나눔방 전체</h2>
+          <p class="sub">승인된 방 + 승인대기 방</p>
+          <div id="roomsList"></div>
+        </div>
+      </div>
+
+      <!-- 관리자 -->
+      <div class="pane" id="pane-staff">
+        <div class="panel">
+          <h2>👤 관리자 계정</h2>
+          <p class="sub">최초 등록 후 추가 관리자는 여기서 등록 (UID 기반)</p>
+          <p style="font-size: 13px; color: var(--muted); padding: 10px; background: #f7f5f1; border-radius: 10px; margin-bottom: 14px;">
+            🔒 <b>최초 등록 안내</b><br/>
+            1) Firebase 콘솔 → Authentication → 이메일/비밀번호 활성화<br/>
+            2) 관리자 3명 계정 생성 (이메일 + 비밀번호)<br/>
+            3) 첫 관리자가 이 페이지에 로그인하면 자동으로 등록됩니다<br/>
+            4) 이후 다른 관리자 추가는 아래 입력으로
+          </p>
+          <label>등록할 관리자 UID</label>
+          <input class="field" id="newAdminUid" placeholder="Firebase Auth UID"/>
+          <label>이름</label>
+          <input class="field" id="newAdminName" placeholder="예: 김OO 목사"/>
+          <label>역할</label>
+          <select class="field" id="newAdminRole">
+            <option value="super">최고관리자</option>
+            <option value="content">콘텐츠 관리자</option>
+            <option value="media">미디어 관리자</option>
+          </select>
+          <button class="btn primary" id="addAdminBtn" type="button" style="margin-top: 12px;">관리자 추가</button>
+
+          <h3 style="margin-top: 22px; font-size: 16px;">현재 관리자</h3>
+          <div id="adminList"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script type="module" src="/admin/admin.js"></script>
+</body>
+</html>
