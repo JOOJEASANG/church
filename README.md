@@ -75,12 +75,44 @@ firebase deploy
 
 배포 URL: `https://church-399cb.web.app`
 
-## 다음 단계
+## 주보 업로드 + 자동 푸시
+
+- 관리자 페이지 → "📄 주보" 메뉴에서 PDF/이미지 업로드 (최대 20MB)
+- 업로드 즉시 RTDB `/bulletins` 등록 → Cloud Functions가 자동으로 모든 사용자 토큰에 FCM 푸시 발송
+- 사용자 앱 "📖 말씀" 탭 하단에 최신 주보 카드로 노출
+
+## Cloud Functions 배포
+
+처음 한 번:
+```bash
+cd functions
+npm install
+cd ..
+firebase deploy --only functions
+```
+
+자동 푸시 트리거:
+- `/announcements/{key}` 신규 → 모든 토큰에 공지 푸시
+- `/bulletins/{key}` 신규 → 모든 토큰에 "새 주보" 푸시
+- `/sermons/current` 변경 → 모든 토큰에 "이번 주 말씀" 푸시
+- 만료된 토큰은 자동 삭제
+
+## 교회 외관 사진 적용
+
+대화에서 보여주신 천안남산교회 사진을 다음 위치에 저장하면 자동으로 홈 히어로 배경에 적용됩니다.
+
+```
+public/img/hero.jpg
+```
+
+저장 후 `index.html` 의 CSS 한 줄만 변경:
+```css
+background-image: url('/img/hero.jpg');  /* 기존 hero.svg 에서 변경 */
+```
+
+## 다음 단계 (선택)
 
 - [ ] 카카오톡 로그인
 - [ ] 휴대폰 번호 인증
 - [ ] QR 출석체크
 - [ ] 헌금 안내
-- [ ] 주보 PDF 업로드 (Storage)
-- [ ] FCM 발송 자동화 (Cloud Functions)
-- [ ] 진짜 교회 외관 사진 (`public/img/hero.jpg`)

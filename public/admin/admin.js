@@ -2,13 +2,16 @@
  * 천안남산교회 — 관리자 페이지
  * ============================================================= */
 
-import { db, auth } from '/firebase-init.js';
+import { db, auth, storage } from '/firebase-init.js';
 import {
   ref, onValue, push, set, update, remove, get, query, orderByChild, limitToLast
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import {
   signInWithEmailAndPassword, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+import {
+  ref as sRef, uploadBytesResumable, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
 
 // ----- DOM -----
 const $ = (id) => document.getElementById(id);
@@ -26,7 +29,8 @@ const state = {
   announcements: [],
   apps: [],
   admins: {},
-  sermon: null
+  sermon: null,
+  bulletins: []
 };
 
 // ===== 로그인 =====
@@ -138,6 +142,12 @@ function attachListeners() {
   onValue(ref(db, 'sermons/current'), (snap) => {
     state.sermon = snap.val() || null;
     fillSermonForm();
+  });
+  onValue(ref(db, 'bulletins'), (snap) => {
+    state.bulletins = [];
+    snap.forEach((c) => state.bulletins.push({ id: c.key, ...c.val() }));
+    state.bulletins.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderBulletins();
   });
 }
 
@@ -435,6 +445,91 @@ function renderAdmins() {
     b.addEventListener('click', async () => {
       if (!confirm('관리자 권한을 제거하시겠어요?')) return;
       await remove(ref(db, `admins/${b.dataset.delA}`));
+    });
+  });
+}
+
+// ===== 주보 업로드 =====
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+const bulDateInput = $('bulDate');
+if (bulDateInput && !bulDateInput.value) bulDateInput.value = todayStr();
+
+$('bulUpload').addEventListener('click', async () => {
+  const title = $('bulTitle').value.trim();
+  const date = $('bulDate').value || todayStr();
+  const file = $('bulFile').files[0];
+  if (!title) { alert('제목을 입력해주세요'); return; }
+  if (!file) { alert('파일을 선택해주세요'); return; }
+  if (file.size > 20 * 1024 * 1024) { alert('파일 크기는 20MB 이하만 가능합니다'); return; }
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const safeName = `${date.replaceAll('-', '')}-${Date.now()}.${ext}`;
+  const path = `bulletins/${safeName}`;
+  const storageRef = sRef(storage, path);
+  const task = uploadBytesResumable(storageRef, file, { contentType: file.type });
+
+  const progress = $('bulProgress');
+  $('bulUpload').disabled = true;
+
+  task.on('state_changed',
+    (snap) => {
+      const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+      progress.textContent = `업로드 중 ${pct}%`;
+    },
+    (err) => {
+      progress.textContent = '';
+      $('bulUpload').disabled = false;
+      alert('업로드 실패: ' + err.message);
+    },
+    async () => {
+      const url = await getDownloadURL(task.snapshot.ref);
+      await push(ref(db, 'bulletins'), {
+        title, date, url, storagePath: path,
+        contentType: file.type,
+        size: file.size,
+        uploadedBy: state.user.uid,
+        timestamp: Date.now()
+      });
+      progress.textContent = '✅ 등록 완료 — 푸시 알림이 자동 발송됩니다';
+      $('bulTitle').value = '';
+      $('bulFile').value = '';
+      $('bulUpload').disabled = false;
+      setTimeout(() => { progress.textContent = ''; }, 4000);
+    }
+  );
+});
+
+function renderBulletins() {
+  const list = $('bulList');
+  if (!list) return;
+  if (state.bulletins.length === 0) { list.innerHTML = '<div class="empty">등록된 주보가 없습니다</div>'; return; }
+  list.innerHTML = `<table><thead><tr><th>제목</th><th>해당 주일</th><th>등록일</th><th></th></tr></thead><tbody>${
+    state.bulletins.map((b) => `
+      <tr>
+        <td><b>${escapeHtml(b.title)}</b><br/><span style="color: var(--muted); font-size: 11px;">${escapeHtml(b.contentType || '')} · ${b.size ? Math.round(b.size / 1024) + 'KB' : ''}</span></td>
+        <td>${escapeHtml(b.date || '')}</td>
+        <td>${fmt(b.timestamp)}</td>
+        <td>
+          <a class="btn btn-sm" href="${escapeHtml(b.url)}" target="_blank" rel="noopener">열기</a>
+          <button class="btn btn-sm danger" data-del-b="${b.id}" data-path="${escapeHtml(b.storagePath || '')}">삭제</button>
+        </td>
+      </tr>
+    `).join('')
+  }</tbody></table>`;
+  list.querySelectorAll('[data-del-b]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('주보를 삭제하시겠어요? 파일도 함께 삭제됩니다.')) return;
+      try {
+        if (btn.dataset.path) {
+          await deleteObject(sRef(storage, btn.dataset.path)).catch(() => {});
+        }
+        await remove(ref(db, `bulletins/${btn.dataset.delB}`));
+      } catch (e) {
+        alert('삭제 중 오류: ' + e.message);
+      }
     });
   });
 }

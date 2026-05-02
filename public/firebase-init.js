@@ -4,6 +4,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+import { getStorage } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
 import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-analytics.js";
 
 const firebaseConfig = {
@@ -20,5 +21,6 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 
 isSupported().then((ok) => { if (ok) getAnalytics(app); }).catch(() => {});

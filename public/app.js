@@ -64,6 +64,7 @@ const state = {
   rooms: [],
   prayers: [],
   announcements: [],
+  bulletins: [],
   prayedBy: {}     // {prayerId: true} for current user
 };
 
@@ -143,6 +144,13 @@ function attachListeners() {
   onValue(ref(db, 'sermons/current'), (snap) => {
     if (!snap.exists()) return;
     renderSermon(snap.val());
+  });
+
+  onValue(ref(db, 'bulletins'), (snap) => {
+    state.bulletins = [];
+    snap.forEach((c) => state.bulletins.push({ id: c.key, ...c.val() }));
+    state.bulletins.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderBulletins();
   });
 }
 
@@ -292,6 +300,26 @@ function renderAnnouncements() {
 
 function tagLabel(t) {
   return ({ urgent: '중요', event: '신청중', notice: '소식', praise: '감사' })[t] || '소식';
+}
+
+// ===== 주보 (말씀 탭) =====
+function renderBulletins() {
+  const feed = document.getElementById('bulletinFeed');
+  if (!feed) return;
+  if (state.bulletins.length === 0) {
+    feed.innerHTML = '<div class="feed-card"><h3>아직 등록된 주보가 없어요</h3><p>관리자 페이지에서 주보를 업로드하면 여기에 표시됩니다.</p></div>';
+    return;
+  }
+  feed.innerHTML = state.bulletins.slice(0, 6).map((b, idx) => {
+    const isPdf = (b.contentType || '').includes('pdf') || /\.pdf$/i.test(b.url || '');
+    return `
+      <a class="feed-card" href="${escapeHtml(b.url)}" target="_blank" rel="noopener" style="display:block;">
+        <div class="top"><span class="tag ${idx === 0 ? 'urgent' : 'notice'}">${idx === 0 ? '이번 주' : '지난 주보'}</span><span class="time">${escapeHtml(b.date || timeAgo(b.timestamp))}</span></div>
+        <h3>${isPdf ? '📄 ' : '🖼️ '}${escapeHtml(b.title || '주보')}</h3>
+        <p>${isPdf ? 'PDF 열기' : '이미지 보기'} · ${b.size ? Math.round(b.size / 1024) + 'KB' : ''}</p>
+      </a>
+    `;
+  }).join('');
 }
 
 // ===== 설교 =====
