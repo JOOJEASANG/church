@@ -1074,6 +1074,77 @@
     </div>
   </div>
 
+  <!-- 모달: 재능나눔방 신청 -->
+  <div class="modal-bg" id="roomApplyModal">
+    <div class="modal">
+      <div class="modal-grip"></div>
+      <div class="modal-head">
+        <div>
+          <h3 id="raTitle">신청하기</h3>
+          <p class="sub">신청 정보를 입력해주세요</p>
+        </div>
+        <button class="close-btn" data-close="roomApplyModal" type="button">×</button>
+      </div>
+      <label>이름</label>
+      <input class="field" id="raName" placeholder="예: 홍길동"/>
+      <label>연락처</label>
+      <input class="field" id="raPhone" placeholder="010-0000-0000"/>
+      <button class="submit-btn" type="button" id="raSubmit">신청하기</button>
+    </div>
+  </div>
+
+  <!-- 모달: 심방 요청 -->
+  <div class="modal-bg" id="visitModal">
+    <div class="modal">
+      <div class="modal-grip"></div>
+      <div class="modal-head">
+        <div>
+          <h3>🏠 심방 요청</h3>
+          <p class="sub">교역자에게만 비공개로 전달됩니다</p>
+        </div>
+        <button class="close-btn" data-close="visitModal" type="button">×</button>
+      </div>
+      <label>이름</label>
+      <input class="field" id="vtName" placeholder="예: 홍길동"/>
+      <label>연락처</label>
+      <input class="field" id="vtPhone" placeholder="010-0000-0000"/>
+      <label>방문 희망일</label>
+      <input class="field" type="date" id="vtDate"/>
+      <label>요청 내용</label>
+      <textarea id="vtMsg" placeholder="심방을 요청하는 이유나 상황을 간단히 적어주세요"></textarea>
+      <button class="submit-btn" type="button" id="vtSubmit">요청하기</button>
+    </div>
+  </div>
+
+  <!-- 모달: 새가족 등록 -->
+  <div class="modal-bg" id="newcomerModal">
+    <div class="modal">
+      <div class="modal-grip"></div>
+      <div class="modal-head">
+        <div>
+          <h3>🌱 새가족 등록</h3>
+          <p class="sub">담당 사역자가 곧 연락드립니다</p>
+        </div>
+        <button class="close-btn" data-close="newcomerModal" type="button">×</button>
+      </div>
+      <label>이름</label>
+      <input class="field" id="ncName" placeholder="예: 홍길동"/>
+      <label>연락처</label>
+      <input class="field" id="ncPhone" placeholder="010-0000-0000"/>
+      <label>주소 (선택)</label>
+      <input class="field" id="ncAddress" placeholder="예: 천안시 동남구"/>
+      <label>교회를 알게 된 경로</label>
+      <select class="select" id="ncHow">
+        <option>지인 소개</option>
+        <option>인터넷 검색</option>
+        <option>SNS</option>
+        <option>현수막·전단지</option>
+        <option>기타</option>
+      </select>
+      <button class="submit-btn" type="button" id="ncSubmit">등록하기</button>
+    </div>
+  </div>
+
   <!-- 모달: 봉사 신청 -->
   <div class="modal-bg" id="volunteerModal">
     <div class="modal">

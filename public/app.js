@@ -517,27 +517,42 @@ document.querySelectorAll('.chip').forEach((c) => {
   });
 });
 
-// ===== 재능나눔방 신청 모달 (간단 인라인) =====
-async function openRoomApply(roomId) {
+// ===== 재능나눔방 신청 모달 =====
+function openRoomApply(roomId) {
   const room = state.rooms.find((r) => r.id === roomId);
   if (!room) return;
-  const name = prompt(`[${room.title}] 신청자 이름을 입력해주세요`);
-  if (!name) return;
-  const phone = prompt('연락처를 입력해주세요 (010-0000-0000)') || '';
+  state.applyRoomId = roomId;
+  const title = document.getElementById('raTitle');
+  if (title) title.textContent = `[${room.title}] 신청하기`;
+  ['raName', 'raPhone'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
+  openModal('roomApplyModal');
+}
+
+document.getElementById('raSubmit')?.addEventListener('click', async () => {
+  const name = document.getElementById('raName').value.trim();
+  if (!name) { toast('이름을 입력해주세요'); return; }
+  const phone = document.getElementById('raPhone').value.trim();
+  if (!phone) { toast('연락처를 입력해주세요'); return; }
+  const roomId = state.applyRoomId;
+  if (!roomId) return;
+  const room = state.rooms.find((r) => r.id === roomId);
+  if (!room) return;
   try {
     await push(ref(db, 'applications'), {
-      roomId, roomTitle: room.title, name, phone,
+      kind: '재능나눔', roomId, roomTitle: room.title, name, phone,
       userUid: state.uid, timestamp: Date.now()
     });
     if (room.joined < room.capacity) {
       await update(ref(db, `rooms/${roomId}`), { joined: room.joined + 1 });
     }
+    ['raName', 'raPhone'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
+    closeModal('roomApplyModal');
     toast(`${room.title} 신청이 접수되었습니다`);
   } catch (e) {
     toast('신청 중 오류가 발생했어요');
     console.error(e);
   }
-}
+});
 
 // ===== 기도제목 =====
 function renderPrayers() {
@@ -660,6 +675,51 @@ document.getElementById('vSubmit')?.addEventListener('click', async () => {
   }
 });
 
+// ===== 심방 요청 =====
+document.getElementById('vtSubmit')?.addEventListener('click', async () => {
+  const name = document.getElementById('vtName').value.trim();
+  if (!name) { toast('이름을 입력해주세요'); return; }
+  const phone = document.getElementById('vtPhone').value.trim();
+  if (!phone) { toast('연락처를 입력해주세요'); return; }
+  try {
+    await push(ref(db, 'applications'), {
+      kind: '심방요청', name, phone,
+      date: document.getElementById('vtDate').value,
+      message: document.getElementById('vtMsg').value.trim(),
+      userUid: state.uid, timestamp: Date.now()
+    });
+    ['vtName', 'vtPhone', 'vtMsg'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
+    document.getElementById('vtDate').value = '';
+    closeModal('visitModal');
+    toast('심방 요청이 접수되었습니다. 교역자가 연락드립니다');
+  } catch (e) {
+    toast('신청 중 오류가 발생했어요');
+    console.error(e);
+  }
+});
+
+// ===== 새가족 등록 =====
+document.getElementById('ncSubmit')?.addEventListener('click', async () => {
+  const name = document.getElementById('ncName').value.trim();
+  if (!name) { toast('이름을 입력해주세요'); return; }
+  const phone = document.getElementById('ncPhone').value.trim();
+  if (!phone) { toast('연락처를 입력해주세요'); return; }
+  try {
+    await push(ref(db, 'applications'), {
+      kind: '새가족', name, phone,
+      address: document.getElementById('ncAddress').value.trim(),
+      how: document.getElementById('ncHow').value,
+      userUid: state.uid, timestamp: Date.now()
+    });
+    ['ncName', 'ncPhone', 'ncAddress'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
+    closeModal('newcomerModal');
+    toast('새가족 등록이 접수되었습니다. 담당 사역자가 연락드립니다');
+  } catch (e) {
+    toast('신청 중 오류가 발생했어요');
+    console.error(e);
+  }
+});
+
 // ===== 큰글씨 모드 =====
 const easySwitch = document.getElementById('easySwitch');
 if (localStorage.getItem('easyMode') === '1') {
@@ -729,8 +789,8 @@ document.querySelectorAll('[data-action]').forEach((el) => {
     if (a === 'login') toast('전화번호 인증은 다음 업데이트에서 추가됩니다');
     else if (a === 'qr') toast('QR 출석체크는 다음 단계에서 열립니다');
     else if (a === 'install') triggerInstall();
-    else if (a === 'visit') toast('심방 요청은 교역자 전용 화면으로 비공개 전달됩니다');
-    else if (a === 'newcomer') toast('새가족 등록 화면을 곧 열어드려요');
+    else if (a === 'visit') openModal('visitModal');
+    else if (a === 'newcomer') openModal('newcomerModal');
     else if (a === 'info' || a === 'contact') openInfoModal();
     else toast('기능 준비 중이에요');
   });

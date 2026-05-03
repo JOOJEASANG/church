@@ -399,16 +399,25 @@ function renderApps() {
   const tbody = document.querySelector('#appsTable tbody');
   if (!tbody) return;
   if (state.apps.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">신청 내역이 없어요</td></tr>'; return; }
-  tbody.innerHTML = state.apps.map((a) => `
+  tbody.innerHTML = state.apps.map((a) => {
+    let detail = '';
+    if (a.kind === '심방요청') {
+      detail = [a.date ? `희망일: ${a.date}` : '', a.message || ''].filter(Boolean).join(' / ');
+    } else if (a.kind === '새가족') {
+      detail = [a.address || '', a.how ? `경로: ${a.how}` : ''].filter(Boolean).join(' / ');
+    } else {
+      detail = a.type || a.roomTitle || a.time || '';
+    }
+    return `
     <tr>
       <td>${fmt(a.timestamp)}</td>
       <td>${escapeHtml(a.kind || a.roomTitle || '재능나눔')}</td>
       <td>${escapeHtml(a.name || '')}</td>
       <td>${escapeHtml(a.phone || '')}</td>
-      <td>${escapeHtml(a.type || a.roomTitle || a.time || '')}</td>
+      <td>${escapeHtml(detail)}</td>
       <td><button class="btn btn-sm danger" data-del-app="${a.id}">삭제</button></td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
   tbody.querySelectorAll('[data-del-app]').forEach((b) => {
     b.addEventListener('click', async () => {
       if (!confirm('신청 내역을 삭제하시겠어요?')) return;
