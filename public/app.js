@@ -79,7 +79,9 @@ const state = {
 };
 
 // ===== 익명 로그인 =====
-signInAnonymously(auth).catch((e) => console.warn('익명 로그인 실패', e));
+signInAnonymously(auth).catch((e) => {
+  console.error('🚨 익명 로그인 실패 — Firebase Console → Authentication → Sign-in method → 익명 활성화 필요:', e.code, e.message);
+});
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
@@ -173,7 +175,12 @@ function attachListeners() {
     state.services = [];
     snap.forEach((c) => state.services.push({ id: c.key, ...c.val() }));
     state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
+    console.log('[home] config/services →', state.services.length, '개:', state.services.map((s) => s.name).join(', '));
     renderServiceTimes();
+  }, (err) => {
+    console.error('[home] config/services 읽기 실패:', err.code || err.message, err);
+    const list = document.getElementById('serviceList');
+    if (list) list.innerHTML = `<div class="service-empty">⚠️ 예배 시간을 불러오지 못했습니다 (${err.code || '권한 오류'})</div>`;
   });
   onValue(ref(db, 'config/hero'), (snap) => {
     state.hero = snap.val() || null;

@@ -1,6 +1,6 @@
 // 천안남산교회 PWA — Service Worker
 // 전략: HTML/JS/CSS는 network-first (항상 최신 코드 보장), 정적 자산은 cache-first
-const CACHE_VERSION = 'namsan-v8';
+const CACHE_VERSION = 'namsan-v9';
 const STATIC_ASSETS = [
   '/manifest.json',
   '/icons/icon.svg'
