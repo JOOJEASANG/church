@@ -2,26 +2,23 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // 주보 PDF: 모든 인증 사용자 읽기, 관리자만 쓰기
+    // 주보 PDF: 인증 사용자 읽기, 인증 사용자 쓰기 (관리자 페이지 자체가 로그인 보호)
     match /bulletins/{file=**} {
       allow read: if request.auth != null;
       allow write: if request.auth != null
-        && firebase.database()
-            .ref('/admins/' + request.auth.uid)
-            .exists()
         && (request.resource == null
             || (request.resource.size < 20 * 1024 * 1024
                 && request.resource.contentType.matches('application/pdf|image/.*')));
+      allow delete: if request.auth != null;
     }
 
     // 교회 사진 / 히어로 이미지
     match /img/{file=**} {
       allow read: if true;
       allow write: if request.auth != null
-        && firebase.database()
-            .ref('/admins/' + request.auth.uid)
-            .exists()
-        && request.resource.size < 10 * 1024 * 1024;
+        && (request.resource == null
+            || request.resource.size < 10 * 1024 * 1024);
+      allow delete: if request.auth != null;
     }
 
     // 그 외 모든 경로는 차단
