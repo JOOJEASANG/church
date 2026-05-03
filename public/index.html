@@ -573,6 +573,71 @@
     }
     textarea { min-height: 110px; resize: vertical; line-height: 1.55; }
 
+    /* ===== 갤러리 그리드 ===== */
+    .gallery-grid {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    @media (min-width: 480px) {
+      .gallery-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    }
+    .gallery-item {
+      position: relative; aspect-ratio: 1 / 1;
+      border-radius: 12px; overflow: hidden;
+      background: var(--bg);
+      cursor: pointer;
+      transition: transform 0.18s ease;
+    }
+    .gallery-item img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      transition: transform 0.3s ease;
+    }
+    .gallery-item:hover img { transform: scale(1.04); }
+    .gallery-item:active { transform: scale(0.97); }
+    .gallery-empty {
+      grid-column: 1 / -1;
+      padding: 60px 20px; text-align: center; color: var(--muted);
+      font-size: 13px; background: var(--paper);
+      border: 1px dashed var(--line-strong); border-radius: var(--radius);
+    }
+
+    .g-preview {
+      margin-top: 12px; border-radius: 12px; overflow: hidden;
+      border: 1px solid var(--line); background: var(--bg);
+    }
+    .g-preview img { width: 100%; max-height: 280px; object-fit: contain; display: block; }
+    .g-preview .info {
+      padding: 8px 12px; font-size: 11.5px; color: var(--muted); font-weight: 500;
+      border-top: 1px solid var(--line); background: var(--paper);
+    }
+
+    /* 사진 뷰어 (전체 화면 확대) */
+    .gallery-viewer { background: rgba(0,0,0,0.92); align-items: center; justify-content: center; }
+    .gallery-viewer img {
+      max-width: 100%; max-height: 80vh;
+      width: auto; height: auto;
+      border-radius: 8px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .gv-close {
+      position: absolute; top: calc(var(--safe-top) + 14px); right: 14px;
+      width: 40px; height: 40px; border-radius: 999px;
+      border: 0; background: rgba(255,255,255,0.14);
+      color: white; font-size: 22px; cursor: pointer; z-index: 10;
+      backdrop-filter: blur(10px);
+    }
+    .gv-meta {
+      position: absolute; bottom: calc(var(--safe-bottom) + 18px); left: 16px; right: 16px;
+      color: rgba(255,255,255,0.92); font-size: 13px; text-align: center;
+      font-weight: 500; line-height: 1.4;
+      padding: 10px 14px; background: rgba(0,0,0,0.3);
+      border-radius: 12px; backdrop-filter: blur(10px);
+    }
+
     /* ===== 정보 모달 ===== */
     .info-modal { padding-top: 16px; }
     .info-section { margin-top: 22px; }
@@ -841,7 +906,22 @@
         </div>
       </section>
 
-      <!-- 5) 내 정보 -->
+      <!-- 5) 갤러리 -->
+      <section class="tab-pane" id="tab-gallery">
+        <div class="section-title" style="margin-top: 12px;">
+          <h2>교회 갤러리</h2>
+        </div>
+        <p style="color: var(--muted); font-size: 13px; margin: 0 4px 14px; font-weight: 500;">
+          예배·행사·교제 사진을 함께 나눠요. 부적절한 사진은 관리자가 즉시 삭제합니다.
+        </p>
+        <button class="compose-btn" type="button" data-modal="galleryModal">+ 사진 올리기</button>
+
+        <div class="gallery-grid" id="galleryGrid">
+          <div class="gallery-empty">아직 등록된 사진이 없어요. 첫 사진을 올려주세요!</div>
+        </div>
+      </section>
+
+      <!-- 6) 내 정보 -->
       <section class="tab-pane" id="tab-me">
         <div class="profile-card">
           <div class="who">아직 로그인하지 않았어요</div>
@@ -914,6 +994,9 @@
       </button>
       <button class="tabbar-item" data-tab="share" type="button">
         <span class="ti">🤝</span><span class="tl">나눔</span>
+      </button>
+      <button class="tabbar-item" data-tab="gallery" type="button">
+        <span class="ti">🖼️</span><span class="tl">갤러리</span>
       </button>
       <button class="tabbar-item" data-tab="me" type="button">
         <span class="ti">👤</span><span class="tl">내정보</span>
@@ -1015,6 +1098,36 @@
       <input class="field" id="vTime" placeholder="예: 주일 오전"/>
       <button class="submit-btn" type="button" id="vSubmit">신청하기</button>
     </div>
+  </div>
+
+  <!-- 사진 올리기 모달 -->
+  <div class="modal-bg" id="galleryModal">
+    <div class="modal">
+      <div class="modal-grip"></div>
+      <div class="modal-head">
+        <div>
+          <h3>사진 올리기</h3>
+          <p class="sub">자동으로 작은 크기로 변환되어 빠르게 올라갑니다</p>
+        </div>
+        <button class="close-btn" data-close="galleryModal" type="button">×</button>
+      </div>
+      <label>이름 (선택)</label>
+      <input class="field" id="gName" placeholder="예: 김OO 집사 (안 적으면 익명)"/>
+      <label>한 줄 설명 (선택)</label>
+      <input class="field" id="gCaption" placeholder="예: 5월 첫째 주 야외예배"/>
+      <label>사진</label>
+      <input class="field" id="gFile" type="file" accept="image/*" capture="environment"/>
+      <div id="gPreview" class="g-preview" style="display:none;"></div>
+      <div id="gProgress" style="margin-top:10px;font-size:12.5px;color:var(--muted);font-weight:500;"></div>
+      <button class="submit-btn" type="button" id="gSubmit">올리기</button>
+    </div>
+  </div>
+
+  <!-- 사진 뷰어 모달 (확대) -->
+  <div class="modal-bg gallery-viewer" id="galleryViewer">
+    <button class="gv-close" data-close="galleryViewer" type="button" aria-label="닫기">×</button>
+    <img id="gvImg" src="" alt=""/>
+    <div class="gv-meta" id="gvMeta"></div>
   </div>
 
   <!-- 교회 안내 모달 -->

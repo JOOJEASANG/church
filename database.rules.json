@@ -73,6 +73,14 @@
       }
     },
 
+    "gallery": {
+      ".read": true,
+      ".indexOn": ["timestamp"],
+      "$id": {
+        ".write": "auth != null && (!data.exists() || root.child('admins').child(auth.uid).exists() || data.child('uploaderUid').val() === auth.uid)"
+      }
+    },
+
     "_seed": {
       ".read": "auth != null",
       ".write": "auth != null"

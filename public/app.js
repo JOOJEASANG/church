@@ -2,13 +2,17 @@
  * 천안남산교회 PWA — 사용자 앱 (Firebase RTDB 연동)
  * ============================================================= */
 
-import { db, auth } from '/firebase-init.js';
+import { db, auth, storage } from '/firebase-init.js';
+import { resizeImage, humanSize } from '/img-utils.js';
 import {
   ref, onValue, push, update, get, set, remove, serverTimestamp, query, orderByChild
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import {
   signInAnonymously, onAuthStateChanged, updateProfile
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+import {
+  ref as sRef, uploadBytesResumable, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
 
 // ----- 시드 데이터 (DB 비어있을 때 1회만) -----
 const SEED_ROOMS = [
@@ -68,7 +72,8 @@ const state = {
   prayedBy: {},     // {prayerId: true} for current user
   church: {},
   services: [],
-  hero: null
+  hero: null,
+  gallery: []
 };
 
 // ===== 익명 로그인 =====
@@ -169,6 +174,43 @@ function attachListeners() {
     state.hero = snap.val() || null;
     applyHero();
   });
+
+  onValue(ref(db, 'gallery'), (snap) => {
+    state.gallery = [];
+    snap.forEach((c) => state.gallery.push({ id: c.key, ...c.val() }));
+    state.gallery.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderGallery();
+  });
+}
+
+function renderGallery() {
+  const grid = document.getElementById('galleryGrid');
+  if (!grid) return;
+  if (!state.gallery.length) {
+    grid.innerHTML = '<div class="gallery-empty">아직 등록된 사진이 없어요. 첫 사진을 올려주세요!</div>';
+    return;
+  }
+  grid.innerHTML = state.gallery.map((g) => `
+    <div class="gallery-item" data-view="${g.id}">
+      <img src="${escapeHtml(g.url)}" alt="${escapeHtml(g.caption || '')}" loading="lazy"/>
+    </div>
+  `).join('');
+  grid.querySelectorAll('[data-view]').forEach((el) => {
+    el.addEventListener('click', () => openGalleryViewer(el.dataset.view));
+  });
+}
+
+function openGalleryViewer(id) {
+  const g = state.gallery.find((x) => x.id === id);
+  if (!g) return;
+  const img = document.getElementById('gvImg');
+  const meta = document.getElementById('gvMeta');
+  img.src = g.url;
+  img.alt = g.caption || '';
+  const date = g.timestamp ? new Date(g.timestamp) : null;
+  const dateStr = date ? `${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,'0')}.${String(date.getDate()).padStart(2,'0')}` : '';
+  meta.innerHTML = `<b>${escapeHtml(g.uploaderName || '익명')}</b>${g.caption ? ' · ' + escapeHtml(g.caption) : ''}${dateStr ? ' · ' + dateStr : ''}`;
+  openModal('galleryViewer');
 }
 
 function applyHero() {
@@ -755,6 +797,90 @@ async function triggerInstall() {
 window.addEventListener('appinstalled', () => {
   installBanner?.classList.remove('show');
   toast('홈화면에 앱이 추가되었어요');
+});
+
+// ===== 갤러리 업로드 =====
+const gFileInput = document.getElementById('gFile');
+const gPreviewEl = document.getElementById('gPreview');
+const gNameEl = document.getElementById('gName');
+const gCaptionEl = document.getElementById('gCaption');
+const gProgressEl = document.getElementById('gProgress');
+const gSubmitBtn = document.getElementById('gSubmit');
+
+let preparedPhoto = null;  // 리사이즈된 File
+
+if (gNameEl) {
+  const saved = localStorage.getItem('uploaderName');
+  if (saved) gNameEl.value = saved;
+}
+
+gFileInput?.addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  preparedPhoto = null;
+  if (!f) { gPreviewEl.style.display = 'none'; return; }
+  if (!f.type.startsWith('image/')) { toast('이미지 파일만 올릴 수 있어요'); gFileInput.value = ''; return; }
+  if (f.size > 25 * 1024 * 1024) { toast('25MB 이하 파일만 업로드 가능합니다'); gFileInput.value = ''; return; }
+  gProgressEl.textContent = '📐 사진을 작은 크기로 변환 중...';
+  try {
+    const resized = await resizeImage(f, { maxDim: 1600, quality: 0.82 });
+    preparedPhoto = resized;
+    gPreviewEl.innerHTML = `
+      <img src="${URL.createObjectURL(resized)}" alt="미리보기"/>
+      <div class="info">📐 ${humanSize(f.size)} → ${humanSize(resized.size)} (자동 압축)</div>`;
+    gPreviewEl.style.display = '';
+    gProgressEl.textContent = '';
+  } catch (err) {
+    console.warn(err);
+    preparedPhoto = f;
+    gPreviewEl.innerHTML = `<img src="${URL.createObjectURL(f)}" alt="미리보기"/>`;
+    gPreviewEl.style.display = '';
+    gProgressEl.textContent = '⚠️ 자동 압축에 실패했어요. 원본으로 올립니다.';
+  }
+});
+
+gSubmitBtn?.addEventListener('click', async () => {
+  if (!state.uid) { toast('잠시 후 다시 시도해주세요'); return; }
+  if (!preparedPhoto) { toast('사진을 먼저 선택해주세요'); return; }
+  const name = gNameEl.value.trim() || '익명';
+  const caption = gCaptionEl.value.trim();
+  localStorage.setItem('uploaderName', name === '익명' ? '' : name);
+
+  gSubmitBtn.disabled = true;
+  const path = `gallery/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const task = uploadBytesResumable(sRef(storage, path), preparedPhoto, { contentType: preparedPhoto.type });
+  task.on('state_changed',
+    (snap) => {
+      const pct = (snap.bytesTransferred / snap.totalBytes * 100).toFixed(0);
+      gProgressEl.textContent = `업로드 중... ${pct}%`;
+    },
+    (err) => {
+      gProgressEl.textContent = '❌ 업로드 실패: ' + err.message;
+      gSubmitBtn.disabled = false;
+    },
+    async () => {
+      try {
+        const url = await getDownloadURL(task.snapshot.ref);
+        await push(ref(db, 'gallery'), {
+          url, storagePath: path,
+          caption,
+          uploaderName: name,
+          uploaderUid: state.uid,
+          contentType: preparedPhoto.type,
+          size: preparedPhoto.size,
+          timestamp: Date.now()
+        });
+        gProgressEl.textContent = '✅ 업로드 완료!';
+        gFileInput.value = ''; gCaptionEl.value = '';
+        gPreviewEl.style.display = 'none'; gPreviewEl.innerHTML = '';
+        preparedPhoto = null;
+        setTimeout(() => { gProgressEl.textContent = ''; closeModal('galleryModal'); }, 600);
+      } catch (e) {
+        gProgressEl.textContent = '❌ DB 등록 실패: ' + e.message;
+      } finally {
+        gSubmitBtn.disabled = false;
+      }
+    }
+  );
 });
 
 // ===== Service Worker =====

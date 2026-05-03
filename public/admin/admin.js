@@ -3,6 +3,7 @@
  * ============================================================= */
 
 import { db, auth, storage } from '/firebase-init.js';
+import { resizeImage, humanSize } from '/img-utils.js';
 import {
   ref, onValue, push, set, update, remove, get, query, orderByChild, limitToLast
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
@@ -33,7 +34,8 @@ const state = {
   bulletins: [],
   church: {},
   services: [],
-  hero: null
+  hero: null,
+  gallery: []
 };
 
 // ===== 로그인 =====
@@ -240,15 +242,40 @@ function renderAnnouncements() {
         <td>${tagPill(a.tag)}</td>
         <td><b>${escapeHtml(a.title)}</b><br/><span style="color: var(--muted); font-size: 12px;">${escapeHtml((a.body || '').slice(0, 60))}${(a.body || '').length > 60 ? '…' : ''}</span></td>
         <td>${fmt(a.timestamp)}</td>
-        <td><button class="btn btn-sm danger" data-del-ann="${a.id}">삭제</button></td>
+        <td>
+          <button class="btn btn-sm" data-edit-ann="${a.id}">수정</button>
+          <button class="btn btn-sm danger" data-del-ann="${a.id}">삭제</button>
+        </td>
       </tr>
     `).join('')
   }</tbody></table>`;
+  list.querySelectorAll('[data-edit-ann]').forEach((b) => {
+    b.addEventListener('click', () => editAnnouncement(b.dataset.editAnn));
+  });
   list.querySelectorAll('[data-del-ann]').forEach((b) => {
     b.addEventListener('click', async () => {
-      if (!confirm('삭제하시겠어요?')) return;
+      if (!confirm('공지를 삭제하시겠어요?')) return;
       await remove(ref(db, `announcements/${b.dataset.delAnn}`));
     });
+  });
+}
+
+function editAnnouncement(id) {
+  const a = state.announcements.find((x) => x.id === id);
+  if (!a) return;
+  openEditModal({
+    title: '공지 수정',
+    fields: [
+      { id: 'tag', label: '분류', type: 'select', value: a.tag,
+        options: [['urgent','중요'],['event','행사·신청'],['notice','일반 소식'],['praise','감사']] },
+      { id: 'title', label: '제목', type: 'text', value: a.title },
+      { id: 'body', label: '본문', type: 'textarea', value: a.body }
+    ],
+    onSave: async (vals) => {
+      await update(ref(db, `announcements/${id}`), {
+        tag: vals.tag, title: vals.title, body: vals.body
+      });
+    }
   });
 }
 
@@ -371,7 +398,7 @@ async function rejectRoom(id) {
 function renderApps() {
   const tbody = document.querySelector('#appsTable tbody');
   if (!tbody) return;
-  if (state.apps.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="empty">신청 내역이 없어요</td></tr>'; return; }
+  if (state.apps.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">신청 내역이 없어요</td></tr>'; return; }
   tbody.innerHTML = state.apps.map((a) => `
     <tr>
       <td>${fmt(a.timestamp)}</td>
@@ -379,8 +406,15 @@ function renderApps() {
       <td>${escapeHtml(a.name || '')}</td>
       <td>${escapeHtml(a.phone || '')}</td>
       <td>${escapeHtml(a.type || a.roomTitle || a.time || '')}</td>
+      <td><button class="btn btn-sm danger" data-del-app="${a.id}">삭제</button></td>
     </tr>
   `).join('');
+  tbody.querySelectorAll('[data-del-app]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      if (!confirm('신청 내역을 삭제하시겠어요?')) return;
+      await remove(ref(db, `applications/${b.dataset.delApp}`));
+    });
+  });
 }
 
 // ===== 기도제목 관리 =====
@@ -398,16 +432,43 @@ function renderPrayers() {
           <td>${escapeHtml(p.text || '')}</td>
           <td>${p.count || 0}</td>
           <td>${fmt(p.timestamp)}</td>
-          <td><button class="btn btn-sm danger" data-del-p="${p.id}">삭제</button></td>
+          <td>
+            <button class="btn btn-sm" data-edit-p="${p.id}">수정</button>
+            <button class="btn btn-sm danger" data-del-p="${p.id}">삭제</button>
+          </td>
         </tr>
       `;
     }).join('')
   }</tbody></table>`;
+  list.querySelectorAll('[data-edit-p]').forEach((b) => {
+    b.addEventListener('click', () => editPrayer(b.dataset.editP));
+  });
   list.querySelectorAll('[data-del-p]').forEach((b) => {
     b.addEventListener('click', async () => {
-      if (!confirm('삭제하시겠어요?')) return;
+      if (!confirm('기도제목을 삭제하시겠어요?')) return;
       await remove(ref(db, `prayers/${b.dataset.delP}`));
+      // 함께 prayedBy 정리
+      await remove(ref(db, `prayedBy/${b.dataset.delP}`)).catch(() => {});
     });
+  });
+}
+
+function editPrayer(id) {
+  const p = state.prayers.find((x) => x.id === id);
+  if (!p) return;
+  openEditModal({
+    title: '기도제목 수정',
+    fields: [
+      { id: 'type', label: '구분', type: 'select', value: p.type,
+        options: [['공개','공개'],['익명 공개','익명 공개'],['교역자에게만 전달','교역자에게만 전달'],['감사','감사']] },
+      { id: 'name', label: '이름', type: 'text', value: p.name },
+      { id: 'text', label: '내용', type: 'textarea', value: p.text }
+    ],
+    onSave: async (vals) => {
+      await update(ref(db, `prayers/${id}`), {
+        type: vals.type, name: vals.name, text: vals.text
+      });
+    }
   });
 }
 
@@ -424,15 +485,53 @@ function renderRooms() {
         <td>${escapeHtml(r.target)}</td>
         <td>${r.joined || 0} / ${r.capacity}</td>
         <td>${r.approved === false ? '<span class="pill pending">대기</span>' : (r.status === '마감' || r.joined >= r.capacity) ? '<span class="pill">마감</span>' : '<span class="pill">모집중</span>'}</td>
-        <td><button class="btn btn-sm danger" data-del-r="${r.id}">삭제</button></td>
+        <td>
+          <button class="btn btn-sm" data-edit-r="${r.id}">수정</button>
+          <button class="btn btn-sm danger" data-del-r="${r.id}">삭제</button>
+        </td>
       </tr>
     `).join('')
   }</tbody></table>`;
+  list.querySelectorAll('[data-edit-r]').forEach((b) => {
+    b.addEventListener('click', () => editRoom(b.dataset.editR));
+  });
   list.querySelectorAll('[data-del-r]').forEach((b) => {
     b.addEventListener('click', async () => {
-      if (!confirm('삭제하시겠어요?')) return;
+      if (!confirm('재능나눔방을 삭제하시겠어요?')) return;
       await remove(ref(db, `rooms/${b.dataset.delR}`));
     });
+  });
+}
+
+function editRoom(id) {
+  const r = state.rooms.find((x) => x.id === id);
+  if (!r) return;
+  openEditModal({
+    title: '재능나눔방 수정',
+    fields: [
+      { id: 'title', label: '제목', type: 'text', value: r.title },
+      { id: 'category', label: '분류', type: 'text', value: r.category },
+      { id: 'target', label: '대상', type: 'text', value: r.target },
+      { id: 'teacher', label: '인도자', type: 'text', value: r.teacher },
+      { id: 'schedule', label: '일정', type: 'text', value: r.schedule },
+      { id: 'place', label: '장소', type: 'text', value: r.place },
+      { id: 'capacity', label: '정원', type: 'number', value: r.capacity },
+      { id: 'joined', label: '현재 인원', type: 'number', value: r.joined || 0 },
+      { id: 'desc', label: '소개', type: 'textarea', value: r.desc },
+      { id: 'status', label: '상태', type: 'select', value: r.status,
+        options: [['모집중','모집중'],['마감','마감']] },
+      { id: 'approved', label: '승인 여부', type: 'select', value: r.approved !== false ? 'true' : 'false',
+        options: [['true','승인됨'],['false','대기']] }
+    ],
+    onSave: async (vals) => {
+      await update(ref(db, `rooms/${id}`), {
+        title: vals.title, category: vals.category, target: vals.target,
+        teacher: vals.teacher, schedule: vals.schedule, place: vals.place,
+        capacity: Number(vals.capacity) || 0, joined: Number(vals.joined) || 0,
+        desc: vals.desc, status: vals.status,
+        approved: vals.approved === 'true'
+      });
+    }
   });
 }
 
@@ -544,16 +643,20 @@ function renderBulletins() {
   list.innerHTML = `<table><thead><tr><th>제목</th><th>해당 주일</th><th>등록일</th><th></th></tr></thead><tbody>${
     state.bulletins.map((b) => `
       <tr>
-        <td><b>${escapeHtml(b.title)}</b><br/><span style="color: var(--muted); font-size: 11px;">${escapeHtml(b.contentType || '')} · ${b.size ? Math.round(b.size / 1024) + 'KB' : ''}</span></td>
+        <td><b>${escapeHtml(b.title)}</b><br/><span style="color: var(--muted); font-size: 11px;">${escapeHtml(b.contentType || '')} · ${b.size ? humanSize(b.size) : ''}</span></td>
         <td>${escapeHtml(b.date || '')}</td>
         <td>${fmt(b.timestamp)}</td>
         <td>
           <a class="btn btn-sm" href="${escapeHtml(b.url)}" target="_blank" rel="noopener">열기</a>
+          <button class="btn btn-sm" data-edit-b="${b.id}">수정</button>
           <button class="btn btn-sm danger" data-del-b="${b.id}" data-path="${escapeHtml(b.storagePath || '')}">삭제</button>
         </td>
       </tr>
     `).join('')
   }</tbody></table>`;
+  list.querySelectorAll('[data-edit-b]').forEach((btn) => {
+    btn.addEventListener('click', () => editBulletin(btn.dataset.editB));
+  });
   list.querySelectorAll('[data-del-b]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       if (!confirm('주보를 삭제하시겠어요? 파일도 함께 삭제됩니다.')) return;
@@ -715,3 +818,142 @@ $('heroRemove')?.addEventListener('click', async () => {
     alert('삭제 실패: ' + e.message);
   }
 });
+
+// ===== 메인 사진 업로드 시 자동 리사이즈 =====
+// (위의 heroUpload는 큰 이미지를 그대로 올리므로, 여기서 가로채서 리사이즈)
+const heroFileInput = $('heroFile');
+if (heroFileInput) {
+  heroFileInput.addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f || !f.type.startsWith('image/')) return;
+    try {
+      const resized = await resizeImage(f, { maxDim: 2400, quality: 0.88 });
+      const dt = new DataTransfer();
+      dt.items.add(resized);
+      heroFileInput.files = dt.files;
+      const orig = humanSize(f.size);
+      const now = humanSize(resized.size);
+      const note = $('heroProgress');
+      if (note && f !== resized) note.textContent = `📐 자동 리사이즈: ${orig} → ${now}`;
+    } catch (err) { console.warn('리사이즈 실패', err); }
+  });
+}
+
+// ===== 주보 편집 =====
+function editBulletin(id) {
+  const b = state.bulletins.find((x) => x.id === id);
+  if (!b) return;
+  openEditModal({
+    title: '주보 수정',
+    fields: [
+      { id: 'title', label: '제목', type: 'text', value: b.title },
+      { id: 'date', label: '해당 주일', type: 'date', value: b.date }
+    ],
+    onSave: async (vals) => {
+      await update(ref(db, `bulletins/${id}`), { title: vals.title, date: vals.date });
+    }
+  });
+}
+
+// ===== 공통 편집 모달 =====
+function openEditModal({ title, fields, onSave }) {
+  closeEditModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'edit-modal-bg';
+  overlay.id = 'editModalBg';
+  overlay.innerHTML = `
+    <div class="edit-modal">
+      <div class="edit-modal-head">
+        <h3>${escapeHtml(title)}</h3>
+        <button class="edit-modal-close" type="button" aria-label="닫기">×</button>
+      </div>
+      <div class="edit-modal-body">
+        ${fields.map((f) => fieldHtml(f)).join('')}
+      </div>
+      <div class="edit-modal-foot">
+        <button class="btn" id="editCancel" type="button">취소</button>
+        <button class="btn primary" id="editSave" type="button">저장</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeEditModal(); });
+  overlay.querySelector('.edit-modal-close').addEventListener('click', closeEditModal);
+  overlay.querySelector('#editCancel').addEventListener('click', closeEditModal);
+  overlay.querySelector('#editSave').addEventListener('click', async () => {
+    const vals = {};
+    for (const f of fields) {
+      const el = overlay.querySelector(`[name="${f.id}"]`);
+      vals[f.id] = el ? el.value.trim() : '';
+    }
+    try {
+      await onSave(vals);
+      closeEditModal();
+    } catch (e) {
+      alert('저장 실패: ' + e.message);
+    }
+  });
+  setTimeout(() => overlay.classList.add('show'), 10);
+}
+
+function fieldHtml(f) {
+  const v = escapeHtml(f.value ?? '');
+  if (f.type === 'textarea') {
+    return `<label>${escapeHtml(f.label)}</label><textarea class="field" name="${f.id}" rows="4">${v}</textarea>`;
+  }
+  if (f.type === 'select') {
+    const opts = (f.options || []).map(([val, lab]) => `<option value="${escapeHtml(val)}" ${String(val) === String(f.value) ? 'selected' : ''}>${escapeHtml(lab)}</option>`).join('');
+    return `<label>${escapeHtml(f.label)}</label><select class="field" name="${f.id}">${opts}</select>`;
+  }
+  const t = f.type === 'number' ? 'number' : (f.type === 'date' ? 'date' : 'text');
+  return `<label>${escapeHtml(f.label)}</label><input class="field" name="${f.id}" type="${t}" value="${v}"/>`;
+}
+
+function closeEditModal() {
+  const el = document.getElementById('editModalBg');
+  if (el) el.remove();
+}
+
+// ===== 갤러리 (관리자 모니터링) =====
+onValue(ref(db, 'gallery'), (snap) => {
+  state.gallery = [];
+  snap.forEach((c) => state.gallery.push({ id: c.key, ...c.val() }));
+  state.gallery.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  renderGallery();
+});
+
+function renderGallery() {
+  const list = $('galleryList');
+  if (!list) return;
+  if (!state.gallery || state.gallery.length === 0) {
+    list.innerHTML = '<div class="empty">등록된 사진이 없습니다 — 사용자 앱 갤러리 탭에서 사진을 올리면 여기에 표시됩니다</div>';
+    return;
+  }
+  list.innerHTML = `<div class="admin-gallery-grid">${
+    state.gallery.map((g) => `
+      <div class="admin-gallery-item">
+        <a href="${escapeHtml(g.url)}" target="_blank" rel="noopener">
+          <img src="${escapeHtml(g.url)}" alt="${escapeHtml(g.caption || '')}" loading="lazy"/>
+        </a>
+        <div class="admin-gallery-meta">
+          <div class="admin-gallery-info">
+            <b>${escapeHtml(g.uploaderName || '익명')}</b>
+            <span>${fmt(g.timestamp)} · ${g.size ? humanSize(g.size) : ''}</span>
+            ${g.caption ? `<span class="cap">${escapeHtml(g.caption)}</span>` : ''}
+          </div>
+          <button class="btn btn-sm danger" data-del-g="${g.id}" data-path="${escapeHtml(g.storagePath || '')}">삭제</button>
+        </div>
+      </div>
+    `).join('')
+  }</div>`;
+  list.querySelectorAll('[data-del-g]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('이 사진을 삭제하시겠어요? Storage에서도 함께 제거됩니다.')) return;
+      try {
+        if (btn.dataset.path) {
+          await deleteObject(sRef(storage, btn.dataset.path)).catch(() => {});
+        }
+        await remove(ref(db, `gallery/${btn.dataset.delG}`));
+      } catch (e) { alert('삭제 실패: ' + e.message); }
+    });
+  });
+}
