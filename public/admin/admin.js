@@ -755,9 +755,16 @@ $('svAdd')?.addEventListener('click', async () => {
   const day = parseInt($('svDay').value, 10);
   const time = $('svTime').value;
   const place = $('svPlace').value.trim();
-  if (!name || !time) { alert('예배명과 시작 시간을 입력하세요'); return; }
-  await push(ref(db, 'config/services'), { name, day, time, place, createdAt: Date.now() });
-  $('svName').value = ''; $('svTime').value = ''; $('svPlace').value = '';
+  if (!name) { alert('예배명을 입력하세요'); return; }
+  if (!time) { alert('시작 시간을 선택하세요'); return; }
+  try {
+    await push(ref(db, 'config/services'), { name, day, time, place, createdAt: Date.now() });
+    $('svName').value = ''; $('svTime').value = ''; $('svPlace').value = '';
+    alert('예배 시간이 추가되었습니다');
+  } catch (e) {
+    alert('저장 실패: 권한을 확인해주세요 (' + e.message + ')');
+    console.error(e);
+  }
 });
 
 // ===== 메인 사진 (히어로) =====

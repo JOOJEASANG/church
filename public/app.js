@@ -867,7 +867,8 @@ const gCaptionEl = document.getElementById('gCaption');
 const gProgressEl = document.getElementById('gProgress');
 const gSubmitBtn = document.getElementById('gSubmit');
 
-let preparedPhoto = null;  // 리사이즈된 File
+const MAX_GALLERY_FILES = 7;
+let preparedPhotos = [];  // 리사이즈된 File 배열
 
 if (gNameEl) {
   const saved = localStorage.getItem('uploaderName');
@@ -875,72 +876,91 @@ if (gNameEl) {
 }
 
 gFileInput?.addEventListener('change', async (e) => {
-  const f = e.target.files[0];
-  preparedPhoto = null;
-  if (!f) { gPreviewEl.style.display = 'none'; return; }
-  if (!f.type.startsWith('image/')) { toast('이미지 파일만 올릴 수 있어요'); gFileInput.value = ''; return; }
-  if (f.size > 25 * 1024 * 1024) { toast('25MB 이하 파일만 업로드 가능합니다'); gFileInput.value = ''; return; }
-  gProgressEl.textContent = '📐 사진을 작은 크기로 변환 중...';
-  try {
-    const resized = await resizeImage(f, { maxDim: 1600, quality: 0.82 });
-    preparedPhoto = resized;
-    gPreviewEl.innerHTML = `
-      <img src="${URL.createObjectURL(resized)}" alt="미리보기"/>
-      <div class="info">📐 ${humanSize(f.size)} → ${humanSize(resized.size)} (자동 압축)</div>`;
-    gPreviewEl.style.display = '';
-    gProgressEl.textContent = '';
-  } catch (err) {
-    console.warn(err);
-    preparedPhoto = f;
-    gPreviewEl.innerHTML = `<img src="${URL.createObjectURL(f)}" alt="미리보기"/>`;
-    gPreviewEl.style.display = '';
-    gProgressEl.textContent = '⚠️ 자동 압축에 실패했어요. 원본으로 올립니다.';
+  preparedPhotos = [];
+  gPreviewEl.style.display = 'none';
+  gPreviewEl.innerHTML = '';
+  gProgressEl.textContent = '';
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  const images = files.filter((f) => f.type.startsWith('image/'));
+  if (images.length !== files.length) toast('이미지 파일만 올릴 수 있어요 (비이미지 제외됨)');
+  const selected = images.slice(0, MAX_GALLERY_FILES);
+  if (images.length > MAX_GALLERY_FILES) toast(`최대 ${MAX_GALLERY_FILES}장까지 가능해요. 앞 ${MAX_GALLERY_FILES}장만 선택됩니다`);
+  gProgressEl.textContent = `📐 ${selected.length}장 변환 중...`;
+  for (const f of selected) {
+    try {
+      const resized = await resizeImage(f, { maxDim: 1600, quality: 0.82 });
+      preparedPhotos.push(resized);
+      const item = document.createElement('div');
+      item.className = 'g-preview-item';
+      item.innerHTML = `<img src="${URL.createObjectURL(resized)}" alt="미리보기"/><div class="g-item-size">${humanSize(resized.size)}</div>`;
+      gPreviewEl.appendChild(item);
+    } catch {
+      preparedPhotos.push(f);
+      const item = document.createElement('div');
+      item.className = 'g-preview-item';
+      item.innerHTML = `<img src="${URL.createObjectURL(f)}" alt="미리보기"/><div class="g-item-size">${humanSize(f.size)}</div>`;
+      gPreviewEl.appendChild(item);
+    }
   }
+  gPreviewEl.style.display = preparedPhotos.length ? '' : 'none';
+  gProgressEl.textContent = preparedPhotos.length ? `${preparedPhotos.length}장 준비 완료` : '';
 });
 
 gSubmitBtn?.addEventListener('click', async () => {
   if (!state.uid) { toast('잠시 후 다시 시도해주세요'); return; }
-  if (!preparedPhoto) { toast('사진을 먼저 선택해주세요'); return; }
+  if (!preparedPhotos.length) { toast('사진을 먼저 선택해주세요'); return; }
   const name = gNameEl.value.trim() || '익명';
   const caption = gCaptionEl.value.trim();
   localStorage.setItem('uploaderName', name === '익명' ? '' : name);
 
   gSubmitBtn.disabled = true;
-  const path = `gallery/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-  const task = uploadBytesResumable(sRef(storage, path), preparedPhoto, { contentType: preparedPhoto.type });
-  task.on('state_changed',
-    (snap) => {
-      const pct = (snap.bytesTransferred / snap.totalBytes * 100).toFixed(0);
-      gProgressEl.textContent = `업로드 중... ${pct}%`;
-    },
-    (err) => {
-      gProgressEl.textContent = '❌ 업로드 실패: ' + err.message;
-      gSubmitBtn.disabled = false;
-    },
-    async () => {
-      try {
-        const url = await getDownloadURL(task.snapshot.ref);
-        await push(ref(db, 'gallery'), {
-          url, storagePath: path,
-          caption,
-          uploaderName: name,
-          uploaderUid: state.uid,
-          contentType: preparedPhoto.type,
-          size: preparedPhoto.size,
-          timestamp: Date.now()
-        });
-        gProgressEl.textContent = '✅ 업로드 완료!';
-        gFileInput.value = ''; gCaptionEl.value = '';
-        gPreviewEl.style.display = 'none'; gPreviewEl.innerHTML = '';
-        preparedPhoto = null;
-        setTimeout(() => { gProgressEl.textContent = ''; closeModal('galleryModal'); }, 600);
-      } catch (e) {
-        gProgressEl.textContent = '❌ DB 등록 실패: ' + e.message;
-      } finally {
-        gSubmitBtn.disabled = false;
+  const total = preparedPhotos.length;
+  let done = 0;
+
+  const uploadOne = (photo, idx) => new Promise((resolve, reject) => {
+    const path = `gallery/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const task = uploadBytesResumable(sRef(storage, path), photo, { contentType: photo.type });
+    task.on('state_changed',
+      (snap) => {
+        const pct = (snap.bytesTransferred / snap.totalBytes * 100).toFixed(0);
+        gProgressEl.textContent = `업로드 중 ${done + 1}/${total}... ${pct}%`;
+      },
+      reject,
+      async () => {
+        try {
+          const url = await getDownloadURL(task.snapshot.ref);
+          await push(ref(db, 'gallery'), {
+            url, storagePath: path,
+            caption: total === 1 ? caption : (caption ? `${caption} (${idx + 1}/${total})` : ''),
+            uploaderName: name,
+            uploaderUid: state.uid,
+            contentType: photo.type,
+            size: photo.size,
+            timestamp: Date.now() + idx
+          });
+          done++;
+          resolve();
+        } catch (e) { reject(e); }
       }
+    );
+  });
+
+  try {
+    for (let i = 0; i < preparedPhotos.length; i++) {
+      await uploadOne(preparedPhotos[i], i);
     }
-  );
+    gProgressEl.textContent = `✅ ${total}장 업로드 완료!`;
+    gFileInput.value = '';
+    if (gCaptionEl) gCaptionEl.value = '';
+    gPreviewEl.style.display = 'none'; gPreviewEl.innerHTML = '';
+    preparedPhotos = [];
+    setTimeout(() => { gProgressEl.textContent = ''; closeModal('galleryModal'); }, 800);
+  } catch (e) {
+    gProgressEl.textContent = `❌ 업로드 실패 (${done}/${total} 완료): ` + e.message;
+  } finally {
+    gSubmitBtn.disabled = false;
+  }
 });
 
 // ===== Service Worker =====

@@ -604,13 +604,17 @@
     }
 
     .g-preview {
-      margin-top: 12px; border-radius: 12px; overflow: hidden;
-      border: 1px solid var(--line); background: var(--bg);
+      margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;
     }
-    .g-preview img { width: 100%; max-height: 280px; object-fit: contain; display: block; }
-    .g-preview .info {
-      padding: 8px 12px; font-size: 11.5px; color: var(--muted); font-weight: 500;
-      border-top: 1px solid var(--line); background: var(--paper);
+    .g-preview-item {
+      position: relative; width: calc(33.33% - 6px); border-radius: 10px; overflow: hidden;
+      border: 1px solid var(--line); background: var(--bg); aspect-ratio: 1;
+    }
+    .g-preview-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .g-preview-item .g-item-size {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 3px 6px; font-size: 10px; color: #fff; font-weight: 600;
+      background: rgba(0,0,0,0.45); text-align: center;
     }
 
     /* 사진 뷰어 (전체 화면 확대) */
@@ -1186,8 +1190,8 @@
       <input class="field" id="gName" placeholder="예: 김OO 집사 (안 적으면 익명)"/>
       <label>한 줄 설명 (선택)</label>
       <input class="field" id="gCaption" placeholder="예: 5월 첫째 주 야외예배"/>
-      <label>사진</label>
-      <input class="field" id="gFile" type="file" accept="image/*" capture="environment"/>
+      <label>사진 (최대 7장)</label>
+      <input class="field" id="gFile" type="file" accept="image/*" multiple/>
       <div id="gPreview" class="g-preview" style="display:none;"></div>
       <div id="gProgress" style="margin-top:10px;font-size:12.5px;color:var(--muted);font-weight:500;"></div>
       <button class="submit-btn" type="button" id="gSubmit">올리기</button>
