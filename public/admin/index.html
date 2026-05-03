@@ -7,25 +7,39 @@
   <meta name="robots" content="noindex,nofollow" />
   <title>관리자 · 천안남산교회</title>
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <style>
     :root {
-      --bg: #f7f5f1;
+      --bg: #f7f7f4;
+      --bg-2: #fafaf7;
       --paper: #ffffff;
-      --line: #e3ddcf;
-      --text: #1f1d18;
-      --muted: #6b6760;
-      --primary: #5f6f52;
-      --primary-dark: #45533a;
-      --danger: #c44;
-      --warn: #b9814f;
-      --shadow: 0 8px 24px rgba(40,35,25,0.06);
+      --line: #ebece8;
+      --line-strong: #d9dad4;
+      --text: #15171a;
+      --text-soft: #2a2d33;
+      --muted: #767a83;
+      --muted-2: #9aa0aa;
+      --primary: #4f6244;
+      --primary-dark: #354528;
+      --primary-soft: #eef3e8;
+      --danger: #c44a4a;
+      --danger-soft: #fbf0ef;
+      --warn: #b07a4a;
+      --warn-soft: #fbf1e4;
+      --shadow-xs: 0 1px 2px rgba(20, 22, 26, 0.04);
+      --shadow-sm: 0 2px 8px rgba(20, 22, 26, 0.05), 0 1px 2px rgba(20, 22, 26, 0.04);
+      --shadow: 0 8px 24px rgba(20, 22, 26, 0.06), 0 2px 6px rgba(20, 22, 26, 0.04);
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
+      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
       background: var(--bg); color: var(--text); line-height: 1.55;
       word-break: keep-all;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      letter-spacing: -0.2px;
     }
     button, input, select, textarea { font-family: inherit; }
     a { color: inherit; text-decoration: none; }
@@ -33,131 +47,146 @@
     /* 로그인 화면 */
     .login {
       min-height: 100vh; display: grid; place-items: center; padding: 24px;
+      background: linear-gradient(160deg, #f7f7f4 0%, #ecf0e9 100%);
     }
     .login-card {
       width: 100%; max-width: 380px;
       background: var(--paper); border: 1px solid var(--line);
-      border-radius: 22px; padding: 28px; box-shadow: var(--shadow);
+      border-radius: 20px; padding: 30px 28px; box-shadow: var(--shadow);
     }
-    .login-card h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.6px; }
-    .login-card .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; font-weight: 700; }
+    .login-card h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: -0.6px; font-weight: 700; }
+    .login-card .sub { color: var(--muted); font-size: 13px; margin-bottom: 22px; font-weight: 500; }
     .field {
-      width: 100%; border: 1px solid var(--line); border-radius: 12px;
-      padding: 12px 14px; font-size: 15px; outline: none;
+      width: 100%; border: 1px solid var(--line-strong); border-radius: 10px;
+      padding: 11px 13px; font-size: 14px; outline: none;
       background: var(--paper); color: var(--text);
-      transition: border-color 0.15s ease;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
-    .field:focus { border-color: var(--primary); }
-    label { font-size: 12px; font-weight: 800; color: #4d4a44; margin: 12px 0 6px 4px; display: block; }
+    .field:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 98, 68, 0.10); }
+    label { font-size: 12px; font-weight: 600; color: var(--muted); margin: 14px 0 6px 2px; display: block; letter-spacing: -0.1px; }
     .btn-primary {
       width: 100%; background: var(--primary); color: white;
-      border: 0; border-radius: 12px; padding: 13px;
-      font-weight: 900; font-size: 14px; cursor: pointer;
-      margin-top: 16px;
+      border: 0; border-radius: 10px; padding: 12px;
+      font-weight: 700; font-size: 14px; cursor: pointer;
+      margin-top: 18px; letter-spacing: -0.2px;
+      transition: background 0.15s ease;
     }
     .btn-primary:hover { background: var(--primary-dark); }
-    .err { color: var(--danger); font-size: 13px; margin-top: 10px; font-weight: 700; }
+    .err { color: var(--danger); font-size: 13px; margin-top: 10px; font-weight: 600; }
 
     /* 관리자 본문 */
     .admin { display: none; min-height: 100vh; }
     .admin.show { display: block; }
 
     .topbar {
-      background: var(--primary-dark); color: white;
-      padding: 14px 22px; display: flex; align-items: center; justify-content: space-between;
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
+      padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
       gap: 16px;
+      position: sticky; top: 0; z-index: 30;
+      backdrop-filter: saturate(180%) blur(10px);
     }
-    .topbar h1 { margin: 0; font-size: 17px; font-weight: 900; letter-spacing: -0.4px; }
-    .topbar .who { font-size: 12px; opacity: 0.85; font-weight: 700; }
+    .topbar h1 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.4px; color: var(--text); }
+    .topbar .row { display: flex; gap: 12px; align-items: center; }
+    .topbar .who { font-size: 12px; color: var(--muted); font-weight: 500; }
     .topbar button {
-      background: rgba(255,255,255,0.15); color: white; border: 0;
-      border-radius: 999px; padding: 7px 14px; font-weight: 800;
+      background: var(--bg); color: var(--text); border: 1px solid var(--line);
+      border-radius: 8px; padding: 6px 12px; font-weight: 600;
       font-size: 12px; cursor: pointer;
+      transition: background 0.15s ease;
     }
-    .topbar button:hover { background: rgba(255,255,255,0.25); }
+    .topbar button:hover { background: var(--line); }
 
     .layout {
       display: grid; grid-template-columns: 220px 1fr;
-      max-width: 1240px; margin: 0 auto; padding: 18px;
-      gap: 18px;
+      max-width: 1280px; margin: 0 auto; padding: 24px;
+      gap: 24px;
     }
     .sidebar {
       background: var(--paper); border: 1px solid var(--line);
-      border-radius: 16px; padding: 12px; height: fit-content;
-      position: sticky; top: 18px;
+      border-radius: 14px; padding: 8px; height: fit-content;
+      position: sticky; top: 78px; box-shadow: var(--shadow-xs);
     }
     .nav-item {
       display: flex; align-items: center; gap: 10px;
-      padding: 11px 14px; border-radius: 12px; cursor: pointer;
-      font-weight: 800; font-size: 14px; color: #4d4a44;
+      padding: 9px 12px; border-radius: 8px; cursor: pointer;
+      font-weight: 500; font-size: 13.5px; color: var(--text-soft);
+      letter-spacing: -0.2px;
+      transition: background 0.15s ease, color 0.15s ease;
     }
-    .nav-item:hover { background: #f4efe3; }
-    .nav-item.active { background: var(--primary); color: white; }
-    .nav-item .ico { font-size: 16px; }
+    .nav-item:hover { background: var(--bg); }
+    .nav-item.active { background: var(--primary); color: white; font-weight: 600; }
+    .nav-item .ico { font-size: 14px; opacity: 0.92; }
     .nav-item .badge {
       margin-left: auto; background: var(--danger); color: white;
-      font-size: 11px; font-weight: 900;
-      border-radius: 999px; padding: 2px 7px; min-width: 18px; text-align: center;
+      font-size: 10.5px; font-weight: 700;
+      border-radius: 999px; padding: 1px 7px; min-width: 18px; text-align: center;
     }
     .nav-item.active .badge { background: white; color: var(--danger); }
 
     .content { min-width: 0; }
     .panel {
       background: var(--paper); border: 1px solid var(--line);
-      border-radius: 16px; padding: 22px; box-shadow: var(--shadow);
+      border-radius: 14px; padding: 24px; box-shadow: var(--shadow-xs);
       margin-bottom: 16px;
     }
-    .panel h2 { margin: 0 0 6px; font-size: 19px; letter-spacing: -0.4px; }
-    .panel .sub { color: var(--muted); font-size: 13px; font-weight: 700; margin-bottom: 14px; }
+    .panel h2 { margin: 0 0 4px; font-size: 17px; letter-spacing: -0.4px; font-weight: 700; }
+    .panel .sub { color: var(--muted); font-size: 13px; font-weight: 500; margin-bottom: 18px; }
 
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
     .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 
     .stat {
-      background: #f7f5f1; border: 1px solid var(--line);
-      border-radius: 12px; padding: 14px;
+      background: var(--bg-2); border: 1px solid var(--line);
+      border-radius: 12px; padding: 16px;
     }
-    .stat .lbl { font-size: 12px; color: var(--muted); font-weight: 800; }
-    .stat .val { font-size: 26px; font-weight: 900; margin-top: 4px; letter-spacing: -1px; }
+    .stat .lbl { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; }
+    .stat .val { font-size: 26px; font-weight: 700; margin-top: 6px; letter-spacing: -1px; color: var(--text); }
 
     .pane { display: none; }
-    .pane.active { display: block; }
+    .pane.active { display: block; animation: fade 0.18s ease; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
     table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 11px 12px; border-bottom: 1px solid #f0ebde; text-align: left; font-size: 13px; }
-    th { background: #faf8f2; font-weight: 900; color: #444; font-size: 12px; }
+    th, td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px; }
+    th { background: var(--bg-2); font-weight: 600; color: var(--muted); font-size: 11.5px; letter-spacing: 0.3px; text-transform: uppercase; }
     tr:last-child td { border-bottom: 0; }
+    tbody tr { transition: background 0.15s ease; }
+    tbody tr:hover { background: var(--bg-2); }
 
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    select.field { padding: 11px 14px; }
-    textarea.field { min-height: 90px; resize: vertical; padding: 12px 14px; }
+    select.field { padding: 10px 12px; }
+    textarea.field { min-height: 90px; resize: vertical; padding: 11px 13px; line-height: 1.55; }
 
     .btn {
-      border: 1px solid var(--line); background: var(--paper);
-      border-radius: 999px; padding: 8px 14px; font-weight: 800;
+      border: 1px solid var(--line-strong); background: var(--paper);
+      border-radius: 8px; padding: 8px 14px; font-weight: 600;
       font-size: 12px; cursor: pointer; color: var(--text);
+      transition: background 0.15s ease, border-color 0.15s ease;
     }
-    .btn:hover { border-color: #b9b1a0; }
-    .btn-sm { padding: 6px 11px; font-size: 11px; }
+    .btn:hover { background: var(--bg); }
+    .btn-sm { padding: 5px 10px; font-size: 11px; }
     .btn.primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn.primary:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
     .btn.danger { background: var(--danger); color: white; border-color: var(--danger); }
+    .btn.danger:hover { background: #a83d3d; border-color: #a83d3d; }
     .btn.warn { background: var(--warn); color: white; border-color: var(--warn); }
 
     .pill {
-      display: inline-block; padding: 3px 9px;
-      border-radius: 999px; font-size: 11px; font-weight: 900;
-      background: #eef6e9; color: var(--primary-dark);
+      display: inline-block; padding: 3px 8px;
+      border-radius: 6px; font-size: 11px; font-weight: 600;
+      background: var(--primary-soft); color: var(--primary-dark); letter-spacing: -0.1px;
     }
     .pill.pending { background: #fff3cc; color: #785b00; }
-    .pill.urgent { background: #fff1f1; color: var(--danger); }
-    .pill.event { background: #fff0df; color: var(--warn); }
+    .pill.urgent { background: var(--danger-soft); color: var(--danger); }
+    .pill.event { background: var(--warn-soft); color: var(--warn); }
     .pill.notice { background: #eef5ff; color: #2c5282; }
 
-    .empty { padding: 24px; text-align: center; color: var(--muted); font-weight: 700; }
+    .empty { padding: 28px 20px; text-align: center; color: var(--muted); font-weight: 500; font-size: 13px; }
 
     @media (max-width: 760px) {
-      .layout { grid-template-columns: 1fr; }
+      .layout { grid-template-columns: 1fr; padding: 16px; gap: 14px; }
       .sidebar { position: static; }
       .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
     }
@@ -192,6 +221,8 @@
   <div class="layout">
     <aside class="sidebar">
       <div class="nav-item active" data-pane="dash"><span class="ico">📊</span>대시보드</div>
+      <div class="nav-item" data-pane="church"><span class="ico">⛪</span>교회 정보</div>
+      <div class="nav-item" data-pane="hero"><span class="ico">🖼️</span>메인 사진</div>
       <div class="nav-item" data-pane="ann"><span class="ico">📢</span>공지사항</div>
       <div class="nav-item" data-pane="sermon"><span class="ico">📖</span>설교 영상</div>
       <div class="nav-item" data-pane="bulletin"><span class="ico">📄</span>주보</div>
@@ -214,6 +245,90 @@
           <h2>최근 활동</h2>
           <p class="sub">최근 등록된 신청 및 기도제목</p>
           <div id="recentActivity"></div>
+        </div>
+      </div>
+
+      <!-- 교회 정보 -->
+      <div class="pane" id="pane-church">
+        <div class="panel">
+          <h2>⛪ 교회 기본 정보</h2>
+          <p class="sub">홈 화면 카운트다운, 내정보 탭, 교회 안내에 자동 반영됩니다</p>
+          <div class="grid-2">
+            <div>
+              <label>교회 이름</label>
+              <input class="field" id="chName" placeholder="천안남산교회"/>
+            </div>
+            <div>
+              <label>담임목사</label>
+              <input class="field" id="chPastor" placeholder="예: 홍길동 목사"/>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div>
+              <label>대표 전화</label>
+              <input class="field" id="chPhone" placeholder="041-000-0000"/>
+            </div>
+            <div>
+              <label>이메일</label>
+              <input class="field" id="chEmail" placeholder="church@example.com"/>
+            </div>
+          </div>
+          <label>주소</label>
+          <input class="field" id="chAddress" placeholder="충남 천안시 ..."/>
+          <label>오시는 길 안내</label>
+          <textarea class="field" id="chDirections" placeholder="지하철·버스 등 교통편 안내"></textarea>
+          <label>인사말 / 한 줄 소개</label>
+          <textarea class="field" id="chTagline" placeholder="함께 예배하고, 함께 섬깁니다"></textarea>
+          <button class="btn primary" id="chSave" type="button" style="margin-top: 14px;">저장</button>
+        </div>
+
+        <div class="panel">
+          <h2>🕊️ 예배 시간</h2>
+          <p class="sub">홈 화면의 다음 예배 카운트다운에 사용됩니다</p>
+          <div id="serviceList"></div>
+          <div class="grid-3" style="margin-top: 14px;">
+            <div>
+              <label>예배명</label>
+              <input class="field" id="svName" placeholder="주일예배"/>
+            </div>
+            <div>
+              <label>요일</label>
+              <select class="field" id="svDay">
+                <option value="0">일요일</option>
+                <option value="1">월요일</option>
+                <option value="2">화요일</option>
+                <option value="3">수요일</option>
+                <option value="4">목요일</option>
+                <option value="5">금요일</option>
+                <option value="6">토요일</option>
+              </select>
+            </div>
+            <div>
+              <label>시작 시간 (HH:MM)</label>
+              <input class="field" id="svTime" placeholder="11:00" type="time"/>
+            </div>
+          </div>
+          <label>장소 (선택)</label>
+          <input class="field" id="svPlace" placeholder="본당 / 교육관 ..."/>
+          <button class="btn primary" id="svAdd" type="button" style="margin-top: 12px;">예배 시간 추가</button>
+        </div>
+      </div>
+
+      <!-- 메인 사진 -->
+      <div class="pane" id="pane-hero">
+        <div class="panel">
+          <h2>🖼️ 메인 화면 사진</h2>
+          <p class="sub">홈 화면 상단 큰 카드에 표시되는 교회 사진입니다 (최대 10MB · JPG/PNG)</p>
+          <div id="heroPreviewWrap" style="margin: 14px 0; display: none;">
+            <div style="font-size: 12px; font-weight: 800; color: var(--muted); margin-bottom: 8px;">현재 적용된 사진</div>
+            <img id="heroPreview" src="" alt="현재 메인 사진"
+                 style="width: 100%; max-width: 460px; border-radius: 14px; border: 1px solid var(--line); aspect-ratio: 16/9; object-fit: cover;"/>
+            <button class="btn danger" id="heroRemove" type="button" style="margin-top: 10px;">현재 사진 삭제</button>
+          </div>
+          <label>새 사진 업로드</label>
+          <input class="field" id="heroFile" type="file" accept="image/*"/>
+          <div id="heroProgress" style="margin-top: 10px; font-size: 13px; color: var(--muted);"></div>
+          <button class="btn primary" id="heroUpload" type="button" style="margin-top: 12px;">업로드</button>
         </div>
       </div>
 

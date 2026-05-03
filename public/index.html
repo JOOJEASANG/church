@@ -11,27 +11,36 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <title>천안남산교회</title>
   <style>
     :root {
-      --bg: #f7f4ec;
-      --paper: #fffdf8;
+      --bg: #fafaf7;
+      --paper: #ffffff;
       --card: #ffffff;
-      --text: #1f1d18;
-      --muted: #6b6760;
-      --line: #e5ded0;
-      --primary: #5f6f52;
-      --primary-dark: #45533a;
-      --accent: #b9814f;
-      --accent-soft: #fff0df;
-      --green-soft: #eef6e9;
-      --blue-soft: #eef5ff;
-      --red-soft: #fff1f1;
-      --shadow-sm: 0 4px 12px rgba(40, 35, 25, 0.06);
-      --shadow: 0 14px 35px rgba(40, 35, 25, 0.08);
-      --shadow-lg: 0 24px 50px rgba(40, 35, 25, 0.14);
-      --radius: 22px;
-      --radius-lg: 28px;
+      --text: #15171a;
+      --text-soft: #2a2d33;
+      --muted: #767a83;
+      --muted-2: #9aa0aa;
+      --line: #ebece8;
+      --line-strong: #d9dad4;
+      --primary: #4f6244;
+      --primary-dark: #354528;
+      --primary-soft: #eef3e8;
+      --accent: #b07a4a;
+      --accent-soft: #fbf1e4;
+      --green-soft: #eef5e7;
+      --blue-soft: #eef3fb;
+      --red-soft: #fbf0ef;
+      --shadow-xs: 0 1px 2px rgba(20, 22, 26, 0.04);
+      --shadow-sm: 0 2px 8px rgba(20, 22, 26, 0.05), 0 1px 2px rgba(20, 22, 26, 0.04);
+      --shadow: 0 8px 24px rgba(20, 22, 26, 0.06), 0 2px 6px rgba(20, 22, 26, 0.04);
+      --shadow-lg: 0 20px 44px rgba(20, 22, 26, 0.10), 0 6px 14px rgba(20, 22, 26, 0.06);
+      --radius-sm: 12px;
+      --radius: 18px;
+      --radius-lg: 24px;
+      --radius-xl: 28px;
       --tab-h: 72px;
       --safe-bottom: env(safe-area-inset-bottom, 0px);
       --safe-top: env(safe-area-inset-top, 0px);
@@ -42,7 +51,7 @@
     html { scroll-behavior: smooth; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
+      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
       color: var(--text);
       background: var(--bg);
       line-height: 1.55;
@@ -50,6 +59,9 @@
       overscroll-behavior-y: contain;
       min-height: 100vh;
       min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      letter-spacing: -0.2px;
     }
 
     button, input, select, textarea { font-family: inherit; }
@@ -86,27 +98,31 @@
     .greeting-block { display: flex; align-items: center; gap: 12px; min-width: 0; }
 
     .brand-mark {
-      width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0;
-      background: linear-gradient(135deg, var(--primary), var(--accent));
+      width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
       color: white; display: grid; place-items: center;
-      font-weight: 900; font-size: 16px;
-      box-shadow: 0 8px 18px rgba(95, 111, 82, 0.25);
+      font-weight: 800; font-size: 14px; letter-spacing: -0.4px;
+      box-shadow: 0 4px 14px rgba(79, 98, 68, 0.28), inset 0 1px 0 rgba(255,255,255,0.18);
     }
 
     .greeting { min-width: 0; }
-    .greeting .hi { font-size: 13px; color: var(--muted); font-weight: 700; }
-    .greeting .name { font-size: 17px; font-weight: 900; letter-spacing: -0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .greeting .hi { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: -0.1px; }
+    .greeting .name { font-size: 16px; font-weight: 700; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 
     .header-actions { display: flex; gap: 8px; }
     .icon-btn {
-      width: 42px; height: 42px; border-radius: 999px;
+      width: 38px; height: 38px; border-radius: 999px;
       border: 1px solid var(--line); background: var(--paper);
       display: grid; place-items: center; cursor: pointer;
-      font-size: 18px; color: var(--text); position: relative;
+      font-size: 16px; color: var(--text); position: relative;
+      transition: background 0.15s ease, border-color 0.15s ease;
+      box-shadow: var(--shadow-xs);
     }
+    .icon-btn:hover { border-color: var(--line-strong); }
+    .icon-btn:active { background: var(--bg); }
     .icon-btn .dot {
-      position: absolute; top: 8px; right: 9px;
-      width: 8px; height: 8px; border-radius: 999px; background: #e25b5b;
+      position: absolute; top: 7px; right: 8px;
+      width: 7px; height: 7px; border-radius: 999px; background: #e25b5b;
       border: 2px solid var(--paper);
     }
 
@@ -128,12 +144,12 @@
     /* ===== 히어로 카드 (홈) ===== */
     .hero {
       position: relative;
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-xl);
       overflow: hidden;
-      min-height: 220px;
+      min-height: 240px;
       box-shadow: var(--shadow);
-      margin-top: 8px;
-      background: linear-gradient(160deg, #5f6f52 0%, #45533a 60%, #2e3428 100%);
+      margin-top: 4px;
+      background: linear-gradient(165deg, #4f6244 0%, #354528 55%, #1f2a17 100%);
       color: white;
     }
     .hero-bg {
@@ -142,30 +158,34 @@
       background-size: cover;
       background-position: center;
       opacity: 0.55;
+      transition: opacity 0.4s ease;
     }
     .hero-overlay {
       position: absolute; inset: 0;
-      background: linear-gradient(180deg, rgba(46,52,40,0.15) 0%, rgba(46,52,40,0.85) 100%);
+      background:
+        linear-gradient(180deg, rgba(15,20,12,0.05) 0%, rgba(15,20,12,0.55) 60%, rgba(15,20,12,0.92) 100%),
+        radial-gradient(120% 80% at 80% 0%, rgba(255,255,255,0.08), transparent 50%);
     }
     .hero-content {
       position: relative;
-      padding: 24px 22px 22px;
+      padding: 26px 24px 24px;
       display: flex; flex-direction: column; gap: 6px;
-      min-height: 220px; justify-content: flex-end;
+      min-height: 240px; justify-content: flex-end;
     }
     .hero-badge {
       align-self: flex-start;
-      background: rgba(255,255,255,0.18);
-      border: 1px solid rgba(255,255,255,0.25);
-      backdrop-filter: blur(10px);
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.22);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       color: #fff;
       border-radius: 999px;
-      padding: 6px 12px;
-      font-size: 12px; font-weight: 800;
-      margin-bottom: 8px;
+      padding: 5px 11px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.2px;
+      margin-bottom: 10px;
     }
-    .hero h1 { margin: 0; font-size: 28px; letter-spacing: -1.2px; line-height: 1.18; font-weight: 900; }
-    .hero p { margin: 4px 0 0; font-size: 14px; color: rgba(255,255,255,0.88); font-weight: 600; }
+    .hero h1 { margin: 0; font-size: 26px; letter-spacing: -0.9px; line-height: 1.22; font-weight: 800; text-shadow: 0 2px 12px rgba(0,0,0,0.18); }
+    .hero p { margin: 6px 0 0; font-size: 13px; color: rgba(255,255,255,0.82); font-weight: 500; letter-spacing: -0.1px; }
 
     /* ===== 다음 예배 카운트다운 ===== */
     .countdown {
@@ -173,22 +193,23 @@
       background: var(--paper);
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: 16px 18px;
+      padding: 18px 20px;
       display: flex; align-items: center; justify-content: space-between;
       gap: 12px; box-shadow: var(--shadow-sm);
     }
-    .countdown-info .label { font-size: 12px; color: var(--muted); font-weight: 800; }
-    .countdown-info .title { font-size: 17px; font-weight: 900; margin-top: 2px; letter-spacing: -0.4px; }
-    .countdown-info .when { font-size: 13px; color: var(--muted); margin-top: 2px; font-weight: 700; }
-    .countdown-time {
-      text-align: right; font-weight: 900;
+    .countdown-info .label {
+      font-size: 11px; color: var(--muted); font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.6px;
     }
-    .countdown-time b { font-size: 26px; line-height: 1; color: var(--primary); letter-spacing: -1px; }
-    .countdown-time span { display: block; font-size: 11px; color: var(--muted); margin-top: 4px; font-weight: 800; }
+    .countdown-info .title { font-size: 17px; font-weight: 700; margin-top: 4px; letter-spacing: -0.5px; }
+    .countdown-info .when { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 500; }
+    .countdown-time { text-align: right; }
+    .countdown-time b { font-size: 30px; line-height: 1; color: var(--primary); letter-spacing: -1.4px; font-weight: 800; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+    .countdown-time span { display: block; font-size: 10px; color: var(--muted); margin-top: 6px; font-weight: 600; letter-spacing: 0.3px; }
 
     /* ===== 빠른 액션 (홈화면 위젯 느낌) ===== */
     .quick-actions {
-      margin-top: 16px;
+      margin-top: 14px;
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 10px;
@@ -196,72 +217,74 @@
     .quick-action {
       background: var(--paper);
       border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 14px 8px;
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;
-      box-shadow: var(--shadow-sm);
+      border-radius: var(--radius-sm);
+      padding: 14px 8px 12px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      box-shadow: var(--shadow-xs);
     }
-    .quick-action:active { transform: scale(0.96); }
+    .quick-action:active { transform: scale(0.97); }
+    .quick-action:hover { border-color: var(--line-strong); box-shadow: var(--shadow-sm); }
     .quick-action .ico {
-      width: 44px; height: 44px; border-radius: 14px;
+      width: 42px; height: 42px; border-radius: 12px;
       display: grid; place-items: center;
-      font-size: 22px;
-      background: var(--green-soft); color: var(--primary-dark);
+      font-size: 20px;
+      background: var(--primary-soft); color: var(--primary-dark);
     }
     .quick-action.b .ico { background: var(--blue-soft); color: #2c5282; }
     .quick-action.o .ico { background: var(--accent-soft); color: var(--accent); }
-    .quick-action.r .ico { background: var(--red-soft); color: #c44; }
-    .quick-action span { font-size: 12px; font-weight: 800; color: var(--text); text-align: center; line-height: 1.3; }
+    .quick-action.r .ico { background: var(--red-soft); color: #b94c4c; }
+    .quick-action span { font-size: 11px; font-weight: 600; color: var(--text-soft); text-align: center; line-height: 1.4; letter-spacing: -0.1px; }
 
     /* ===== 섹션 타이틀 ===== */
-    .section { margin-top: 28px; }
+    .section { margin-top: 26px; }
     .section-title {
       display: flex; align-items: center; justify-content: space-between;
       margin: 0 0 12px; padding: 0 4px;
     }
-    .section-title h2 { margin: 0; font-size: 20px; letter-spacing: -0.6px; font-weight: 900; }
-    .section-title a { font-size: 13px; color: var(--muted); font-weight: 800; }
+    .section-title h2 { margin: 0; font-size: 17px; letter-spacing: -0.55px; font-weight: 700; color: var(--text); }
+    .section-title a { font-size: 12px; color: var(--muted); font-weight: 600; }
 
     /* ===== 카드 피드 ===== */
-    .feed { display: grid; gap: 12px; }
+    .feed { display: grid; gap: 10px; }
     .feed-card {
       background: var(--paper);
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: 18px;
-      box-shadow: var(--shadow-sm);
-      transition: transform 0.15s ease;
+      padding: 18px 20px;
+      box-shadow: var(--shadow-xs);
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
       cursor: pointer;
     }
-    .feed-card:active { transform: scale(0.99); }
-    .feed-card .top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .feed-card:hover { border-color: var(--line-strong); box-shadow: var(--shadow-sm); }
+    .feed-card:active { transform: scale(0.995); }
+    .feed-card .top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
     .feed-card .tag {
-      font-size: 11px; font-weight: 900; padding: 4px 10px;
-      border-radius: 999px;
-      background: var(--green-soft); color: var(--primary-dark);
+      font-size: 10.5px; font-weight: 700; padding: 3px 9px;
+      border-radius: 6px; letter-spacing: 0.1px;
+      background: var(--primary-soft); color: var(--primary-dark);
     }
-    .feed-card .tag.urgent { background: var(--red-soft); color: #c44; }
+    .feed-card .tag.urgent { background: var(--red-soft); color: #b94c4c; }
     .feed-card .tag.event { background: var(--accent-soft); color: var(--accent); }
     .feed-card .tag.notice { background: var(--blue-soft); color: #2c5282; }
-    .feed-card .time { font-size: 12px; color: var(--muted); margin-left: auto; font-weight: 700; }
-    .feed-card h3 { margin: 0 0 6px; font-size: 17px; font-weight: 900; letter-spacing: -0.4px; }
-    .feed-card p { margin: 0; font-size: 14px; color: #4d4a44; line-height: 1.5; }
+    .feed-card .time { font-size: 11px; color: var(--muted-2); margin-left: auto; font-weight: 500; letter-spacing: -0.1px; }
+    .feed-card h3 { margin: 0 0 6px; font-size: 15.5px; font-weight: 700; letter-spacing: -0.4px; line-height: 1.45; color: var(--text); }
+    .feed-card p { margin: 0; font-size: 13.5px; color: var(--muted); line-height: 1.55; font-weight: 400; }
 
     /* ===== 말씀 탭 ===== */
     .video-card {
       background: var(--paper);
       border: 1px solid var(--line);
-      border-radius: var(--radius);
+      border-radius: var(--radius-lg);
       overflow: hidden;
       box-shadow: var(--shadow-sm);
-      margin-top: 8px;
+      margin-top: 4px;
     }
     .video-frame {
       position: relative;
       width: 100%;
       padding-top: 56.25%;
-      background: linear-gradient(135deg, #2e3428, #6d7b60);
+      background: linear-gradient(135deg, #1f2a17, #4f6244);
     }
     .video-frame iframe {
       position: absolute; inset: 0;
@@ -273,16 +296,18 @@
       color: white; text-align: center;
     }
     .video-placeholder .play {
-      width: 64px; height: 64px; border-radius: 999px;
-      background: white; color: var(--primary-dark);
+      width: 56px; height: 56px; border-radius: 999px;
+      background: rgba(255,255,255,0.96);
+      color: var(--primary-dark);
       display: grid; place-items: center;
-      font-weight: 900; font-size: 22px;
+      font-weight: 700; font-size: 20px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.28);
     }
-    .video-info { padding: 18px; }
-    .video-info .meta { font-size: 12px; color: var(--muted); font-weight: 800; }
-    .video-info h3 { margin: 6px 0 8px; font-size: 22px; letter-spacing: -0.6px; font-weight: 900; }
-    .video-info .verse { font-size: 14px; color: var(--primary-dark); font-weight: 800; margin-bottom: 10px; }
-    .video-info p { margin: 0; font-size: 14px; color: #4d4a44; line-height: 1.6; }
+    .video-info { padding: 22px 22px 24px; }
+    .video-info .meta { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; }
+    .video-info h3 { margin: 8px 0 10px; font-size: 22px; letter-spacing: -0.7px; font-weight: 700; line-height: 1.3; }
+    .video-info .verse { font-size: 13px; color: var(--primary-dark); font-weight: 700; margin-bottom: 12px; letter-spacing: -0.1px; }
+    .video-info p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.65; font-weight: 400; }
 
     .practice-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
@@ -415,26 +440,26 @@
     }
 
     .menu-list {
-      margin-top: 18px; background: var(--paper);
+      margin-top: 14px; background: var(--paper);
       border: 1px solid var(--line); border-radius: var(--radius);
-      overflow: hidden; box-shadow: var(--shadow-sm);
+      overflow: hidden; box-shadow: var(--shadow-xs);
     }
     .menu-item {
       display: flex; align-items: center; gap: 14px;
-      padding: 16px 18px;
+      padding: 14px 18px;
       border-bottom: 1px solid var(--line);
       cursor: pointer; background: var(--paper);
       transition: background 0.15s ease;
     }
     .menu-item:last-child { border-bottom: 0; }
-    .menu-item:active { background: #f7f4ec; }
+    .menu-item:active { background: var(--bg); }
     .menu-item .icon {
-      width: 36px; height: 36px; border-radius: 12px;
-      background: var(--green-soft); color: var(--primary-dark);
-      display: grid; place-items: center; font-size: 16px;
+      width: 32px; height: 32px; border-radius: 10px;
+      background: var(--primary-soft); color: var(--primary-dark);
+      display: grid; place-items: center; font-size: 14px;
     }
-    .menu-item .label { flex: 1; font-weight: 800; font-size: 15px; }
-    .menu-item .arrow { color: #c8c4ba; font-size: 18px; }
+    .menu-item .label { flex: 1; font-weight: 600; font-size: 14px; letter-spacing: -0.2px; }
+    .menu-item .arrow { color: var(--muted-2); font-size: 16px; }
     .menu-item .switch {
       width: 44px; height: 26px; border-radius: 999px;
       background: #d9d6cc; position: relative; cursor: pointer;
@@ -454,26 +479,25 @@
     .tabbar {
       position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
       width: 100%; max-width: 720px;
-      padding: 8px 8px calc(8px + var(--safe-bottom));
-      background: rgba(255, 253, 248, 0.94);
-      backdrop-filter: blur(20px);
-      border-top: 1px solid var(--line);
-      display: flex; gap: 4px;
+      padding: 6px 8px calc(6px + var(--safe-bottom));
+      background: rgba(255, 255, 255, 0.86);
+      backdrop-filter: saturate(180%) blur(22px);
+      -webkit-backdrop-filter: saturate(180%) blur(22px);
+      border-top: 1px solid rgba(20,22,26,0.06);
+      display: flex; gap: 2px;
       z-index: 50;
     }
     .tabbar-item {
       flex: 1; display: flex; flex-direction: column; align-items: center;
-      gap: 3px; padding: 8px 4px; border-radius: 16px;
-      cursor: pointer; color: #918d83; font-weight: 800;
-      transition: color 0.15s ease;
+      gap: 2px; padding: 8px 4px; border-radius: 14px;
+      cursor: pointer; color: var(--muted-2); font-weight: 600;
+      transition: color 0.15s ease, transform 0.18s ease;
       background: none; border: 0;
     }
-    .tabbar-item .ti {
-      font-size: 22px; line-height: 1;
-    }
-    .tabbar-item .tl { font-size: 11px; }
+    .tabbar-item .ti { font-size: 20px; line-height: 1; transition: transform 0.18s ease; }
+    .tabbar-item .tl { font-size: 10.5px; letter-spacing: -0.1px; }
     .tabbar-item.active { color: var(--primary); }
-    .tabbar-item.active .ti { transform: scale(1.05); }
+    .tabbar-item.active .ti { transform: translateY(-1px) scale(1.08); }
 
     /* ===== PWA 설치 안내 ===== */
     .install-banner {
@@ -525,23 +549,58 @@
       border-radius: 999px; margin: 0 auto 18px;
     }
     .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
-    .modal-head h3 { margin: 0; font-size: 22px; letter-spacing: -0.6px; font-weight: 900; }
-    .modal-head .sub { margin: 4px 0 0; font-size: 13px; color: var(--muted); font-weight: 700; }
+    .modal-head h3 { margin: 0; font-size: 20px; letter-spacing: -0.6px; font-weight: 700; line-height: 1.3; }
+    .modal-head .sub { margin: 6px 0 0; font-size: 13px; color: var(--muted); font-weight: 500; }
     .modal .close-btn {
       border: 0; background: transparent;
-      width: 36px; height: 36px; border-radius: 999px;
-      font-size: 22px; cursor: pointer; color: var(--muted);
+      width: 32px; height: 32px; border-radius: 999px;
+      font-size: 20px; cursor: pointer; color: var(--muted);
+      transition: background 0.15s ease;
     }
+    .modal .close-btn:hover { background: var(--bg); }
 
-    label { display: block; font-size: 13px; font-weight: 800; color: #4d4a44; margin: 12px 0 6px 4px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin: 14px 0 6px 2px; letter-spacing: -0.1px; }
     .field, .select, textarea {
-      width: 100%; border: 1px solid var(--line); border-radius: 14px;
-      padding: 13px 15px; background: var(--paper);
-      color: var(--text); font-size: 15px; outline: none;
-      transition: border-color 0.15s ease;
+      width: 100%; border: 1px solid var(--line-strong); border-radius: 12px;
+      padding: 12px 14px; background: var(--paper);
+      color: var(--text); font-size: 14px; outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      font-family: inherit;
     }
-    .field:focus, .select:focus, textarea:focus { border-color: var(--primary); }
-    textarea { min-height: 110px; resize: vertical; }
+    .field:focus, .select:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 98, 68, 0.10);
+    }
+    textarea { min-height: 110px; resize: vertical; line-height: 1.55; }
+
+    /* ===== 정보 모달 ===== */
+    .info-modal { padding-top: 16px; }
+    .info-section { margin-top: 22px; }
+    .info-section:first-of-type { margin-top: 8px; }
+    .info-section-title {
+      font-size: 11px; color: var(--muted); font-weight: 600;
+      letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 10px; padding-left: 2px;
+    }
+    .info-service-row {
+      display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+      padding: 12px 14px; background: var(--bg);
+      border-radius: 12px; margin-bottom: 6px;
+    }
+    .info-service-row:last-child { margin-bottom: 0; }
+    .info-service-name { font-weight: 700; font-size: 14.5px; letter-spacing: -0.3px; }
+    .info-service-time { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+    .info-empty { color: var(--muted); font-size: 13px; padding: 12px; background: var(--bg); border-radius: 12px; text-align: center; }
+    .info-row {
+      display: flex; gap: 14px; padding: 10px 4px;
+      border-bottom: 1px solid var(--line); align-items: baseline;
+    }
+    .info-row:last-child { border-bottom: 0; }
+    .info-row-label {
+      flex: 0 0 70px; font-size: 12px; color: var(--muted-2); font-weight: 600; letter-spacing: -0.1px;
+    }
+    .info-row-value { flex: 1; font-size: 14px; color: var(--text); font-weight: 500; line-height: 1.55; word-break: break-word; }
+    .info-link { color: var(--primary); font-weight: 600; }
+    .info-link:hover { text-decoration: underline; }
 
     .submit-btn {
       width: 100%; margin-top: 16px;
@@ -596,7 +655,7 @@
           <div class="brand-mark">남산</div>
           <div class="greeting">
             <div class="hi" id="greetingHi">평안하세요</div>
-            <div class="name" id="greetingName">천안남산교회</div>
+            <div class="name" id="greetingName" data-church="name">천안남산교회</div>
           </div>
         </div>
         <div class="header-actions">
@@ -617,21 +676,21 @@
           <div class="hero-bg"></div>
           <div class="hero-overlay"></div>
           <div class="hero-content">
-            <span class="hero-badge">2026년 5월 첫째 주</span>
-            <h1>함께 예배하고,<br/>함께 섬깁니다</h1>
-            <p>천안남산교회 · 200여 성도와 함께</p>
+            <span class="hero-badge" id="heroBadge">이번 주</span>
+            <h1 data-church="tagline">함께 예배하고,<br/>함께 섬깁니다</h1>
+            <p><span data-church="name">천안남산교회</span> · 200여 성도와 함께</p>
           </div>
         </div>
 
         <div class="countdown" id="countdown">
           <div class="countdown-info">
             <div class="label">다음 예배까지</div>
-            <div class="title">주일예배</div>
-            <div class="when" id="cdWhen">5월 3일 주일 오전 11시</div>
+            <div class="title" id="cdTitle">주일예배</div>
+            <div class="when" id="cdWhen">시간 정보를 불러오는 중...</div>
           </div>
           <div class="countdown-time">
             <b id="cdNum">--</b>
-            <span id="cdUnit">시간 남음</span>
+            <span id="cdUnit">계산중</span>
           </div>
         </div>
 
@@ -955,6 +1014,57 @@
       <label>가능 시간</label>
       <input class="field" id="vTime" placeholder="예: 주일 오전"/>
       <button class="submit-btn" type="button" id="vSubmit">신청하기</button>
+    </div>
+  </div>
+
+  <!-- 교회 안내 모달 -->
+  <div class="modal-bg" id="infoModal">
+    <div class="modal info-modal">
+      <div class="modal-grip"></div>
+      <div class="modal-head">
+        <div>
+          <h3 id="infoName">천안남산교회</h3>
+          <p class="sub" id="infoTagline">함께 예배하고, 함께 섬깁니다</p>
+        </div>
+        <button class="close-btn" data-close="infoModal" type="button">×</button>
+      </div>
+
+      <div class="info-section">
+        <div class="info-section-title">예배 시간</div>
+        <div id="infoServices"></div>
+      </div>
+
+      <div class="info-section">
+        <div class="info-section-title">교회 정보</div>
+        <div class="info-row">
+          <div class="info-row-label">담임목사</div>
+          <div class="info-row-value" id="infoPastor">정보 등록 예정</div>
+        </div>
+        <div class="info-row">
+          <div class="info-row-label">주소</div>
+          <div class="info-row-value" id="infoAddress">정보 등록 예정</div>
+        </div>
+        <div class="info-row" id="infoDirRow" style="display:none;">
+          <div class="info-row-label">오시는 길</div>
+          <div class="info-row-value" id="infoDirections"></div>
+        </div>
+      </div>
+
+      <div class="info-section" id="infoContactSection">
+        <div class="info-section-title">연락처</div>
+        <div class="info-row" id="infoPhoneRow" style="display:none;">
+          <div class="info-row-label">전화</div>
+          <div class="info-row-value">
+            <a id="infoPhoneLink" href="tel:" class="info-link"><span id="infoPhoneText"></span></a>
+          </div>
+        </div>
+        <div class="info-row" id="infoEmailRow" style="display:none;">
+          <div class="info-row-label">이메일</div>
+          <div class="info-row-value">
+            <a id="infoEmailLink" href="mailto:" class="info-link"><span id="infoEmailText"></span></a>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

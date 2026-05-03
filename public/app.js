@@ -65,7 +65,10 @@ const state = {
   prayers: [],
   announcements: [],
   bulletins: [],
-  prayedBy: {}     // {prayerId: true} for current user
+  prayedBy: {},     // {prayerId: true} for current user
+  church: {},
+  services: [],
+  hero: null
 };
 
 // ===== 익명 로그인 =====
@@ -152,6 +155,51 @@ function attachListeners() {
     state.bulletins.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderBulletins();
   });
+  onValue(ref(db, 'config/church'), (snap) => {
+    state.church = snap.val() || {};
+    applyChurchInfo();
+  });
+  onValue(ref(db, 'config/services'), (snap) => {
+    state.services = [];
+    snap.forEach((c) => state.services.push({ id: c.key, ...c.val() }));
+    state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
+    updateCountdown();
+  });
+  onValue(ref(db, 'config/hero'), (snap) => {
+    state.hero = snap.val() || null;
+    applyHero();
+  });
+}
+
+function applyHero() {
+  const bg = document.querySelector('.hero-bg');
+  if (!bg) return;
+  if (state.hero?.url) {
+    bg.style.backgroundImage = `url('${state.hero.url}')`;
+    bg.style.opacity = '0.7';
+  } else {
+    bg.style.backgroundImage = "url('/img/hero.jpg'), url('/img/hero.svg')";
+    bg.style.opacity = '0.55';
+  }
+}
+
+function applyChurchInfo() {
+  const c = state.church || {};
+  document.querySelectorAll('[data-church="name"]').forEach((el) => { el.textContent = c.name || '천안남산교회'; });
+  document.querySelectorAll('[data-church="pastor"]').forEach((el) => { el.textContent = c.pastor || ''; });
+  document.querySelectorAll('[data-church="phone"]').forEach((el) => {
+    el.textContent = c.phone || '';
+    if (el.tagName === 'A' && c.phone) el.href = `tel:${c.phone.replace(/[^\d+]/g, '')}`;
+  });
+  document.querySelectorAll('[data-church="email"]').forEach((el) => {
+    el.textContent = c.email || '';
+    if (el.tagName === 'A' && c.email) el.href = `mailto:${c.email}`;
+  });
+  document.querySelectorAll('[data-church="address"]').forEach((el) => { el.textContent = c.address || ''; });
+  document.querySelectorAll('[data-church="directions"]').forEach((el) => { el.textContent = c.directions || ''; });
+  document.querySelectorAll('[data-church="tagline"]').forEach((el) => {
+    if (c.tagline) el.textContent = c.tagline;
+  });
 }
 
 async function loadMyPrayedFlags() {
@@ -224,23 +272,51 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ===== 카운트다운 =====
-function nextSunday11() {
-  const now = new Date();
+const DAY_NAMES_KO = ['일','월','화','수','목','금','토'];
+
+function nextServiceOccurrence(svc, now = new Date()) {
+  const [hh, mm] = (svc.time || '11:00').split(':').map(Number);
   const d = new Date(now);
-  const day = d.getDay();
-  const daysUntilSun = (7 - day) % 7;
-  d.setDate(d.getDate() + daysUntilSun);
-  d.setHours(11, 0, 0, 0);
+  let diffDays = (svc.day - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + diffDays);
+  d.setHours(hh, mm, 0, 0);
   if (d <= now) d.setDate(d.getDate() + 7);
   return d;
 }
+
+function defaultSundayService() {
+  return { name: '주일예배', day: 0, time: '11:00' };
+}
+
+function nextService() {
+  const now = new Date();
+  const list = (state.services && state.services.length) ? state.services : [defaultSundayService()];
+  let best = null;
+  for (const s of list) {
+    const t = nextServiceOccurrence(s, now);
+    if (!best || t < best.t) best = { svc: s, t };
+  }
+  return best;
+}
+
+function formatWhen(svc, t) {
+  const [hh, mm] = (svc.time || '11:00').split(':').map(Number);
+  const ampm = hh < 12 ? '오전' : '오후';
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  const minStr = mm > 0 ? ` ${mm}분` : '';
+  return `${t.getMonth()+1}월 ${t.getDate()}일 ${DAY_NAMES_KO[svc.day]}요일 ${ampm} ${h12}시${minStr}`;
+}
+
 function updateCountdown() {
-  const target = nextSunday11();
+  const next = nextService();
+  if (!next) return;
+  const { svc, t: target } = next;
   const now = new Date();
   const diffMs = target - now;
   const cdNum = document.getElementById('cdNum');
   const cdUnit = document.getElementById('cdUnit');
   const cdWhen = document.getElementById('cdWhen');
+  const cdTitle = document.getElementById('cdTitle');
   if (!cdNum) return;
   const totalH = Math.floor(diffMs / (1000 * 60 * 60));
   const days = Math.floor(totalH / 24);
@@ -250,7 +326,8 @@ function updateCountdown() {
   else if (totalH > 0) { cdNum.textContent = totalH; cdUnit.textContent = `시간 ${mins}분 남음`; }
   else if (mins > 0) { cdNum.textContent = mins; cdUnit.textContent = '분 남음'; }
   else { cdNum.textContent = '예배'; cdUnit.textContent = '드릴 시간!'; }
-  cdWhen.textContent = `${target.getMonth()+1}월 ${target.getDate()}일 주일 오전 11시`;
+  if (cdTitle) cdTitle.textContent = svc.name;
+  cdWhen.textContent = formatWhen(svc, target);
 }
 updateCountdown();
 setInterval(updateCountdown, 60 * 1000);
@@ -608,14 +685,44 @@ document.querySelectorAll('[data-action]').forEach((el) => {
     else if (a === 'install') triggerInstall();
     else if (a === 'visit') toast('심방 요청은 교역자 전용 화면으로 비공개 전달됩니다');
     else if (a === 'newcomer') toast('새가족 등록 화면을 곧 열어드려요');
-    else if (a === 'info') toast('교회 위치·연락처는 곧 추가됩니다');
-    else if (a === 'contact') toast('교회 연락처는 곧 추가됩니다');
+    else if (a === 'info' || a === 'contact') openInfoModal();
     else toast('기능 준비 중이에요');
   });
 });
 
 document.getElementById('notifBtn')?.addEventListener('click', () => toast('새 알림이 없습니다'));
 document.getElementById('searchBtn')?.addEventListener('click', () => toast('검색은 다음 업데이트에서 추가됩니다'));
+
+function openInfoModal() {
+  const c = state.church || {};
+  const services = state.services || [];
+  const list = $('#infoServices');
+  if (list) {
+    list.innerHTML = services.length
+      ? services.map((s) => `
+          <div class="info-service-row">
+            <div class="info-service-name">${escapeHtml(s.name)}</div>
+            <div class="info-service-time">${DAY_NAMES_KO[s.day]}요일 ${escapeHtml(s.time)}${s.place ? ` · ${escapeHtml(s.place)}` : ''}</div>
+          </div>`).join('')
+      : `<div class="info-empty">예배 시간 정보가 아직 등록되지 않았어요</div>`;
+  }
+  const setText = (sel, val, fallback = '') => { const el = $(sel); if (el) el.textContent = val || fallback; };
+  setText('#infoName', c.name, '천안남산교회');
+  setText('#infoTagline', c.tagline, '함께 예배하고, 함께 섬깁니다');
+  setText('#infoPastor', c.pastor, '담임목사 정보 등록 예정');
+  setText('#infoAddress', c.address, '주소 정보 등록 예정');
+  setText('#infoDirections', c.directions, '');
+  setText('#infoPhoneText', c.phone, '');
+  setText('#infoEmailText', c.email, '');
+  const phoneA = $('#infoPhoneLink'); if (phoneA && c.phone) phoneA.href = `tel:${c.phone.replace(/[^\d+]/g, '')}`;
+  const emailA = $('#infoEmailLink'); if (emailA && c.email) emailA.href = `mailto:${c.email}`;
+  if ($('#infoDirRow')) $('#infoDirRow').style.display = c.directions ? '' : 'none';
+  if ($('#infoPhoneRow')) $('#infoPhoneRow').style.display = c.phone ? '' : 'none';
+  if ($('#infoEmailRow')) $('#infoEmailRow').style.display = c.email ? '' : 'none';
+  openModal('infoModal');
+}
+
+function $(sel) { return document.querySelector(sel); }
 
 // ===== PWA 설치 =====
 let deferredPrompt = null;

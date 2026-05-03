@@ -30,7 +30,10 @@ const state = {
   apps: [],
   admins: {},
   sermon: null,
-  bulletins: []
+  bulletins: [],
+  church: {},
+  services: [],
+  hero: null
 };
 
 // ===== 로그인 =====
@@ -154,6 +157,20 @@ function attachListeners() {
     snap.forEach((c) => state.bulletins.push({ id: c.key, ...c.val() }));
     state.bulletins.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderBulletins();
+  });
+  onValue(ref(db, 'config/church'), (snap) => {
+    state.church = snap.val() || {};
+    fillChurchForm();
+  });
+  onValue(ref(db, 'config/services'), (snap) => {
+    state.services = [];
+    snap.forEach((c) => state.services.push({ id: c.key, ...c.val() }));
+    state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
+    renderServices();
+  });
+  onValue(ref(db, 'config/hero'), (snap) => {
+    state.hero = snap.val() || null;
+    renderHeroPreview();
   });
 }
 
@@ -539,3 +556,148 @@ function renderBulletins() {
     });
   });
 }
+
+// ===== 교회 정보 =====
+function fillChurchForm() {
+  const c = state.church || {};
+  if ($('chName')) $('chName').value = c.name || '';
+  if ($('chPastor')) $('chPastor').value = c.pastor || '';
+  if ($('chPhone')) $('chPhone').value = c.phone || '';
+  if ($('chEmail')) $('chEmail').value = c.email || '';
+  if ($('chAddress')) $('chAddress').value = c.address || '';
+  if ($('chDirections')) $('chDirections').value = c.directions || '';
+  if ($('chTagline')) $('chTagline').value = c.tagline || '';
+}
+
+$('chSave')?.addEventListener('click', async () => {
+  const data = {
+    name: $('chName').value.trim(),
+    pastor: $('chPastor').value.trim(),
+    phone: $('chPhone').value.trim(),
+    email: $('chEmail').value.trim(),
+    address: $('chAddress').value.trim(),
+    directions: $('chDirections').value.trim(),
+    tagline: $('chTagline').value.trim(),
+    updatedAt: Date.now()
+  };
+  try {
+    await set(ref(db, 'config/church'), data);
+    flashSaved($('chSave'));
+  } catch (e) {
+    alert('저장 실패: ' + e.message);
+  }
+});
+
+function flashSaved(btn) {
+  if (!btn) return;
+  const orig = btn.textContent;
+  btn.textContent = '✓ 저장됨';
+  btn.disabled = true;
+  setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1500);
+}
+
+// ===== 예배 시간 =====
+const DAY_NAMES = ['일','월','화','수','목','금','토'];
+
+function renderServices() {
+  const list = $('serviceList');
+  if (!list) return;
+  if (!state.services || state.services.length === 0) {
+    list.innerHTML = '<div class="empty">등록된 예배 시간이 없습니다 — 아래에서 추가하세요</div>';
+    return;
+  }
+  list.innerHTML = `<table><thead><tr><th>예배명</th><th>요일·시간</th><th>장소</th><th></th></tr></thead><tbody>${
+    state.services.map((s) => `
+      <tr>
+        <td><b>${escapeHtml(s.name)}</b></td>
+        <td>${DAY_NAMES[s.day]}요일 ${escapeHtml(s.time)}</td>
+        <td>${escapeHtml(s.place || '-')}</td>
+        <td><button class="btn btn-sm danger" data-del-sv="${s.id}">삭제</button></td>
+      </tr>
+    `).join('')
+  }</tbody></table>`;
+  list.querySelectorAll('[data-del-sv]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('예배 시간을 삭제하시겠어요?')) return;
+      await remove(ref(db, `config/services/${btn.dataset.delSv}`));
+    });
+  });
+}
+
+$('svAdd')?.addEventListener('click', async () => {
+  const name = $('svName').value.trim();
+  const day = parseInt($('svDay').value, 10);
+  const time = $('svTime').value;
+  const place = $('svPlace').value.trim();
+  if (!name || !time) { alert('예배명과 시작 시간을 입력하세요'); return; }
+  await push(ref(db, 'config/services'), { name, day, time, place, createdAt: Date.now() });
+  $('svName').value = ''; $('svTime').value = ''; $('svPlace').value = '';
+});
+
+// ===== 메인 사진 (히어로) =====
+function renderHeroPreview() {
+  const wrap = $('heroPreviewWrap');
+  const img = $('heroPreview');
+  if (!wrap || !img) return;
+  if (state.hero?.url) {
+    img.src = state.hero.url;
+    wrap.style.display = '';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+$('heroUpload')?.addEventListener('click', () => {
+  const file = $('heroFile').files[0];
+  const progress = $('heroProgress');
+  if (!file) { alert('이미지 파일을 선택하세요'); return; }
+  if (!file.type.startsWith('image/')) { alert('이미지 파일만 업로드 가능합니다'); return; }
+  if (file.size > 10 * 1024 * 1024) { alert('파일 크기가 10MB를 초과합니다'); return; }
+
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `img/hero/${Date.now()}.${ext}`;
+  const task = uploadBytesResumable(sRef(storage, path), file, { contentType: file.type });
+
+  $('heroUpload').disabled = true;
+
+  task.on('state_changed',
+    (snap) => {
+      const pct = (snap.bytesTransferred / snap.totalBytes * 100).toFixed(0);
+      progress.textContent = `업로드 중... ${pct}%`;
+    },
+    (err) => {
+      progress.textContent = '❌ 업로드 실패: ' + err.message;
+      $('heroUpload').disabled = false;
+    },
+    async () => {
+      const url = await getDownloadURL(task.snapshot.ref);
+      const prevPath = state.hero?.storagePath;
+      await set(ref(db, 'config/hero'), {
+        url, storagePath: path,
+        contentType: file.type,
+        uploadedBy: state.user.uid,
+        timestamp: Date.now()
+      });
+      if (prevPath && prevPath !== path) {
+        await deleteObject(sRef(storage, prevPath)).catch(() => {});
+      }
+      progress.textContent = '✅ 적용 완료 — 사용자 앱 홈 화면에 즉시 반영됩니다';
+      $('heroFile').value = '';
+      $('heroUpload').disabled = false;
+      setTimeout(() => { progress.textContent = ''; }, 4000);
+    }
+  );
+});
+
+$('heroRemove')?.addEventListener('click', async () => {
+  if (!state.hero) return;
+  if (!confirm('현재 메인 사진을 삭제하시겠어요? 기본 이미지로 돌아갑니다.')) return;
+  try {
+    if (state.hero.storagePath) {
+      await deleteObject(sRef(storage, state.hero.storagePath)).catch(() => {});
+    }
+    await remove(ref(db, 'config/hero'));
+  } catch (e) {
+    alert('삭제 실패: ' + e.message);
+  }
+});
