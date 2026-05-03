@@ -200,6 +200,10 @@ function applyChurchInfo() {
   document.querySelectorAll('[data-church="tagline"]').forEach((el) => {
     if (c.tagline) el.textContent = c.tagline;
   });
+  document.querySelectorAll('[data-church="subtitle"]').forEach((el) => {
+    el.textContent = c.subtitle || '';
+    el.style.display = c.subtitle ? '' : 'none';
+  });
 }
 
 async function loadMyPrayedFlags() {

@@ -453,17 +453,29 @@ function renderAdmins() {
   const arr = Object.entries(state.admins).map(([uid, info]) => ({ uid, ...info }));
   if (arr.length === 0) { list.innerHTML = '<div class="empty">관리자가 없습니다</div>'; return; }
   const roleLabel = { super: '최고관리자', content: '콘텐츠', media: '미디어' };
-  list.innerHTML = `<table><thead><tr><th>이름</th><th>역할</th><th>UID</th><th>등록일</th><th></th></tr></thead><tbody>${
+  list.innerHTML = `<table><thead><tr><th>이름</th><th>역할</th><th>등록일</th><th></th></tr></thead><tbody>${
     arr.map((a) => `
       <tr>
         <td>${escapeHtml(a.name || '')}</td>
-        <td>${escapeHtml(roleLabel[a.role] || a.role || '')}</td>
-        <td style="font-family: monospace; font-size: 11px;">${escapeHtml(a.uid)}</td>
+        <td>
+          ${escapeHtml(roleLabel[a.role] || a.role || '')}
+          <button class="btn btn-sm" data-uid-toggle="${escapeHtml(a.uid)}" style="margin-left:6px;font-size:10px;">UID</button>
+          <div id="uid-${escapeHtml(a.uid)}" style="display:none;font-family:monospace;font-size:11px;color:var(--muted);margin-top:4px;word-break:break-all;">${escapeHtml(a.uid)}</div>
+        </td>
         <td>${fmt(a.createdAt || a.addedAt)}</td>
         <td>${a.uid === state.user.uid ? '<span class="pill">나</span>' : `<button class="btn btn-sm danger" data-del-a="${a.uid}">제거</button>`}</td>
       </tr>
     `).join('')
   }</tbody></table>`;
+  list.querySelectorAll('[data-uid-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const el = document.getElementById('uid-' + btn.dataset.uidToggle);
+      if (!el) return;
+      const shown = el.style.display !== 'none';
+      el.style.display = shown ? 'none' : 'block';
+      btn.textContent = shown ? 'UID' : 'UID 숨기기';
+    });
+  });
   list.querySelectorAll('[data-del-a]').forEach((b) => {
     b.addEventListener('click', async () => {
       if (!confirm('관리자 권한을 제거하시겠어요?')) return;
@@ -567,6 +579,7 @@ function fillChurchForm() {
   if ($('chAddress')) $('chAddress').value = c.address || '';
   if ($('chDirections')) $('chDirections').value = c.directions || '';
   if ($('chTagline')) $('chTagline').value = c.tagline || '';
+  if ($('chSubtitle')) $('chSubtitle').value = c.subtitle || '';
 }
 
 $('chSave')?.addEventListener('click', async () => {
@@ -578,6 +591,7 @@ $('chSave')?.addEventListener('click', async () => {
     address: $('chAddress').value.trim(),
     directions: $('chDirections').value.trim(),
     tagline: $('chTagline').value.trim(),
+    subtitle: $('chSubtitle').value.trim(),
     updatedAt: Date.now()
   };
   try {
