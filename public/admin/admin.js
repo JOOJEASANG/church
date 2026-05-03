@@ -70,33 +70,39 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // 관리자 권한 확인
-  const adminRef = ref(db, `admins/${user.uid}`);
-  const snap = await get(adminRef);
+  try {
+    // 관리자 권한 확인
+    const adminRef = ref(db, `admins/${user.uid}`);
+    const snap = await get(adminRef);
 
-  if (!snap.exists()) {
-    // /admins 가 비어있으면 첫 로그인 유저를 자동 등록 (부트스트랩)
-    const allAdmins = await get(ref(db, 'admins'));
-    if (!allAdmins.exists()) {
-      await set(adminRef, {
-        email: user.email,
-        name: user.email.split('@')[0],
-        role: 'super',
-        createdAt: Date.now()
-      });
-    } else {
-      loginErr.textContent = '관리자 권한이 없는 계정입니다.';
-      await signOut(auth);
-      return;
+    if (!snap.exists()) {
+      // /admins 가 비어있으면 첫 로그인 유저를 자동 등록 (부트스트랩)
+      const allAdmins = await get(ref(db, 'admins'));
+      if (!allAdmins.exists()) {
+        await set(adminRef, {
+          email: user.email,
+          name: user.email.split('@')[0],
+          role: 'super',
+          createdAt: Date.now()
+        });
+      } else {
+        loginErr.textContent = '관리자 권한이 없는 계정입니다.';
+        await signOut(auth);
+        return;
+      }
     }
+
+    state.isAdmin = true;
+    loginPane.style.display = 'none';
+    adminPane.classList.add('show');
+    $('whoAmI').textContent = user.email || user.uid;
+
+    attachListeners();
+  } catch (e) {
+    console.error('Admin auth error:', e);
+    loginErr.textContent = `오류: ${e.code || e.message} — Firebase 콘솔에서 데이터베이스 규칙을 확인해주세요.`;
+    await signOut(auth);
   }
-
-  state.isAdmin = true;
-  loginPane.style.display = 'none';
-  adminPane.classList.add('show');
-  $('whoAmI').textContent = user.email || user.uid;
-
-  attachListeners();
 });
 
 // ===== 사이드바 네비게이션 =====
