@@ -738,32 +738,66 @@ function renderServices() {
         <td><b>${escapeHtml(s.name)}</b></td>
         <td>${DAY_NAMES[s.day]}요일 ${escapeHtml(s.time)}</td>
         <td>${escapeHtml(s.place || '-')}</td>
-        <td><button class="btn btn-sm danger" data-del-sv="${s.id}">삭제</button></td>
+        <td>
+          <button class="btn btn-sm" data-edit-sv="${s.id}">수정</button>
+          <button class="btn btn-sm danger" data-del-sv="${s.id}">삭제</button>
+        </td>
       </tr>
     `).join('')
   }</tbody></table>`;
+  list.querySelectorAll('[data-edit-sv]').forEach((btn) => {
+    btn.addEventListener('click', () => editService(btn.dataset.editSv));
+  });
   list.querySelectorAll('[data-del-sv]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       if (!confirm('예배 시간을 삭제하시겠어요?')) return;
-      await remove(ref(db, `config/services/${btn.dataset.delSv}`));
+      try {
+        await remove(ref(db, `config/services/${btn.dataset.delSv}`));
+      } catch (e) { alert('삭제 실패: ' + e.message); }
     });
+  });
+}
+
+function editService(id) {
+  const s = state.services.find((x) => x.id === id);
+  if (!s) return;
+  openEditModal({
+    title: '예배 시간 수정',
+    fields: [
+      { id: 'name', label: '예배명', type: 'text', value: s.name },
+      { id: 'day', label: '요일', type: 'select', value: String(s.day),
+        options: [['0','일요일'],['1','월요일'],['2','화요일'],['3','수요일'],['4','목요일'],['5','금요일'],['6','토요일']] },
+      { id: 'time', label: '시작 시간 (예: 11:00)', type: 'text', value: s.time },
+      { id: 'place', label: '장소 (선택)', type: 'text', value: s.place || '' }
+    ],
+    onSave: async (vals) => {
+      const time = vals.time.trim();
+      if (!vals.name.trim()) throw new Error('예배명을 입력하세요');
+      if (!time) throw new Error('시작 시간을 입력하세요 (예: 11:00)');
+      await update(ref(db, `config/services/${id}`), {
+        name: vals.name.trim(),
+        day: parseInt(vals.day, 10),
+        time,
+        place: vals.place.trim()
+      });
+    }
   });
 }
 
 $('svAdd')?.addEventListener('click', async () => {
   const name = $('svName').value.trim();
   const day = parseInt($('svDay').value, 10);
-  const time = $('svTime').value;
+  const time = $('svTime').value.trim();
   const place = $('svPlace').value.trim();
   if (!name) { alert('예배명을 입력하세요'); return; }
-  if (!time) { alert('시작 시간을 선택하세요'); return; }
+  if (!time) { alert('시작 시간을 입력하세요 (예: 11:00)'); return; }
   try {
     await push(ref(db, 'config/services'), { name, day, time, place, createdAt: Date.now() });
     $('svName').value = ''; $('svTime').value = ''; $('svPlace').value = '';
     alert('예배 시간이 추가되었습니다');
   } catch (e) {
-    alert('저장 실패: 권한을 확인해주세요 (' + e.message + ')');
-    console.error(e);
+    alert('저장 실패: ' + e.code + ' — ' + e.message);
+    console.error('svAdd error:', e);
   }
 });
 

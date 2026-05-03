@@ -346,12 +346,12 @@
 
         <div class="panel">
           <h2>🕊️ 예배 시간</h2>
-          <p class="sub">홈 화면의 다음 예배 카운트다운에 사용됩니다</p>
+          <p class="sub">홈 화면 예배 안내에 표시됩니다. 등록·수정·삭제 즉시 반영됩니다</p>
           <div id="serviceList"></div>
           <div class="grid-3" style="margin-top: 14px;">
             <div>
               <label>예배명</label>
-              <input class="field" id="svName" placeholder="주일예배"/>
+              <input class="field" id="svName" placeholder="예: 주일예배"/>
             </div>
             <div>
               <label>요일</label>
@@ -366,8 +366,8 @@
               </select>
             </div>
             <div>
-              <label>시작 시간 (HH:MM)</label>
-              <input class="field" id="svTime" placeholder="11:00" type="time"/>
+              <label>시작 시간 (예: 11:00)</label>
+              <input class="field" id="svTime" placeholder="11:00" type="text" inputmode="numeric"/>
             </div>
           </div>
           <label>장소 (선택)</label>
@@ -540,7 +540,7 @@
           <h2>📋 신청 내역</h2>
           <p class="sub">봉사·재능나눔방 등 모든 신청</p>
           <div style="overflow-x: auto;">
-            <table id="appsTable"><thead><tr><th>일시</th><th>구분</th><th>이름</th><th>연락처</th><th>대상</th></tr></thead><tbody></tbody></table>
+            <table id="appsTable"><thead><tr><th>일시</th><th>구분</th><th>이름</th><th>연락처</th><th>상세</th><th></th></tr></thead><tbody></tbody></table>
           </div>
         </div>
       </div>
