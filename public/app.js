@@ -858,7 +858,7 @@ gFileInput?.addEventListener('change', async (e) => {
   gProgressEl.textContent = `📐 ${selected.length}장 변환 중...`;
   for (const f of selected) {
     try {
-      const resized = await resizeImage(f, { maxDim: 1600, quality: 0.82 });
+      const resized = await resizeImage(f, { maxDim: 2400, quality: 0.88 });
       preparedPhotos.push(resized);
       const item = document.createElement('div');
       item.className = 'g-preview-item';
