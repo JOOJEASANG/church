@@ -121,7 +121,10 @@ document.querySelectorAll('.nav-item').forEach((item) => {
 });
 
 // ===== 실시간 데이터 리스너 =====
+let listenersAttached = false;
 function attachListeners() {
+  if (listenersAttached) return;
+  listenersAttached = true;
   onValue(ref(db, 'rooms'), (snap) => {
     state.rooms = [];
     snap.forEach((c) => state.rooms.push({ id: c.key, ...c.val() }));
@@ -168,6 +171,7 @@ function attachListeners() {
     state.services = [];
     snap.forEach((c) => state.services.push({ id: c.key, ...c.val() }));
     state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
+    console.log('[svc] onValue →', state.services.length, '개:', state.services.map((s) => s.name).join(', '));
     renderServices();
   });
   onValue(ref(db, 'config/hero'), (snap) => {
@@ -793,11 +797,12 @@ function setSvStatus(msg, color = 'var(--muted)') {
 
 async function reloadServices() {
   console.log('[svc] reloading from /config/services ...');
-  const snap = await get(ref(db, 'config/services'));
+  // query() forces a fresh server read even when an onValue listener is active
+  const snap = await get(query(ref(db, 'config/services'), orderByChild('createdAt')));
   state.services = [];
   snap.forEach((c) => state.services.push({ id: c.key, ...c.val() }));
   state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
-  console.log('[svc] loaded', state.services.length, 'services:', state.services);
+  console.log('[svc] reloaded', state.services.length, 'services:', state.services.map((s) => s.name).join(', '));
   renderServices();
   return state.services.length;
 }
@@ -817,9 +822,8 @@ $('svAdd')?.addEventListener('click', async () => {
     console.log('[svc] pushing:', { name, day, time, place });
     const newRef = await push(ref(db, 'config/services'), { name, day, time, place, createdAt: Date.now() });
     console.log('[svc] pushed key:', newRef.key);
-    const count = await reloadServices();
     $('svName').value = ''; $('svTime').value = ''; $('svPlace').value = '';
-    setSvStatus(`✅ "${name}" 저장됨 — 현재 총 ${count}개`, 'var(--primary)');
+    setSvStatus(`✅ "${name}" 저장됨`, 'var(--primary)');
     $('serviceList').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (e) {
     console.error('[svc] svAdd error:', e);

@@ -127,7 +127,10 @@ async function seedIfEmpty() {
 }
 
 // ===== 실시간 리스너 =====
+let listenersAttached = false;
 function attachListeners() {
+  if (listenersAttached) return;
+  listenersAttached = true;
   onValue(ref(db, 'rooms'), (snap) => {
     state.rooms = [];
     snap.forEach((c) => state.rooms.push({ id: c.key, ...c.val() }));
