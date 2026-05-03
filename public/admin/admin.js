@@ -65,7 +65,10 @@ function errorMessage(code) {
   })[code] || '로그인에 실패했습니다.';
 }
 
-$('logoutBtn').addEventListener('click', () => signOut(auth));
+$('logoutBtn').addEventListener('click', () => {
+  listenersAttached = false;
+  signOut(auth);
+});
 
 // ===== 인증 상태 =====
 onAuthStateChanged(auth, async (user) => {
@@ -828,9 +831,17 @@ $('svAdd')?.addEventListener('click', async () => {
   setSvStatus('💾 저장 중...');
   try {
     console.log('[svc] pushing:', { name, day, time, place });
-    const newRef = await push(ref(db, 'config/services'), { name, day, time, place, createdAt: Date.now() });
+    const ts = Date.now();
+    const newData = { name, day, time, place, createdAt: ts };
+    const newRef = await push(ref(db, 'config/services'), newData);
     console.log('[svc] pushed key:', newRef.key);
     $('svName').value = ''; $('svTime').value = ''; $('svPlace').value = '';
+    // Immediately reflect new item in UI without waiting for onValue to fire
+    if (!state.services.some((s) => s.id === newRef.key)) {
+      state.services.push({ id: newRef.key, ...newData });
+      state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
+      renderServices();
+    }
     setSvStatus(`✅ "${name}" 저장됨`, 'var(--primary)');
     $('serviceList').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (e) {
