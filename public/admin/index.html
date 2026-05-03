@@ -286,6 +286,7 @@
       <div class="nav-item" data-pane="sermon"><span class="ico">📖</span>설교 영상</div>
       <div class="nav-item" data-pane="bulletin"><span class="ico">📄</span>주보</div>
       <div class="nav-item" data-pane="gallery"><span class="ico">🖼️</span>갤러리</div>
+      <div class="nav-item" data-pane="events"><span class="ico">📅</span>교회 일정</div>
       <div class="nav-item" data-pane="approve"><span class="ico">✅</span>승인 대기 <span class="badge" id="badgeApprove" style="display:none;">0</span></div>
       <div class="nav-item" data-pane="apps"><span class="ico">📋</span>신청 내역</div>
       <div class="nav-item" data-pane="prayers"><span class="ico">🙏</span>기도제목</div>
@@ -546,6 +547,49 @@
           <div style="overflow-x: auto;">
             <table id="appsTable"><thead><tr><th>일시</th><th>구분</th><th>이름</th><th>연락처</th><th>상세</th><th></th></tr></thead><tbody></tbody></table>
           </div>
+        </div>
+      </div>
+
+      <!-- 교회 일정 (캘린더) -->
+      <div class="pane" id="pane-events">
+        <div class="panel">
+          <h2>📅 일정 등록</h2>
+          <p class="sub">등록한 일정은 사용자 앱 '캘린더' 탭에 즉시 반영됩니다</p>
+          <div class="grid-2">
+            <div>
+              <label>일정 제목</label>
+              <input class="field" id="evTitle" placeholder="예: 야외예배, 수련회"/>
+            </div>
+            <div>
+              <label>분류</label>
+              <select class="field" id="evCategory">
+                <option value="예배">예배</option>
+                <option value="행사">행사</option>
+                <option value="교육">교육</option>
+                <option value="봉사">봉사</option>
+                <option value="기타">기타</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div>
+              <label>날짜</label>
+              <input class="field" id="evDate" type="date"/>
+            </div>
+            <div>
+              <label>시간 (선택)</label>
+              <input class="field" id="evTime" type="time" placeholder="예: 11:00"/>
+            </div>
+          </div>
+          <label>장소 (선택)</label>
+          <input class="field" id="evLocation" placeholder="예: 본당, 교육관 2층"/>
+          <label>설명 (선택)</label>
+          <textarea class="field" id="evDesc" placeholder="일정에 대한 추가 안내" style="min-height:72px;"></textarea>
+          <button class="btn primary" id="evSubmit" type="button" style="margin-top: 12px;">일정 등록</button>
+        </div>
+        <div class="panel">
+          <h2>등록된 일정</h2>
+          <div id="eventsList"></div>
         </div>
       </div>
 

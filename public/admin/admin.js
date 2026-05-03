@@ -35,7 +35,8 @@ const state = {
   church: {},
   services: [],
   hero: null,
-  gallery: []
+  gallery: [],
+  events: []
 };
 
 // ===== 로그인 =====
@@ -177,6 +178,13 @@ function attachListeners() {
   onValue(ref(db, 'config/hero'), (snap) => {
     state.hero = snap.val() || null;
     renderHeroPreview();
+  });
+
+  onValue(ref(db, 'events'), (snap) => {
+    state.events = [];
+    snap.forEach((c) => state.events.push({ id: c.key, ...c.val() }));
+    state.events.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    renderEvents();
   });
 }
 
@@ -1004,6 +1012,94 @@ function fieldHtml(f) {
 function closeEditModal() {
   const el = document.getElementById('editModalBg');
   if (el) el.remove();
+}
+
+// ===== 교회 일정 (캘린더) =====
+function todayDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+const evDateInput = $('evDate');
+if (evDateInput && !evDateInput.value) evDateInput.value = todayDateStr();
+
+$('evSubmit')?.addEventListener('click', async () => {
+  const title = $('evTitle').value.trim();
+  const date = $('evDate').value;
+  const category = $('evCategory').value;
+  if (!title) { alert('일정 제목을 입력해주세요'); return; }
+  if (!date) { alert('날짜를 선택해주세요'); return; }
+  await push(ref(db, 'events'), {
+    title, date, category,
+    time: $('evTime').value || '',
+    location: $('evLocation').value.trim(),
+    desc: $('evDesc').value.trim(),
+    createdBy: state.user.uid,
+    createdAt: Date.now()
+  });
+  $('evTitle').value = ''; $('evTime').value = '';
+  $('evLocation').value = ''; $('evDesc').value = '';
+  alert('일정이 등록되었습니다');
+});
+
+function renderEvents() {
+  const list = $('eventsList');
+  if (!list) return;
+  if (!state.events || state.events.length === 0) {
+    list.innerHTML = '<div class="empty">등록된 일정이 없습니다</div>';
+    return;
+  }
+  const catPill = (cat) => {
+    const cls = ({행사: 'event', 교육: 'notice', 봉사: 'urgent', 기타: ''})[cat] || '';
+    return `<span class="pill ${cls}">${escapeHtml(cat || '기타')}</span>`;
+  };
+  list.innerHTML = `<table><thead><tr><th>분류</th><th>날짜</th><th>제목</th><th>시간</th><th>장소</th><th></th></tr></thead><tbody>${
+    state.events.map((e) => `
+      <tr>
+        <td>${catPill(e.category)}</td>
+        <td>${escapeHtml(e.date)}</td>
+        <td><b>${escapeHtml(e.title)}</b>${e.desc ? `<br/><span style="color:var(--muted);font-size:12px;">${escapeHtml(e.desc.slice(0,50))}${e.desc.length>50?'…':''}</span>` : ''}</td>
+        <td>${escapeHtml(e.time || '-')}</td>
+        <td>${escapeHtml(e.location || '-')}</td>
+        <td>
+          <button class="btn btn-sm" data-edit-ev="${e.id}">수정</button>
+          <button class="btn btn-sm danger" data-del-ev="${e.id}">삭제</button>
+        </td>
+      </tr>
+    `).join('')
+  }</tbody></table>`;
+  list.querySelectorAll('[data-edit-ev]').forEach((b) => b.addEventListener('click', () => editEvent(b.dataset.editEv)));
+  list.querySelectorAll('[data-del-ev]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      if (!confirm('일정을 삭제하시겠어요?')) return;
+      await remove(ref(db, `events/${b.dataset.delEv}`));
+    });
+  });
+}
+
+function editEvent(id) {
+  const e = state.events.find((x) => x.id === id);
+  if (!e) return;
+  openEditModal({
+    title: '일정 수정',
+    fields: [
+      { id: 'title', label: '제목', type: 'text', value: e.title },
+      { id: 'date', label: '날짜', type: 'date', value: e.date },
+      { id: 'category', label: '분류', type: 'select', value: e.category,
+        options: [['예배','예배'],['행사','행사'],['교육','교육'],['봉사','봉사'],['기타','기타']] },
+      { id: 'time', label: '시간', type: 'text', value: e.time || '' },
+      { id: 'location', label: '장소', type: 'text', value: e.location || '' },
+      { id: 'desc', label: '설명', type: 'textarea', value: e.desc || '' }
+    ],
+    onSave: async (vals) => {
+      if (!vals.title) throw new Error('제목을 입력하세요');
+      if (!vals.date) throw new Error('날짜를 선택하세요');
+      await update(ref(db, `events/${id}`), {
+        title: vals.title, date: vals.date, category: vals.category,
+        time: vals.time, location: vals.location, desc: vals.desc
+      });
+    }
+  });
 }
 
 // ===== 갤러리 (관리자 모니터링) =====

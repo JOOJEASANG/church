@@ -73,7 +73,9 @@ const state = {
   church: {},
   services: [],
   hero: null,
-  gallery: []
+  gallery: [],
+  events: [],
+  currentMonth: new Date()
 };
 
 // ===== 익명 로그인 =====
@@ -184,6 +186,14 @@ function attachListeners() {
     state.gallery.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderGallery();
   });
+
+  onValue(ref(db, 'events'), (snap) => {
+    state.events = [];
+    snap.forEach((c) => state.events.push({ id: c.key, ...c.val() }));
+    state.events.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    if (state.currentTab === 'calendar') renderCalendar();
+    else renderUpcomingEvents();
+  });
 }
 
 function renderGallery() {
@@ -272,6 +282,7 @@ function switchTab(name) {
   document.querySelectorAll('.tabbar-item').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (name === 'share') renderRooms();
+  if (name === 'calendar') renderCalendar();
   const url = new URL(location.href);
   url.searchParams.set('tab', name);
   history.replaceState(null, '', url);
@@ -1134,6 +1145,107 @@ gSubmitBtn?.addEventListener('click', async () => {
   } finally {
     gSubmitBtn.disabled = false;
   }
+});
+
+// ===== 교회 캘린더 =====
+const MONTHS_KO = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+function renderCalendar() {
+  const container = document.getElementById('calendarGrid');
+  if (!container) return;
+  const year = state.currentMonth.getFullYear();
+  const month = state.currentMonth.getMonth();
+  const monthLabel = document.getElementById('calMonthLabel');
+  if (monthLabel) monthLabel.textContent = `${year}년 ${MONTHS_KO[month]}`;
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const monthEvents = (state.events || []).filter((e) => (e.date || '').startsWith(monthStr));
+
+  const eventsByDate = {};
+  monthEvents.forEach((e) => {
+    if (!eventsByDate[e.date]) eventsByDate[e.date] = [];
+    eventsByDate[e.date].push(e);
+  });
+
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+  let html = '';
+  let day = 1;
+  for (let i = 0; i < totalCells; i++) {
+    if (i >= firstDay && day <= daysInMonth) {
+      const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const isToday = dateStr === todayStr;
+      const dayEvents = eventsByDate[dateStr] || [];
+      const col = i % 7;
+      const isSun = col === 0, isSat = col === 6;
+      html += `<div class="cal-cell${isToday ? ' today' : ''}" data-date="${dateStr}">
+        <div class="cal-day${isSun ? ' sun' : isSat ? ' sat' : ''}">${day}</div>
+        <div class="cal-events">${dayEvents.slice(0,3).map((e) =>
+          `<div class="cal-dot cat-${escapeHtml(e.category || '기타')}" title="${escapeHtml(e.title)}"></div>`
+        ).join('')}</div>
+      </div>`;
+      day++;
+    } else {
+      html += '<div class="cal-cell empty"></div>';
+    }
+  }
+  container.innerHTML = html;
+  container.querySelectorAll('.cal-cell:not(.empty)').forEach((cell) => {
+    cell.addEventListener('click', () => openDayEvents(cell.dataset.date));
+  });
+  renderUpcomingEvents();
+}
+
+function openDayEvents(dateStr) {
+  const dayEvents = (state.events || []).filter((e) => e.date === dateStr);
+  if (!dayEvents.length) { toast('이 날은 등록된 일정이 없어요'); return; }
+  const [, m, d] = dateStr.split('-');
+  const rows = dayEvents.map((e) => listRowHtml({
+    tag: e.category || '기타',
+    tagClass: calCatClass(e.category),
+    title: e.title,
+    body: [e.time ? `🕐 ${e.time}` : '', e.location ? `📍 ${escapeHtml(e.location)}` : '', e.desc || ''].filter(Boolean).join('  ')
+  })).join('');
+  openListModal(`${parseInt(m)}월 ${parseInt(d)}일 일정`, rows);
+}
+
+function calCatClass(cat) {
+  return ({예배: '', 행사: 'event', 교육: 'notice', 봉사: 'urgent'})[cat] || '';
+}
+
+function renderUpcomingEvents() {
+  const list = document.getElementById('upcomingEvents');
+  if (!list) return;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const upcoming = (state.events || [])
+    .filter((e) => (e.date || '') >= todayStr)
+    .slice(0, 8);
+  if (!upcoming.length) {
+    list.innerHTML = '<div class="list-empty">예정된 일정이 없어요. 관리자 페이지에서 일정을 등록하세요.</div>';
+    return;
+  }
+  list.innerHTML = upcoming.map((e) => {
+    const [, m, d] = (e.date || '').split('-');
+    return listRowHtml({
+      tag: e.category || '기타',
+      tagClass: calCatClass(e.category),
+      title: e.title,
+      body: [e.time ? `🕐 ${e.time}` : '', e.location ? `📍 ${e.location}` : ''].filter(Boolean).join('  ') || e.desc || '',
+      time: e.date ? `${parseInt(m)}/${parseInt(d)}` : ''
+    });
+  }).join('');
+}
+
+document.getElementById('calPrev')?.addEventListener('click', () => {
+  state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() - 1, 1);
+  renderCalendar();
+});
+document.getElementById('calNext')?.addEventListener('click', () => {
+  state.currentMonth = new Date(state.currentMonth.getFullYear(), state.currentMonth.getMonth() + 1, 1);
+  renderCalendar();
 });
 
 // ===== Service Worker =====
