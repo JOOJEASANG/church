@@ -583,6 +583,30 @@
     }
     .modal .close-btn:hover { background: var(--bg); }
 
+    /* ===== 리스트 모달 (내 기도, 내 신청, 알림, 검색결과 등) ===== */
+    .list-row {
+      background: var(--bg-2, #fafaf7);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+    }
+    .list-row .lr-top {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11.5px; color: var(--muted); font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .list-row .lr-tag {
+      display: inline-block; padding: 3px 9px;
+      border-radius: 999px; font-weight: 700; font-size: 11px;
+      background: var(--primary-soft); color: var(--primary-dark);
+    }
+    .list-row .lr-tag.urgent { background: var(--red-soft); color: #b94c4c; }
+    .list-row .lr-tag.event  { background: var(--accent-soft); color: var(--accent); }
+    .list-row .lr-tag.notice { background: var(--blue-soft); color: #2c5282; }
+    .list-row h4 { margin: 0 0 4px; font-size: 14.5px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.4; }
+    .list-row p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; font-weight: 400; }
+    .list-empty { padding: 40px 16px; text-align: center; color: var(--muted); font-weight: 500; font-size: 13px; }
+
     label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin: 14px 0 6px 2px; letter-spacing: -0.1px; }
     .field, .select, textarea {
       width: 100%; border: 1px solid var(--line-strong); border-radius: 12px;
@@ -793,23 +817,9 @@
         </div>
 
         <div class="section">
-          <div class="section-title"><h2>이번 주 소식</h2><a href="#">전체 보기</a></div>
+          <div class="section-title"><h2>이번 주 소식</h2><a href="#" id="annMore">전체 보기</a></div>
           <div class="feed">
-            <article class="feed-card">
-              <div class="top"><span class="tag urgent">중요</span><span class="time">2일 전</span></div>
-              <h3>이번 주 예배 안내</h3>
-              <p>주일예배 오전 11시, 수요예배 오후 7시 30분에 드립니다.</p>
-            </article>
-            <article class="feed-card">
-              <div class="top"><span class="tag event">신청중</span><span class="time">5월 1일</span></div>
-              <h3>야외예배 신청</h3>
-              <p>참석 인원과 차량 이용 여부를 함께 신청해주세요. (5월 12일 마감)</p>
-            </article>
-            <article class="feed-card">
-              <div class="top"><span class="tag notice">봉사</span><span class="time">5월 1일</span></div>
-              <h3>식사봉사 3명 모집</h3>
-              <p>주일 점심 준비와 정리를 도와주실 성도를 기다립니다.</p>
-            </article>
+            <div class="feed-card"><h3>아직 등록된 소식이 없어요</h3><p>첫 공지가 등록되면 여기에 표시됩니다.</p></div>
           </div>
         </div>
       </section>
@@ -864,33 +874,7 @@
         <button class="compose-btn" type="button" data-modal="prayerModal">+ 기도제목 등록하기</button>
 
         <div class="prayer-feed" id="prayerFeed">
-          <article class="prayer-card">
-            <div class="prayer-head">
-              <span class="name">김OO 권사</span>
-              <span class="tag">공개</span>
-              <span class="when">방금</span>
-            </div>
-            <p class="body">수술 후 회복 중인 가족을 위해 함께 기도해주세요.</p>
-            <button class="pray-action" type="button">🙏 기도했어요 <b>12</b></button>
-          </article>
-          <article class="prayer-card">
-            <div class="prayer-head">
-              <span class="name">익명</span>
-              <span class="tag">익명</span>
-              <span class="when">1시간 전</span>
-            </div>
-            <p class="body">자녀의 진로와 믿음 생활을 위해 기도 부탁드립니다.</p>
-            <button class="pray-action" type="button">🙏 기도했어요 <b>8</b></button>
-          </article>
-          <article class="prayer-card">
-            <div class="prayer-head">
-              <span class="name">박OO 집사</span>
-              <span class="tag">감사</span>
-              <span class="when">3시간 전</span>
-            </div>
-            <p class="body">기도해주신 덕분에 치료 결과가 좋게 나왔습니다. 감사합니다.</p>
-            <button class="pray-action done" type="button">🙏 기도했어요 <b>19</b></button>
-          </article>
+          <div class="feed-card"><h3>기도제목을 불러오는 중...</h3></div>
         </div>
       </section>
 
@@ -1275,6 +1259,39 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- 내 기도제목 / 내 신청 내역 / 알림 / 검색 공통 리스트 모달 -->
+  <div class="modal-bg" id="listModal">
+    <div class="modal">
+      <div class="modal-grip"></div>
+      <div class="modal-head">
+        <h3 id="listTitle">목록</h3>
+        <button class="close-btn" data-close="listModal" type="button">×</button>
+      </div>
+      <div id="listSearchWrap" style="display:none;padding:0 4px 8px;">
+        <input class="field" id="listSearchInput" placeholder="검색어를 입력하세요"/>
+      </div>
+      <div id="listBody" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+  </div>
+
+  <!-- 출석 체크인 모달 -->
+  <div class="modal-bg" id="checkinModal">
+    <div class="modal">
+      <div class="modal-grip"></div>
+      <div class="modal-head">
+        <h3>예배 출석 체크인</h3>
+        <button class="close-btn" data-close="checkinModal" type="button">×</button>
+      </div>
+      <p style="font-size:13.5px;color:var(--muted);margin:4px 0 14px;font-weight:500;">참석하신 예배를 선택해주세요. 오늘의 출석이 기록됩니다.</p>
+      <label>이름</label>
+      <input class="field" id="ciName" placeholder="예: 홍길동"/>
+      <label>예배 선택</label>
+      <select class="select" id="ciService"></select>
+      <button class="submit-btn" type="button" id="ciSubmit">출석 체크인</button>
+      <div id="ciStatus" style="margin-top:10px;font-size:13px;font-weight:600;text-align:center;"></div>
     </div>
   </div>
 

@@ -510,10 +510,11 @@ document.getElementById('raSubmit')?.addEventListener('click', async () => {
   const room = state.rooms.find((r) => r.id === roomId);
   if (!room) return;
   try {
-    await push(ref(db, 'applications'), {
+    const newRef = await push(ref(db, 'applications'), {
       kind: '재능나눔', roomId, roomTitle: room.title, name, phone,
       userUid: state.uid, timestamp: Date.now()
     });
+    recordMyApplication(newRef.key);
     if (room.joined < room.capacity) {
       await update(ref(db, `rooms/${roomId}`), { joined: room.joined + 1 });
     }
@@ -631,13 +632,14 @@ document.getElementById('vSubmit')?.addEventListener('click', async () => {
   const name = document.getElementById('vName').value.trim();
   if (!name) { toast('이름을 입력해주세요'); return; }
   try {
-    await push(ref(db, 'applications'), {
+    const newRef = await push(ref(db, 'applications'), {
       kind: '봉사', name,
       phone: document.getElementById('vPhone').value.trim(),
       type: document.getElementById('vKind').value,
       time: document.getElementById('vTime').value.trim(),
       userUid: state.uid, timestamp: Date.now()
     });
+    recordMyApplication(newRef.key);
     ['vName','vPhone','vTime'].forEach((i) => { const e = document.getElementById(i); if (e) e.value = ''; });
     closeModal('volunteerModal');
     toast('봉사 신청이 접수되었습니다');
@@ -654,12 +656,13 @@ document.getElementById('vtSubmit')?.addEventListener('click', async () => {
   const phone = document.getElementById('vtPhone').value.trim();
   if (!phone) { toast('연락처를 입력해주세요'); return; }
   try {
-    await push(ref(db, 'applications'), {
+    const newRef = await push(ref(db, 'applications'), {
       kind: '심방요청', name, phone,
       date: document.getElementById('vtDate').value,
       message: document.getElementById('vtMsg').value.trim(),
       userUid: state.uid, timestamp: Date.now()
     });
+    recordMyApplication(newRef.key);
     ['vtName', 'vtPhone', 'vtMsg'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
     document.getElementById('vtDate').value = '';
     closeModal('visitModal');
@@ -677,12 +680,13 @@ document.getElementById('ncSubmit')?.addEventListener('click', async () => {
   const phone = document.getElementById('ncPhone').value.trim();
   if (!phone) { toast('연락처를 입력해주세요'); return; }
   try {
-    await push(ref(db, 'applications'), {
+    const newRef = await push(ref(db, 'applications'), {
       kind: '새가족', name, phone,
       address: document.getElementById('ncAddress').value.trim(),
       how: document.getElementById('ncHow').value,
       userUid: state.uid, timestamp: Date.now()
     });
+    recordMyApplication(newRef.key);
     ['ncName', 'ncPhone', 'ncAddress'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
     closeModal('newcomerModal');
     toast('새가족 등록이 접수되었습니다. 담당 사역자가 연락드립니다');
@@ -759,17 +763,214 @@ document.querySelectorAll('[data-action]').forEach((el) => {
   el.addEventListener('click', () => {
     const a = el.dataset.action;
     if (a === 'login') toast('전화번호 인증은 다음 업데이트에서 추가됩니다');
-    else if (a === 'qr') toast('QR 출석체크는 다음 단계에서 열립니다');
+    else if (a === 'qr' || a === 'attendance') openCheckinModal();
     else if (a === 'install') triggerInstall();
     else if (a === 'visit') openModal('visitModal');
     else if (a === 'newcomer') openModal('newcomerModal');
     else if (a === 'info' || a === 'contact') openInfoModal();
+    else if (a === 'myPrayers') openMyPrayers();
+    else if (a === 'myApplications') openMyApplications();
     else toast('기능 준비 중이에요');
   });
 });
 
-document.getElementById('notifBtn')?.addEventListener('click', () => toast('새 알림이 없습니다'));
-document.getElementById('searchBtn')?.addEventListener('click', () => toast('검색은 다음 업데이트에서 추가됩니다'));
+document.getElementById('annMore')?.addEventListener('click', (e) => { e.preventDefault(); openAnnouncementsList(); });
+document.getElementById('notifBtn')?.addEventListener('click', openNotifications);
+document.getElementById('searchBtn')?.addEventListener('click', openSearch);
+
+// ===== 리스트 모달 헬퍼 =====
+function openListModal(title, rowsHtml, { searchPlaceholder, onSearch } = {}) {
+  const titleEl = document.getElementById('listTitle');
+  const body = document.getElementById('listBody');
+  const wrap = document.getElementById('listSearchWrap');
+  const input = document.getElementById('listSearchInput');
+  if (titleEl) titleEl.textContent = title;
+  if (body) body.innerHTML = rowsHtml || '<div class="list-empty">표시할 내용이 없어요</div>';
+  if (wrap && input) {
+    if (onSearch) {
+      wrap.style.display = '';
+      input.placeholder = searchPlaceholder || '검색어를 입력하세요';
+      input.value = '';
+      input.oninput = () => onSearch(input.value.trim());
+      setTimeout(() => input.focus(), 100);
+    } else {
+      wrap.style.display = 'none';
+      input.oninput = null;
+    }
+  }
+  openModal('listModal');
+}
+
+function listRowHtml({ tag, tagClass, title, body, time }) {
+  return `
+    <div class="list-row">
+      <div class="lr-top">
+        ${tag ? `<span class="lr-tag ${tagClass || ''}">${escapeHtml(tag)}</span>` : ''}
+        ${time ? `<span style="margin-left:auto;">${escapeHtml(time)}</span>` : ''}
+      </div>
+      <h4>${escapeHtml(title || '')}</h4>
+      ${body ? `<p>${escapeHtml(body)}</p>` : ''}
+    </div>`;
+}
+
+// ===== 내 기도제목 =====
+function openMyPrayers() {
+  const mine = (state.prayers || []).filter((p) => p.createdBy === state.uid);
+  const rows = mine.map((p) => listRowHtml({
+    tag: p.type || '공개',
+    title: p.text || '',
+    body: `🙏 ${p.count || 0}명이 함께 기도`,
+    time: timeAgo(p.timestamp)
+  })).join('');
+  openListModal('내 기도제목', rows || '<div class="list-empty">아직 등록한 기도제목이 없어요</div>');
+}
+
+// ===== 내 신청 내역 =====
+async function openMyApplications() {
+  // applications는 보안 규칙상 본인 것만 읽을 수 있어 직접 query 불가 → 본인 항목만 필터링 어려움.
+  // 대신 사용자 자신이 만든 rooms 신청, 봉사·심방·새가족 신청을 anonymous uid로 필터.
+  // 보안 규칙: data.child('userUid').val() === auth.uid 인 항목만 읽기 허용.
+  // 따라서 each 항목별 get은 비효율 — applications 컬렉션 전체를 한 번에 받지 못함.
+  // 대안: localStorage 캐시로 본인이 신청한 ID 보관.
+  const ids = JSON.parse(localStorage.getItem('myAppIds') || '[]');
+  if (!ids.length) {
+    openListModal('내 신청 내역', '<div class="list-empty">아직 신청한 내역이 없어요</div>');
+    return;
+  }
+  const items = [];
+  for (const id of ids) {
+    try {
+      const snap = await get(ref(db, `applications/${id}`));
+      if (snap.exists()) items.push({ id, ...snap.val() });
+    } catch {}
+  }
+  items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  const rows = items.map((a) => {
+    let detail = a.roomTitle || a.type || '';
+    if (a.kind === '심방요청' && a.date) detail = `희망일: ${a.date}`;
+    if (a.kind === '새가족' && a.address) detail = a.address;
+    return listRowHtml({
+      tag: a.kind || '신청',
+      title: detail,
+      body: `${a.name || ''}${a.phone ? ' · ' + a.phone : ''}`,
+      time: timeAgo(a.timestamp)
+    });
+  }).join('');
+  openListModal('내 신청 내역', rows || '<div class="list-empty">신청 내역을 불러오지 못했어요</div>');
+}
+
+function recordMyApplication(id) {
+  if (!id) return;
+  try {
+    const ids = JSON.parse(localStorage.getItem('myAppIds') || '[]');
+    if (!ids.includes(id)) {
+      ids.unshift(id);
+      localStorage.setItem('myAppIds', JSON.stringify(ids.slice(0, 50)));
+    }
+  } catch {}
+}
+
+// ===== 알림 (최근 공지·주보) =====
+function openNotifications() {
+  const items = [
+    ...(state.announcements || []).slice(0, 10).map((a) => ({
+      ts: a.timestamp || 0,
+      tag: tagLabel(a.tag),
+      tagClass: a.tag || 'notice',
+      title: a.title || '',
+      body: a.body || ''
+    })),
+    ...(state.bulletins || []).slice(0, 5).map((b) => ({
+      ts: b.timestamp || 0,
+      tag: '주보',
+      tagClass: 'event',
+      title: b.title || '주보',
+      body: b.date || ''
+    }))
+  ].sort((a, b) => b.ts - a.ts).slice(0, 15);
+  const rows = items.map((i) => listRowHtml({
+    tag: i.tag, tagClass: i.tagClass, title: i.title, body: i.body, time: timeAgo(i.ts)
+  })).join('');
+  openListModal('알림', rows || '<div class="list-empty">새 알림이 없어요</div>');
+  document.getElementById('notifBtn')?.querySelector('.dot')?.remove();
+}
+
+// ===== 검색 =====
+function openSearch() {
+  const renderResults = (q) => {
+    const body = document.getElementById('listBody');
+    if (!body) return;
+    if (!q) { body.innerHTML = '<div class="list-empty">교회 소식·말씀·재능나눔방을 검색해보세요</div>'; return; }
+    const lq = q.toLowerCase();
+    const matchAnn = (state.announcements || []).filter((a) =>
+      (a.title || '').toLowerCase().includes(lq) || (a.body || '').toLowerCase().includes(lq)
+    ).map((a) => listRowHtml({ tag: '공지', tagClass: a.tag || 'notice', title: a.title, body: a.body, time: timeAgo(a.timestamp) }));
+    const matchRoom = (state.rooms || []).filter((r) => r.approved !== false &&
+      ((r.title || '').toLowerCase().includes(lq) || (r.desc || '').toLowerCase().includes(lq) || (r.category || '').toLowerCase().includes(lq))
+    ).map((r) => listRowHtml({ tag: '재능나눔방', title: r.title, body: r.desc, time: r.schedule }));
+    const matchPrayer = (state.prayers || []).filter((p) => p.type !== '교역자에게만 전달' &&
+      (p.text || '').toLowerCase().includes(lq)
+    ).map((p) => listRowHtml({ tag: '기도', title: p.text, body: p.name || '익명', time: timeAgo(p.timestamp) }));
+    const matchBul = (state.bulletins || []).filter((b) => (b.title || '').toLowerCase().includes(lq))
+      .map((b) => listRowHtml({ tag: '주보', tagClass: 'event', title: b.title, body: b.date, time: timeAgo(b.timestamp) }));
+    const all = [...matchAnn, ...matchRoom, ...matchPrayer, ...matchBul];
+    body.innerHTML = all.length ? all.join('') : `<div class="list-empty">"${escapeHtml(q)}"에 대한 결과가 없어요</div>`;
+  };
+  openListModal('검색', '<div class="list-empty">교회 소식·말씀·재능나눔방을 검색해보세요</div>', {
+    searchPlaceholder: '예: 야외예배, 기타, 봉사',
+    onSearch: renderResults
+  });
+}
+
+// ===== 전체 공지 목록 =====
+function openAnnouncementsList() {
+  const rows = (state.announcements || []).map((a) => listRowHtml({
+    tag: tagLabel(a.tag), tagClass: a.tag || 'notice',
+    title: a.title, body: a.body, time: timeAgo(a.timestamp)
+  })).join('');
+  openListModal('전체 공지', rows || '<div class="list-empty">등록된 공지가 없어요</div>');
+}
+
+// ===== 출석 체크인 =====
+function openCheckinModal() {
+  const sel = document.getElementById('ciService');
+  const services = state.services || [];
+  if (sel) {
+    sel.innerHTML = services.length
+      ? services.map((s) => `<option value="${escapeHtml(s.id)}">${DAY_NAMES_KO[s.day]}요일 ${escapeHtml(s.name)} · ${formatHM(s.time)}</option>`).join('')
+      : '<option value="">예배 정보가 없어요</option>';
+  }
+  const ciName = document.getElementById('ciName');
+  if (ciName) ciName.value = localStorage.getItem('attendName') || '';
+  const status = document.getElementById('ciStatus');
+  if (status) { status.textContent = ''; status.style.color = ''; }
+  openModal('checkinModal');
+}
+
+document.getElementById('ciSubmit')?.addEventListener('click', async () => {
+  const name = document.getElementById('ciName')?.value.trim();
+  const serviceId = document.getElementById('ciService')?.value;
+  const status = document.getElementById('ciStatus');
+  if (!name) { if (status) { status.textContent = '이름을 입력해주세요'; status.style.color = '#c44'; } return; }
+  if (!serviceId) { if (status) { status.textContent = '예배를 선택해주세요'; status.style.color = '#c44'; } return; }
+  const today = new Date().toISOString().slice(0, 10);
+  const service = (state.services || []).find((s) => s.id === serviceId);
+  try {
+    const newRef = await push(ref(db, 'applications'), {
+      kind: '출석', name,
+      date: today,
+      serviceId,
+      serviceName: service ? `${DAY_NAMES_KO[service.day]}요일 ${service.name}` : '',
+      userUid: state.uid, timestamp: Date.now()
+    });
+    recordMyApplication(newRef.key);
+    localStorage.setItem('attendName', name);
+    if (status) { status.textContent = `✅ ${today} 출석이 기록되었습니다`; status.style.color = 'var(--primary)'; }
+    setTimeout(() => closeModal('checkinModal'), 1200);
+  } catch (e) {
+    if (status) { status.textContent = '저장 실패: ' + e.message; status.style.color = '#c44'; }
+  }
+});
 
 function openInfoModal() {
   const c = state.church || {};
@@ -937,7 +1138,28 @@ gSubmitBtn?.addEventListener('click', async () => {
 
 // ===== Service Worker =====
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      // 30분마다 SW 업데이트 체크
+      setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000);
+      // 새 SW 설치 감지 시 즉시 활성화 요청
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+            sw.postMessage('SKIP_WAITING');
+          }
+        });
+      });
+      // controller 변경(새 SW 활성화) 시 페이지 새로고침
+      let refreshed = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshed) return;
+        refreshed = true;
+        location.reload();
+      });
+    } catch (e) { console.warn('SW register fail:', e); }
   });
 }
