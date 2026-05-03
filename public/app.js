@@ -581,7 +581,7 @@ async function registerFcmToken() {
     const { getMessaging, getToken, onMessage } = await import("https://www.gstatic.com/firebasejs/12.12.1/firebase-messaging.js");
     const { app } = await import('/firebase-init.js');
     const messaging = getMessaging(app);
-    const VAPID_KEY = ''; // ← Firebase 콘솔 → Cloud Messaging → 웹 푸시 인증서 → VAPID 키 입력
+    const VAPID_KEY = 'BGQzzUOtUMyWSULqJ3aK1AyZBi3epr1FcsAsLQsfjWuADsxzTHInCa2wABypxgsx8Bz9tuxStbDgXKdfB3zpqgs';
     if (!VAPID_KEY) { console.info('FCM: VAPID 키 미설정'); return; }
     const token = await getToken(messaging, { vapidKey: VAPID_KEY });
     if (token) {
