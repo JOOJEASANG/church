@@ -168,7 +168,7 @@ function attachListeners() {
     state.services = [];
     snap.forEach((c) => state.services.push({ id: c.key, ...c.val() }));
     state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
-    updateCountdown();
+    renderServiceTimes();
   });
   onValue(ref(db, 'config/hero'), (snap) => {
     state.hero = snap.val() || null;
@@ -317,66 +317,35 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') document.querySelectorAll('.modal-bg.show').forEach((m) => closeModal(m.id));
 });
 
-// ===== 카운트다운 =====
+// ===== 예배 시간표 =====
 const DAY_NAMES_KO = ['일','월','화','수','목','금','토'];
 
-function nextServiceOccurrence(svc, now = new Date()) {
-  const [hh, mm] = (svc.time || '11:00').split(':').map(Number);
-  const d = new Date(now);
-  let diffDays = (svc.day - d.getDay() + 7) % 7;
-  d.setDate(d.getDate() + diffDays);
-  d.setHours(hh, mm, 0, 0);
-  if (d <= now) d.setDate(d.getDate() + 7);
-  return d;
-}
-
-function defaultSundayService() {
-  return { name: '주일예배', day: 0, time: '11:00' };
-}
-
-function nextService() {
-  const now = new Date();
-  const list = (state.services && state.services.length) ? state.services : [defaultSundayService()];
-  let best = null;
-  for (const s of list) {
-    const t = nextServiceOccurrence(s, now);
-    if (!best || t < best.t) best = { svc: s, t };
-  }
-  return best;
-}
-
-function formatWhen(svc, t) {
-  const [hh, mm] = (svc.time || '11:00').split(':').map(Number);
+function formatHM(time) {
+  const [hh, mm] = (time || '11:00').split(':').map(Number);
   const ampm = hh < 12 ? '오전' : '오후';
   const h12 = hh % 12 === 0 ? 12 : hh % 12;
-  const minStr = mm > 0 ? ` ${mm}분` : '';
-  return `${t.getMonth()+1}월 ${t.getDate()}일 ${DAY_NAMES_KO[svc.day]}요일 ${ampm} ${h12}시${minStr}`;
+  return `${ampm} ${h12}:${String(mm).padStart(2, '0')}`;
 }
 
-function updateCountdown() {
-  const next = nextService();
-  if (!next) return;
-  const { svc, t: target } = next;
-  const now = new Date();
-  const diffMs = target - now;
-  const cdNum = document.getElementById('cdNum');
-  const cdUnit = document.getElementById('cdUnit');
-  const cdWhen = document.getElementById('cdWhen');
-  const cdTitle = document.getElementById('cdTitle');
-  if (!cdNum) return;
-  const totalH = Math.floor(diffMs / (1000 * 60 * 60));
-  const days = Math.floor(totalH / 24);
-  const hours = totalH % 24;
-  const mins = Math.floor((diffMs / (1000 * 60)) % 60);
-  if (days > 0) { cdNum.textContent = days; cdUnit.textContent = `일 ${hours}시간 남음`; }
-  else if (totalH > 0) { cdNum.textContent = totalH; cdUnit.textContent = `시간 ${mins}분 남음`; }
-  else if (mins > 0) { cdNum.textContent = mins; cdUnit.textContent = '분 남음'; }
-  else { cdNum.textContent = '예배'; cdUnit.textContent = '드릴 시간!'; }
-  if (cdTitle) cdTitle.textContent = svc.name;
-  cdWhen.textContent = formatWhen(svc, target);
+function renderServiceTimes() {
+  const list = document.getElementById('serviceList');
+  if (!list) return;
+  const services = state.services || [];
+  if (!services.length) {
+    list.innerHTML = '<div class="service-empty">예배 시간이 곧 안내됩니다</div>';
+    return;
+  }
+  list.innerHTML = services.map((s) => `
+    <div class="service-row">
+      <div>
+        <div class="service-day">${DAY_NAMES_KO[s.day]}요일</div>
+        <div class="service-name">${escapeHtml(s.name)}</div>
+        ${s.place ? `<div class="service-place">${escapeHtml(s.place)}</div>` : ''}
+      </div>
+      <div class="service-time">${formatHM(s.time)}</div>
+    </div>
+  `).join('');
 }
-updateCountdown();
-setInterval(updateCountdown, 60 * 1000);
 
 // ===== 인사말 =====
 function setGreeting() {
