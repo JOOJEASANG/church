@@ -784,32 +784,59 @@ function editService(id) {
   });
 }
 
+function setSvStatus(msg, color = 'var(--muted)') {
+  const el = $('svStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = color;
+}
+
+async function reloadServices() {
+  console.log('[svc] reloading from /config/services ...');
+  const snap = await get(ref(db, 'config/services'));
+  state.services = [];
+  snap.forEach((c) => state.services.push({ id: c.key, ...c.val() }));
+  state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
+  console.log('[svc] loaded', state.services.length, 'services:', state.services);
+  renderServices();
+  return state.services.length;
+}
+
 $('svAdd')?.addEventListener('click', async () => {
   const name = $('svName').value.trim();
   const day = parseInt($('svDay').value, 10);
   const time = $('svTime').value.trim();
   const place = $('svPlace').value.trim();
-  if (!name) { alert('예배명을 입력하세요'); return; }
-  if (!time) { alert('시작 시간을 입력하세요 (예: 11:00)'); return; }
+  if (!name) { setSvStatus('⚠️ 예배명을 입력하세요', 'var(--danger)'); return; }
+  if (!time) { setSvStatus('⚠️ 시작 시간을 입력하세요 (예: 11:00)', 'var(--danger)'); return; }
   const btn = $('svAdd');
   btn.disabled = true;
   btn.textContent = '저장 중...';
+  setSvStatus('💾 저장 중...');
   try {
-    await push(ref(db, 'config/services'), { name, day, time, place, createdAt: Date.now() });
-    // onValue 리스너가 alert()에 의해 지연될 수 있으므로 직접 재조회
-    const snap = await get(ref(db, 'config/services'));
-    state.services = [];
-    snap.forEach((c) => state.services.push({ id: c.key, ...c.val() }));
-    state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
-    renderServices();
+    console.log('[svc] pushing:', { name, day, time, place });
+    const newRef = await push(ref(db, 'config/services'), { name, day, time, place, createdAt: Date.now() });
+    console.log('[svc] pushed key:', newRef.key);
+    const count = await reloadServices();
     $('svName').value = ''; $('svTime').value = ''; $('svPlace').value = '';
-    $('serviceList').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setSvStatus(`✅ "${name}" 저장됨 — 현재 총 ${count}개`, 'var(--primary)');
+    $('serviceList').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (e) {
-    alert('저장 실패: ' + e.code + ' — ' + e.message);
-    console.error('svAdd error:', e);
+    console.error('[svc] svAdd error:', e);
+    setSvStatus(`❌ 저장 실패: ${e.code || e.message}`, 'var(--danger)');
   } finally {
     btn.disabled = false;
     btn.textContent = '예배 시간 추가';
+  }
+});
+
+$('svRefresh')?.addEventListener('click', async () => {
+  setSvStatus('🔄 새로고침 중...');
+  try {
+    const count = await reloadServices();
+    setSvStatus(`✓ 현재 총 ${count}개`, 'var(--primary)');
+  } catch (e) {
+    setSvStatus(`❌ ${e.code || e.message}`, 'var(--danger)');
   }
 });
 
