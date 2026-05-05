@@ -1253,7 +1253,7 @@
       <label>이름</label>
       <input class="field" id="raName" placeholder="예: 홍길동"/>
       <label>연락처</label>
-      <input class="field" id="raPhone" placeholder="010-0000-0000"/>
+      <input class="field" id="raPhone" placeholder="010-0000-0000" data-format="phone"/>
       <button class="submit-btn" type="button" id="raSubmit">신청하기</button>
     </div>
   </div>
@@ -1272,7 +1272,7 @@
       <label>이름</label>
       <input class="field" id="vtName" placeholder="예: 홍길동"/>
       <label>연락처</label>
-      <input class="field" id="vtPhone" placeholder="010-0000-0000"/>
+      <input class="field" id="vtPhone" placeholder="010-0000-0000" data-format="phone"/>
       <label>방문 희망일</label>
       <input class="field" type="date" id="vtDate"/>
       <label>요청 내용</label>
@@ -1295,7 +1295,7 @@
       <label>이름</label>
       <input class="field" id="ncName" placeholder="예: 홍길동"/>
       <label>연락처</label>
-      <input class="field" id="ncPhone" placeholder="010-0000-0000"/>
+      <input class="field" id="ncPhone" placeholder="010-0000-0000" data-format="phone"/>
       <label>주소 (선택)</label>
       <input class="field" id="ncAddress" placeholder="예: 천안시 동남구"/>
       <label>교회를 알게 된 경로</label>
@@ -1324,7 +1324,7 @@
       <label>이름</label>
       <input class="field" id="vName" placeholder="예: 최OO"/>
       <label>연락처</label>
-      <input class="field" id="vPhone" placeholder="010-0000-0000"/>
+      <input class="field" id="vPhone" placeholder="010-0000-0000" data-format="phone"/>
       <label>봉사 종류</label>
       <select class="select" id="vKind">
         <option>식사봉사</option><option>주차봉사</option><option>차량봉사</option>
@@ -1452,6 +1452,7 @@
 
   <div class="toast" id="toast"></div>
 
+  <script src="/auto-format.js" defer></script>
   <script type="module" src="/app.js"></script>
 </body>
 </html>

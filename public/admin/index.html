@@ -327,7 +327,7 @@
           <div class="grid-2">
             <div>
               <label>대표 전화</label>
-              <input class="field" id="chPhone" placeholder="041-000-0000"/>
+              <input class="field" id="chPhone" placeholder="041-000-0000" data-format="phone"/>
             </div>
             <div>
               <label>이메일</label>
@@ -643,6 +643,7 @@
   </div>
 </div>
 
+<script src="/auto-format.js" defer></script>
 <script type="module" src="/admin/admin.js"></script>
 <script>
   if ('serviceWorker' in navigator) {
