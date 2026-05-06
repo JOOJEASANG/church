@@ -84,7 +84,11 @@ signInAnonymously(auth).catch((e) => {
 });
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user) return;
+  if (!user) {
+    listenersAttached = false;
+    state.uid = null;
+    return;
+  }
   state.uid = user.uid;
   await seedIfEmpty();
   attachListeners();
@@ -132,42 +136,61 @@ async function seedIfEmpty() {
 
 // ===== 실시간 리스너 =====
 let listenersAttached = false;
+
+// http(s) URL만 허용해 javascript: / data: / vbscript: 등 위험한 스킴 차단
+function safeImageUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  try {
+    const u = new URL(url, location.href);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+    return u.href;
+  } catch {
+    return '';
+  }
+}
+
+function onValueWithError(path, handler) {
+  return onValue(ref(db, path), handler, (err) => {
+    console.error(`[home] ${path} 읽기 실패:`, err.code || err.message);
+  });
+}
+
 function attachListeners() {
   if (listenersAttached) return;
   listenersAttached = true;
-  onValue(ref(db, 'rooms'), (snap) => {
+  onValueWithError('rooms', (snap) => {
     state.rooms = [];
     snap.forEach((c) => state.rooms.push({ id: c.key, ...c.val() }));
     state.rooms.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     if (state.currentTab === 'share') renderRooms();
   });
 
-  onValue(ref(db, 'prayers'), (snap) => {
+  onValueWithError('prayers', (snap) => {
     state.prayers = [];
     snap.forEach((c) => state.prayers.push({ id: c.key, ...c.val() }));
     state.prayers.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderPrayers();
   });
 
-  onValue(ref(db, 'announcements'), (snap) => {
+  onValueWithError('announcements', (snap) => {
     state.announcements = [];
     snap.forEach((c) => state.announcements.push({ id: c.key, ...c.val() }));
     state.announcements.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderAnnouncements();
   });
 
-  onValue(ref(db, 'sermons/current'), (snap) => {
+  onValueWithError('sermons/current', (snap) => {
     if (!snap.exists()) return;
     renderSermon(snap.val());
   });
 
-  onValue(ref(db, 'bulletins'), (snap) => {
+  onValueWithError('bulletins', (snap) => {
     state.bulletins = [];
     snap.forEach((c) => state.bulletins.push({ id: c.key, ...c.val() }));
     state.bulletins.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderBulletins();
   });
-  onValue(ref(db, 'config/church'), (snap) => {
+  onValueWithError('config/church', (snap) => {
     state.church = snap.val() || {};
     applyChurchInfo();
   });
@@ -182,19 +205,19 @@ function attachListeners() {
     const list = document.getElementById('serviceList');
     if (list) list.innerHTML = `<div class="service-empty">⚠️ 예배 시간을 불러오지 못했습니다 (${err.code || '권한 오류'})</div>`;
   });
-  onValue(ref(db, 'config/hero'), (snap) => {
+  onValueWithError('config/hero', (snap) => {
     state.hero = snap.val() || null;
     applyHero();
   });
 
-  onValue(ref(db, 'gallery'), (snap) => {
+  onValueWithError('gallery', (snap) => {
     state.gallery = [];
     snap.forEach((c) => state.gallery.push({ id: c.key, ...c.val() }));
     state.gallery.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderGallery();
   });
 
-  onValue(ref(db, 'events'), (snap) => {
+  onValueWithError('events', (snap) => {
     state.events = [];
     snap.forEach((c) => state.events.push({ id: c.key, ...c.val() }));
     state.events.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -212,7 +235,7 @@ function renderGallery() {
   }
   grid.innerHTML = state.gallery.map((g) => `
     <div class="gallery-item" data-view="${g.id}">
-      <img src="${escapeHtml(g.url)}" alt="${escapeHtml(g.caption || '')}" loading="lazy"/>
+      <img src="${escapeHtml(safeImageUrl(g.url))}" alt="${escapeHtml(g.caption || '')}" loading="lazy"/>
     </div>
   `).join('');
   grid.querySelectorAll('[data-view]').forEach((el) => {
@@ -225,7 +248,7 @@ function openGalleryViewer(id) {
   if (!g) return;
   const img = document.getElementById('gvImg');
   const meta = document.getElementById('gvMeta');
-  img.src = g.url;
+  img.src = safeImageUrl(g.url);
   img.alt = g.caption || '';
   const date = g.timestamp ? new Date(g.timestamp) : null;
   const dateStr = date ? `${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,'0')}.${String(date.getDate()).padStart(2,'0')}` : '';
@@ -236,8 +259,9 @@ function openGalleryViewer(id) {
 function applyHero() {
   const bg = document.querySelector('.hero-bg');
   if (!bg) return;
-  if (state.hero?.url) {
-    bg.style.backgroundImage = `url('${state.hero.url}')`;
+  const url = safeImageUrl(state.hero?.url);
+  if (url) {
+    bg.style.backgroundImage = `url("${url}")`;
     bg.style.opacity = '0.7';
   } else {
     bg.style.backgroundImage = "url('/img/hero.jpg'), url('/img/hero.svg')";
@@ -850,7 +874,7 @@ async function openMyApplications() {
   // 보안 규칙: data.child('userUid').val() === auth.uid 인 항목만 읽기 허용.
   // 따라서 each 항목별 get은 비효율 — applications 컬렉션 전체를 한 번에 받지 못함.
   // 대안: localStorage 캐시로 본인이 신청한 ID 보관.
-  const ids = JSON.parse(localStorage.getItem('myAppIds') || '[]');
+  const ids = JSON.parse(sessionStorage.getItem('myAppIds') || '[]');
   if (!ids.length) {
     openListModal('내 신청 내역', '<div class="list-empty">아직 신청한 내역이 없어요</div>');
     return;
@@ -880,10 +904,10 @@ async function openMyApplications() {
 function recordMyApplication(id) {
   if (!id) return;
   try {
-    const ids = JSON.parse(localStorage.getItem('myAppIds') || '[]');
+    const ids = JSON.parse(sessionStorage.getItem('myAppIds') || '[]');
     if (!ids.includes(id)) {
       ids.unshift(id);
-      localStorage.setItem('myAppIds', JSON.stringify(ids.slice(0, 50)));
+      sessionStorage.setItem('myAppIds', JSON.stringify(ids.slice(0, 50)));
     }
   } catch {}
 }

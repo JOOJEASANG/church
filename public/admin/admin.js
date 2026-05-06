@@ -126,68 +126,94 @@ document.querySelectorAll('.nav-item').forEach((item) => {
 
 // ===== 실시간 데이터 리스너 =====
 let listenersAttached = false;
+
+// http(s) URL만 허용해 javascript: / data: / vbscript: 등 위험한 스킴 차단
+function safeImageUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  try {
+    const u = new URL(url, location.href);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+    return u.href;
+  } catch {
+    return '';
+  }
+}
+
+function onValueWithError(path, handler) {
+  return onValue(ref(db, path), handler, (err) => {
+    console.error(`[admin] ${path} 읽기 실패:`, err.code || err.message);
+  });
+}
+
 function attachListeners() {
   if (listenersAttached) return;
   listenersAttached = true;
-  onValue(ref(db, 'rooms'), (snap) => {
+  onValueWithError('rooms', (snap) => {
     state.rooms = [];
     snap.forEach((c) => state.rooms.push({ id: c.key, ...c.val() }));
     state.rooms.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderApprove(); renderRooms(); renderStats();
   });
-  onValue(ref(db, 'prayers'), (snap) => {
+  onValueWithError('prayers', (snap) => {
     state.prayers = [];
     snap.forEach((c) => state.prayers.push({ id: c.key, ...c.val() }));
     state.prayers.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderPrayers(); renderStats(); renderRecent();
   });
-  onValue(ref(db, 'announcements'), (snap) => {
+  onValueWithError('announcements', (snap) => {
     state.announcements = [];
     snap.forEach((c) => state.announcements.push({ id: c.key, ...c.val() }));
     state.announcements.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderAnnouncements(); renderStats();
   });
-  onValue(ref(db, 'applications'), (snap) => {
+  onValueWithError('applications', (snap) => {
     state.apps = [];
     snap.forEach((c) => state.apps.push({ id: c.key, ...c.val() }));
     state.apps.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderApps(); renderStats(); renderRecent();
   });
-  onValue(ref(db, 'admins'), (snap) => {
+  onValueWithError('admins', (snap) => {
     state.admins = snap.val() || {};
     renderAdmins();
   });
-  onValue(ref(db, 'sermons/current'), (snap) => {
+  onValueWithError('sermons/current', (snap) => {
     state.sermon = snap.val() || null;
     fillSermonForm();
   });
-  onValue(ref(db, 'bulletins'), (snap) => {
+  onValueWithError('bulletins', (snap) => {
     state.bulletins = [];
     snap.forEach((c) => state.bulletins.push({ id: c.key, ...c.val() }));
     state.bulletins.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderBulletins();
   });
-  onValue(ref(db, 'config/church'), (snap) => {
+  onValueWithError('config/church', (snap) => {
     state.church = snap.val() || {};
     fillChurchForm();
   });
-  onValue(ref(db, 'config/services'), (snap) => {
+  onValueWithError('config/services', (snap) => {
     state.services = [];
     snap.forEach((c) => state.services.push({ id: c.key, ...c.val() }));
     state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
     console.log('[svc] onValue →', state.services.length, '개:', state.services.map((s) => s.name).join(', '));
     renderServices();
   });
-  onValue(ref(db, 'config/hero'), (snap) => {
+  onValueWithError('config/hero', (snap) => {
     state.hero = snap.val() || null;
     renderHeroPreview();
   });
 
-  onValue(ref(db, 'events'), (snap) => {
+  onValueWithError('events', (snap) => {
     state.events = [];
     snap.forEach((c) => state.events.push({ id: c.key, ...c.val() }));
     state.events.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     renderEvents();
+  });
+
+  onValueWithError('gallery', (snap) => {
+    state.gallery = [];
+    snap.forEach((c) => state.gallery.push({ id: c.key, ...c.val() }));
+    state.gallery.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderGallery();
   });
 }
 
@@ -846,7 +872,7 @@ $('svAdd')?.addEventListener('click', async () => {
     $('serviceList').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (e) {
     console.error('[svc] svAdd error:', e);
-    setSvStatus(`❌ 저장 실패: ${e.code || e.message}`, 'var(--danger)');
+    setSvStatus(`❌ 저장 실패 — 잠시 후 다시 시도해주세요`, 'var(--danger)');
   } finally {
     btn.disabled = false;
     btn.textContent = '예배 시간 추가';
@@ -869,7 +895,7 @@ function renderHeroPreview() {
   const img = $('heroPreview');
   if (!wrap || !img) return;
   if (state.hero?.url) {
-    img.src = state.hero.url;
+    img.src = safeImageUrl(state.hero.url);
     wrap.style.display = '';
   } else {
     wrap.style.display = 'none';
@@ -1114,13 +1140,6 @@ function editEvent(id) {
 }
 
 // ===== 갤러리 (관리자 모니터링) =====
-onValue(ref(db, 'gallery'), (snap) => {
-  state.gallery = [];
-  snap.forEach((c) => state.gallery.push({ id: c.key, ...c.val() }));
-  state.gallery.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-  renderGallery();
-});
-
 function renderGallery() {
   const list = $('galleryList');
   if (!list) return;
@@ -1131,8 +1150,8 @@ function renderGallery() {
   list.innerHTML = `<div class="admin-gallery-grid">${
     state.gallery.map((g) => `
       <div class="admin-gallery-item">
-        <a href="${escapeHtml(g.url)}" target="_blank" rel="noopener">
-          <img src="${escapeHtml(g.url)}" alt="${escapeHtml(g.caption || '')}" loading="lazy"/>
+        <a href="${escapeHtml(safeImageUrl(g.url))}" target="_blank" rel="noopener">
+          <img src="${escapeHtml(safeImageUrl(g.url))}" alt="${escapeHtml(g.caption || '')}" loading="lazy"/>
         </a>
         <div class="admin-gallery-meta">
           <div class="admin-gallery-info">
