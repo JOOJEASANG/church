@@ -1,0 +1,13 @@
+# Firebase CLI debug logs
+firebase-debug.log
+firebase-debug.*.log
+ui-debug.log
+*.local
+
+# Node
+node_modules/
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
