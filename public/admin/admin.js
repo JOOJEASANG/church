@@ -359,13 +359,15 @@ function combineTime(prefix) {
 function extractVideoId(input) {
   if (!input) return '';
   const v = input.trim();
-  // youtu.be/ID, youtube.com/watch?v=ID, youtube.com/embed/ID, just ID
+  // youtu.be/ID, youtube.com/watch?v=ID, youtube.com/embed/ID, youtube.com/live/ID, youtube.com/shorts/ID, just ID
   let m;
   if ((m = v.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/))) return m[1];
   if ((m = v.match(/[?&]v=([a-zA-Z0-9_-]{6,})/))) return m[1];
   if ((m = v.match(/embed\/([a-zA-Z0-9_-]{6,})/))) return m[1];
+  if ((m = v.match(/\/live\/([a-zA-Z0-9_-]{6,})/))) return m[1];
+  if ((m = v.match(/\/shorts\/([a-zA-Z0-9_-]{6,})/))) return m[1];
   if (/^[a-zA-Z0-9_-]{6,}$/.test(v)) return v;
-  return v;
+  return ''; // 인식 실패 — 전체 URL을 그대로 저장하면 embed가 깨짐
 }
 
 function updatePreview() {
@@ -385,6 +387,12 @@ function updatePreview() {
 });
 
 $('sermonSave').addEventListener('click', async () => {
+  const inputUrl = $('sermonUrl').value.trim();
+  const videoId = extractVideoId(inputUrl);
+  if (inputUrl && !videoId) {
+    alert('유튜브 영상 ID를 인식하지 못했습니다.\n\n예시:\n• https://www.youtube.com/watch?v=XXXXX\n• https://youtu.be/XXXXX\n• https://www.youtube.com/live/XXXXX\n• 또는 영상 ID만 (XXXXX)');
+    return;
+  }
   const data = {
     title: $('sermonTitle').value.trim(),
     verse: $('sermonVerse').value.trim(),
@@ -392,7 +400,7 @@ $('sermonSave').addEventListener('click', async () => {
     body: $('sermonBody').value.trim(),
     practice: $('sermonPractice').value.trim(),
     question: $('sermonQ').value.trim(),
-    videoId: extractVideoId($('sermonUrl').value),
+    videoId,
     start: combineTime('start') || 0,
     end: combineTime('end') || 0,
     timestamp: Date.now()

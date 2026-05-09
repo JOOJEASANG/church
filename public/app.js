@@ -535,7 +535,7 @@ function renderSermon(s) {
   if (practiceP) practiceP.textContent = s.practice || '';
   if (questionP) questionP.textContent = s.question || '';
 
-  if (s.videoId) {
+  if (s.videoId && /^[a-zA-Z0-9_-]{6,}$/.test(s.videoId)) {
     const params = new URLSearchParams({ rel: '0', modestbranding: '1' });
     if (s.start) params.set('start', s.start);
     if (s.end) params.set('end', s.end);
