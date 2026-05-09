@@ -281,7 +281,6 @@
     <aside class="sidebar">
       <div class="nav-item active" data-pane="dash"><span class="ico">📊</span>대시보드</div>
       <div class="nav-item" data-pane="church"><span class="ico">⛪</span>교회 정보</div>
-      <div class="nav-item" data-pane="hero"><span class="ico">🖼️</span>메인 사진</div>
       <div class="nav-item" data-pane="ann"><span class="ico">📢</span>공지사항</div>
       <div class="nav-item" data-pane="sermon"><span class="ico">📖</span>설교 영상</div>
       <div class="nav-item" data-pane="bulletin"><span class="ico">📄</span>주보</div>
@@ -346,6 +345,21 @@
         </div>
 
         <div class="panel">
+          <h2>🖼️ 메인 화면 사진</h2>
+          <p class="sub">홈 화면 상단 큰 카드에 표시되는 교회 사진입니다 (최대 10MB · JPG/PNG)</p>
+          <div id="heroPreviewWrap" style="margin: 14px 0; display: none;">
+            <div style="font-size: 12px; font-weight: 800; color: var(--muted); margin-bottom: 8px;">현재 적용된 사진</div>
+            <img id="heroPreview" src="" alt="현재 메인 사진"
+                 style="width: 100%; max-width: 460px; border-radius: 14px; border: 1px solid var(--line); object-fit: contain;"/>
+            <button class="btn danger" id="heroRemove" type="button" style="margin-top: 10px;">현재 사진 삭제</button>
+          </div>
+          <label>새 사진 업로드</label>
+          <input class="field" id="heroFile" type="file" accept="image/*"/>
+          <div id="heroProgress" style="margin-top: 10px; font-size: 13px; color: var(--muted);"></div>
+          <button class="btn primary" id="heroUpload" type="button" style="margin-top: 12px;">업로드</button>
+        </div>
+
+        <div class="panel">
           <h2>🕊️ 예배 시간</h2>
           <p class="sub">홈 화면 예배 안내에 표시됩니다. 등록·수정·삭제 즉시 반영됩니다</p>
           <div id="serviceList"></div>
@@ -378,24 +392,6 @@
             <button class="btn" id="svRefresh" type="button">목록 새로고침</button>
             <span id="svStatus" style="font-size:12.5px;font-weight:600;color:var(--muted);"></span>
           </div>
-        </div>
-      </div>
-
-      <!-- 메인 사진 -->
-      <div class="pane" id="pane-hero">
-        <div class="panel">
-          <h2>🖼️ 메인 화면 사진</h2>
-          <p class="sub">홈 화면 상단 큰 카드에 표시되는 교회 사진입니다 (최대 10MB · JPG/PNG)</p>
-          <div id="heroPreviewWrap" style="margin: 14px 0; display: none;">
-            <div style="font-size: 12px; font-weight: 800; color: var(--muted); margin-bottom: 8px;">현재 적용된 사진</div>
-            <img id="heroPreview" src="" alt="현재 메인 사진"
-                 style="width: 100%; max-width: 460px; border-radius: 14px; border: 1px solid var(--line); aspect-ratio: 16/9; object-fit: cover;"/>
-            <button class="btn danger" id="heroRemove" type="button" style="margin-top: 10px;">현재 사진 삭제</button>
-          </div>
-          <label>새 사진 업로드</label>
-          <input class="field" id="heroFile" type="file" accept="image/*"/>
-          <div id="heroProgress" style="margin-top: 10px; font-size: 13px; color: var(--muted);"></div>
-          <button class="btn primary" id="heroUpload" type="button" style="margin-top: 12px;">업로드</button>
         </div>
       </div>
 

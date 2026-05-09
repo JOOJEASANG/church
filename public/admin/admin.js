@@ -868,8 +868,27 @@ $('svAdd')?.addEventListener('click', async () => {
       state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
       renderServices();
     }
-    setSvStatus(`✅ "${name}" 저장됨`, 'var(--primary)');
+    setSvStatus(`✅ "${name}" 저장됨 — 검증 중...`, 'var(--primary)');
     $('serviceList').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Verify the data actually persisted to server (catches silent rule rejections)
+    setTimeout(async () => {
+      try {
+        const verify = await get(newRef);
+        if (!verify.exists()) {
+          console.error('[svc] ❌ 서버 검증 실패 — 데이터가 서버에 없습니다:', newRef.toString());
+          setSvStatus(`❌ 서버에 저장되지 않음 — 콘솔에서 PERMISSION_DENIED 등의 에러를 확인하세요`, 'var(--danger)');
+          // Roll back local state so UI matches server
+          state.services = state.services.filter((s) => s.id !== newRef.key);
+          renderServices();
+        } else {
+          console.log('[svc] ✅ 서버 검증 OK:', verify.val());
+          setSvStatus(`✅ "${name}" 저장 완료`, 'var(--primary)');
+        }
+      } catch (e) {
+        console.error('[svc] 검증 중 오류:', e.code, e.message);
+        setSvStatus(`⚠️ 검증 중 오류: ${e.code || e.message}`, 'var(--danger)');
+      }
+    }, 1500);
   } catch (e) {
     console.error('[svc] svAdd error:', e);
     setSvStatus(`❌ 저장 실패 — 잠시 후 다시 시도해주세요`, 'var(--danger)');

@@ -146,31 +146,36 @@
       position: relative;
       border-radius: var(--radius-xl);
       overflow: hidden;
-      min-height: 240px;
       box-shadow: var(--shadow);
       margin-top: 4px;
       background: linear-gradient(165deg, #4f6244 0%, #354528 55%, #1f2a17 100%);
       color: white;
     }
-    .hero-bg {
-      position: absolute; inset: 0;
-      background-image: url('/img/hero.jpg'), url('/img/hero.svg');
-      background-size: cover;
-      background-position: center;
-      opacity: 0.55;
-      transition: opacity 0.4s ease;
+    .hero-img {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-height: 240px;
+      object-fit: cover;
+      object-position: center;
+    }
+    .hero.has-custom-img .hero-img {
+      min-height: 0;
+      object-fit: contain;
     }
     .hero-overlay {
       position: absolute; inset: 0;
       background:
         linear-gradient(180deg, rgba(15,20,12,0.05) 0%, rgba(15,20,12,0.55) 60%, rgba(15,20,12,0.92) 100%),
         radial-gradient(120% 80% at 80% 0%, rgba(255,255,255,0.08), transparent 50%);
+      pointer-events: none;
     }
     .hero-content {
-      position: relative;
+      position: absolute;
+      inset: 0;
       padding: 26px 24px 24px;
       display: flex; flex-direction: column; gap: 6px;
-      min-height: 240px; justify-content: flex-end;
+      justify-content: flex-end;
     }
     .hero-badge {
       align-self: flex-start;
@@ -877,7 +882,8 @@
       .toast { bottom: 24px; }
       .install-banner { left: calc(240px + 16px); right: 16px; max-width: none; bottom: 16px; }
       .quick-actions { grid-template-columns: repeat(5, 1fr); }
-      .hero { min-height: 280px; }
+      .hero-img { min-height: 280px; }
+      .hero.has-custom-img .hero-img { min-height: 0; }
       .feed { grid-template-columns: 1fr 1fr; }
       .prayer-feed { grid-template-columns: 1fr 1fr; }
       .gallery-grid { grid-template-columns: repeat(5, 1fr); }
@@ -913,7 +919,7 @@
       <!-- 1) 홈 -->
       <section class="tab-pane active" id="tab-home">
         <div class="hero">
-          <div class="hero-bg"></div>
+          <img class="hero-img" id="heroImg" src="/img/hero.jpg" alt=""/>
           <div class="hero-overlay"></div>
           <div class="hero-content">
             <span class="hero-badge" id="heroBadge">이번 주</span>

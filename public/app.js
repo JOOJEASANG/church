@@ -257,15 +257,16 @@ function openGalleryViewer(id) {
 }
 
 function applyHero() {
-  const bg = document.querySelector('.hero-bg');
-  if (!bg) return;
+  const hero = document.querySelector('.hero');
+  const img = document.getElementById('heroImg');
+  if (!hero || !img) return;
   const url = safeImageUrl(state.hero?.url);
   if (url) {
-    bg.style.backgroundImage = `url("${url}")`;
-    bg.style.opacity = '0.7';
+    img.src = url;
+    hero.classList.add('has-custom-img');
   } else {
-    bg.style.backgroundImage = "url('/img/hero.jpg'), url('/img/hero.svg')";
-    bg.style.opacity = '0.55';
+    img.src = '/img/hero.jpg';
+    hero.classList.remove('has-custom-img');
   }
 }
 
