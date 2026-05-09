@@ -126,7 +126,7 @@
       "$postId": {
         ".indexOn": ["timestamp"],
         "$commentId": {
-          ".write": "auth != null && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || data.child('authorUid').val() === auth.uid || root.child('admins').child(auth.uid).exists())"
+          ".write": "auth != null && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid) || (root.child('admins').child(auth.uid).exists() && !newData.exists()))"
         }
       }
     },

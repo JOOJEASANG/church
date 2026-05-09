@@ -1880,11 +1880,13 @@ async function handleWithdraw() {
     '',
     '다음 데이터가 모두 영구 삭제됩니다:',
     '• 내가 등록한 기도제목',
-    '• 내가 신청한 모든 신청 (재능나눔·심방·새가족·봉사)',
+    '• 내가 신청한 모든 신청 (행사·소모임·재능나눔·심방·새가족·봉사)',
     '• 내가 올린 갤러리 사진 (파일 포함)',
+    '• 내가 작성한 나눔글 + 댓글·좋아요 기록',
+    '• 내가 보낸 의견·건의',
     '• 내가 참여(아멘)한 기도 기록',
-    '• 알림 토큰',
-    '• 익명 계정 자체',
+    '• 프로필·알림 토큰',
+    '• 회원 계정 자체',
     '',
     '이 작업은 되돌릴 수 없습니다.'
   ].join('\n');
@@ -1929,6 +1931,33 @@ async function handleWithdraw() {
 
   // 6) /users/{uid} 프로필 삭제
   ops.push(remove(ref(db, `users/${uid}`)).catch(() => {}));
+
+  // 7) 내가 작성한 나눔글 + 그 글의 좋아요/댓글 컬렉션 전체 + 첨부 사진
+  (state.posts || []).filter((p) => p.authorUid === uid).forEach((p) => {
+    ops.push(remove(ref(db, `posts/${p.id}`)).catch(() => {}));
+    ops.push(remove(ref(db, `postLikes/${p.id}`)).catch(() => {}));
+    ops.push(remove(ref(db, `postComments/${p.id}`)).catch(() => {}));
+    if (p.imageStoragePath) {
+      ops.push(deleteObject(sRef(storage, p.imageStoragePath)).catch(() => {}));
+    }
+  });
+
+  // 8) 다른 사람 글에 내가 누른 좋아요 기록 정리
+  Object.keys(state.postLikes || {}).forEach((postId) => {
+    ops.push(remove(ref(db, `postLikes/${postId}/${uid}`)).catch(() => {}));
+  });
+
+  // 9) 의견·건의 (본인 것만)
+  try {
+    const fbSnap = await get(ref(db, 'feedback'));
+    if (fbSnap.exists()) {
+      fbSnap.forEach((c) => {
+        if (c.child('authorUid').val() === uid) {
+          ops.push(remove(ref(db, `feedback/${c.key}`)).catch(() => {}));
+        }
+      });
+    }
+  } catch {}
 
   // 모든 RTDB 삭제를 한 번에 await
   await Promise.all(ops);
