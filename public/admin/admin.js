@@ -531,11 +531,24 @@ async function rejectRoom(id) {
 }
 
 // ===== 신청 내역 =====
+let appsFilterKind = '';
+document.querySelectorAll('.app-filter').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.app-filter').forEach((x) => x.classList.remove('active'));
+    b.classList.add('active');
+    appsFilterKind = b.dataset.kind || '';
+    renderApps();
+  });
+});
+
 function renderApps() {
   const tbody = document.querySelector('#appsTable tbody');
   if (!tbody) return;
-  if (state.apps.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">신청 내역이 없어요</td></tr>'; return; }
-  tbody.innerHTML = state.apps.map((a) => {
+  const apps = appsFilterKind
+    ? state.apps.filter((a) => (a.kind || '재능나눔') === appsFilterKind)
+    : state.apps;
+  if (apps.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty">신청 내역이 없어요</td></tr>'; return; }
+  tbody.innerHTML = apps.map((a) => {
     let detail = '';
     if (a.kind === '심방요청') {
       detail = [a.date ? `희망일: ${a.date}` : '', a.message || ''].filter(Boolean).join(' / ');

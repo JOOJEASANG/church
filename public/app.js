@@ -577,7 +577,12 @@ function renderAnnouncements() {
 }
 
 function tagLabel(t) {
-  return ({ urgent: '중요', event: '신청중', notice: '소식', praise: '감사' })[t] || '소식';
+  return ({
+    urgent: '📌 긴급',
+    event: '📝 행사 안내',
+    notice: '📢 일반 안내',
+    praise: '🙏 감사 나눔'
+  })[t] || '📢 일반 안내';
 }
 
 // ===== 주보 (말씀 탭) =====

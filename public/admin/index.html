@@ -188,6 +188,8 @@
     .btn.danger { background: var(--danger); color: white; border-color: var(--danger); }
     .btn.danger:hover { background: #a83d3d; border-color: #a83d3d; }
     .btn.warn { background: var(--warn); color: white; border-color: var(--warn); }
+    .app-filter.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .app-filter.active:hover { background: var(--primary-dark); }
 
     .pill {
       display: inline-block; padding: 3px 8px;
@@ -438,10 +440,10 @@
             <div>
               <label>분류</label>
               <select class="field" id="annTag">
-                <option value="urgent">중요</option>
-                <option value="event">행사·신청</option>
-                <option value="notice">일반 소식</option>
-                <option value="praise">감사</option>
+                <option value="urgent">📌 긴급 — 즉시 알려야 할 중요 공지</option>
+                <option value="event">📝 행사 안내 — 신청 받는 행사·모임</option>
+                <option value="notice">📢 일반 안내 — 일상 소식</option>
+                <option value="praise">🙏 감사 나눔 — 응답·간증·축하</option>
               </select>
             </div>
             <div>
@@ -451,6 +453,9 @@
           </div>
           <label>본문</label>
           <textarea class="field" id="annBody" placeholder="공지 내용을 입력하세요"></textarea>
+          <p class="sub" style="margin-top:6px;font-size:12px;">
+            메인 화면 "이번 주 소식"과 알림 목록에 분류 색상으로 자동 표시됩니다.
+          </p>
           <button class="btn primary" id="annSubmit" type="button" style="margin-top: 12px;">등록</button>
         </div>
         <div class="panel">
@@ -559,7 +564,14 @@
       <div class="pane" id="pane-apps">
         <div class="panel">
           <h2>📋 신청 내역</h2>
-          <p class="sub">봉사·재능나눔방 등 모든 신청</p>
+          <p class="sub">사용자가 메인 페이지에서 보낸 모든 신청 — 봉사·심방요청·새가족·재능나눔방 신청이 한곳에 모입니다</p>
+          <div id="appsFilter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+            <button type="button" class="btn btn-sm app-filter active" data-kind="">전체</button>
+            <button type="button" class="btn btn-sm app-filter" data-kind="봉사">🍚 봉사</button>
+            <button type="button" class="btn btn-sm app-filter" data-kind="심방요청">🏠 심방요청</button>
+            <button type="button" class="btn btn-sm app-filter" data-kind="새가족">🌱 새가족</button>
+            <button type="button" class="btn btn-sm app-filter" data-kind="재능나눔">🤝 재능나눔</button>
+          </div>
           <div style="overflow-x: auto;">
             <table id="appsTable"><thead><tr><th>일시</th><th>구분</th><th>이름</th><th>연락처</th><th>상세</th><th></th></tr></thead><tbody></tbody></table>
           </div>
@@ -622,7 +634,7 @@
       <div class="pane" id="pane-rooms">
         <div class="panel">
           <h2>🤝 재능나눔방 전체</h2>
-          <p class="sub">승인된 방 + 승인대기 방</p>
+          <p class="sub">사용자가 신청한 방, 시드 데이터, 승인 대기 방까지 <b>모두</b> 표시됩니다. (승인 대기만 따로 보려면 좌측 "✅ 승인 대기" 메뉴 참고)</p>
           <div id="roomsList"></div>
         </div>
       </div>
