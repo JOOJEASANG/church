@@ -59,6 +59,34 @@
       --safe-top: env(safe-area-inset-top, 0px);
     }
 
+    /* 다크 모드에서 컬러 태그/뱃지 텍스트 가독성 보정 — explicit dark + system dark */
+    html[data-theme="dark"] .feed-card .tag.urgent,
+    html[data-theme="dark"] .list-row .lr-tag.urgent,
+    html[data-theme="dark"] .badge.urgent,
+    html[data-theme="dark"] .quick-action.r .ico,
+    html[data-theme="dark"] .cal-dow.sun,
+    html[data-theme="dark"] .cal-day.sun { color: #ff8d8d; }
+    html[data-theme="dark"] .feed-card .tag.notice,
+    html[data-theme="dark"] .list-row .lr-tag.notice,
+    html[data-theme="dark"] .quick-action.b .ico,
+    html[data-theme="dark"] .practice-box.q .label,
+    html[data-theme="dark"] .cal-dow.sat,
+    html[data-theme="dark"] .cal-day.sat { color: #7eb6ff; }
+    @media (prefers-color-scheme: dark) {
+      html[data-theme="system"] .feed-card .tag.urgent,
+      html[data-theme="system"] .list-row .lr-tag.urgent,
+      html[data-theme="system"] .badge.urgent,
+      html[data-theme="system"] .quick-action.r .ico,
+      html[data-theme="system"] .cal-dow.sun,
+      html[data-theme="system"] .cal-day.sun { color: #ff8d8d; }
+      html[data-theme="system"] .feed-card .tag.notice,
+      html[data-theme="system"] .list-row .lr-tag.notice,
+      html[data-theme="system"] .quick-action.b .ico,
+      html[data-theme="system"] .practice-box.q .label,
+      html[data-theme="system"] .cal-dow.sat,
+      html[data-theme="system"] .cal-day.sat { color: #7eb6ff; }
+    }
+
     /* 다크 모드 — system / 명시적 토글 */
     html[data-theme="dark"] {
       --bg: #16181c;
@@ -359,6 +387,19 @@
       letter-spacing: -0.1px;
     }
     body.easy .verse-card .verse-text { font-size: 17px; }
+    /* 다크 모드: verse-card는 따뜻한 톤 유지 */
+    html[data-theme="dark"] .verse-card { background: linear-gradient(135deg, #2c2820 0%, #383125 100%); border-color: #4a3f2e; }
+    html[data-theme="dark"] .verse-card::before { color: rgba(255, 220, 120, 0.10); }
+    html[data-theme="dark"] .verse-action-btn {
+      background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18);
+    }
+    @media (prefers-color-scheme: dark) {
+      html[data-theme="system"] .verse-card { background: linear-gradient(135deg, #2c2820 0%, #383125 100%); border-color: #4a3f2e; }
+      html[data-theme="system"] .verse-card::before { color: rgba(255, 220, 120, 0.10); }
+      html[data-theme="system"] .verse-action-btn {
+        background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18);
+      }
+    }
 
     /* ===== 빠른 액션 (홈화면 위젯 느낌) ===== */
     .quick-actions {
@@ -503,7 +544,7 @@
       background: var(--green-soft); color: var(--primary-dark);
     }
     .prayer-head .when { color: var(--muted); margin-left: auto; font-weight: 700; font-size: 12px; }
-    .prayer-card .body { margin: 0 0 12px; font-size: 14px; color: #3d3a34; line-height: 1.5; }
+    .prayer-card .body { margin: 0 0 12px; font-size: 14px; color: var(--text-soft); line-height: 1.5; }
     .prayer-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
     .pray-action {
       display: flex; align-items: center; gap: 8px;
@@ -533,7 +574,7 @@
     .chip {
       flex-shrink: 0; padding: 9px 14px;
       border-radius: 999px; border: 1px solid var(--line);
-      background: var(--paper); color: #4d4a44;
+      background: var(--paper); color: var(--text-soft);
       font-weight: 800; font-size: 13px; cursor: pointer;
     }
     .chip.active { background: var(--primary); color: white; border-color: var(--primary); }
@@ -545,19 +586,19 @@
     }
     .room-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .room-head h3 { margin: 0; font-size: 17px; font-weight: 900; letter-spacing: -0.4px; }
-    .room-card .desc { margin: 8px 0 12px; color: #4d4a44; font-size: 14px; line-height: 1.5; }
+    .room-card .desc { margin: 8px 0 12px; color: var(--text-soft); font-size: 14px; line-height: 1.5; }
     .room-meta {
       display: flex; flex-wrap: wrap; gap: 6px;
       margin-bottom: 12px;
     }
     .room-meta span {
       font-size: 12px; padding: 5px 9px; border-radius: 999px;
-      background: #f4efe3; color: #5a554b; font-weight: 800;
+      background: var(--bg-2); color: var(--text-soft); font-weight: 800;
     }
     .progress-row { font-size: 13px; font-weight: 800; color: var(--muted); margin-bottom: 6px; }
     .progress-row b { color: var(--text); }
     .progress {
-      height: 8px; background: #ece9e1; border-radius: 999px;
+      height: 8px; background: var(--line); border-radius: 999px;
       overflow: hidden; margin-bottom: 12px;
     }
     .progress span { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
@@ -568,13 +609,13 @@
       border: 0; border-radius: 999px;
       padding: 10px 18px; font-weight: 900; font-size: 13px; cursor: pointer;
     }
-    .apply-btn:disabled { background: #c8c4ba; cursor: not-allowed; }
+    .apply-btn:disabled { background: var(--line-strong); cursor: not-allowed; }
 
     .badge {
       font-size: 11px; font-weight: 900; padding: 4px 9px; border-radius: 999px;
       background: var(--green-soft); color: var(--primary-dark);
     }
-    .badge.closed { background: #f1f1f1; color: #606060; }
+    .badge.closed { background: var(--line); color: var(--muted); }
     .badge.urgent { background: var(--red-soft); color: #c44; }
 
     /* ===== 내 정보 탭 ===== */
@@ -642,7 +683,7 @@
     .menu-item .arrow { color: var(--muted-2); font-size: 16px; }
     .menu-item .switch {
       width: 44px; height: 26px; border-radius: 999px;
-      background: #d9d6cc; position: relative; cursor: pointer;
+      background: var(--line-strong); position: relative; cursor: pointer;
       transition: background 0.2s ease;
     }
     .menu-item .switch::after {
@@ -725,7 +766,7 @@
       animation: slideUp 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
     }
     .modal-grip {
-      width: 40px; height: 4px; background: #d9d6cc;
+      width: 40px; height: 4px; background: var(--line-strong);
       border-radius: 999px; margin: 0 auto 18px;
     }
     .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
@@ -902,7 +943,7 @@
       width: 100%; aspect-ratio: 4/3; object-fit: cover;
       border-radius: 10px; cursor: pointer;
     }
-    .post-detail-imgs.n1 img { aspect-ratio: auto; max-height: 480px; object-fit: contain; background: #f5f3ec; }
+    .post-detail-imgs.n1 img { aspect-ratio: auto; max-height: 480px; object-fit: contain; background: var(--bg-2); }
 
     .post-card-foot {
       display: flex; gap: 14px; font-size: 12.5px; font-weight: 700; color: var(--muted);
@@ -913,8 +954,8 @@
     .post-signup-box {
       margin: 16px 0 0;
       padding: 14px 16px;
-      background: linear-gradient(180deg, #fdfdfb 0%, #f5f7ee 100%);
-      border: 1px solid #d9e6d0;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-soft);
       border-radius: 12px;
     }
     .post-signup-box .ps-meta {
@@ -940,7 +981,7 @@
     .post-detail-meta .pd-time { margin-left: auto; font-size: 12px; }
     .post-detail-img {
       width: 100%; max-height: 480px; object-fit: contain;
-      border-radius: 12px; margin-bottom: 14px; background: #f5f3ec;
+      border-radius: 12px; margin-bottom: 14px; background: var(--bg-2);
     }
     .post-detail-body {
       font-size: 14.5px; line-height: 1.7; color: var(--text);
@@ -1023,8 +1064,8 @@
       color: var(--primary); font-weight: 700; cursor: pointer; text-decoration: underline;
     }
 
-    /* 공지 카드 — 신청 가능 표시 */
-    .feed-card.has-signup { border-color: #d9e6d0; background: linear-gradient(180deg, #fdfdfb 0%, #f5f7ee 100%); }
+    /* 공지 카드 — 신청 가능 표시 (primary-soft은 light/dark 모두 정의) */
+    .feed-card.has-signup { border-color: var(--primary-soft); background: var(--primary-soft); }
     .feed-card .ann-meta {
       margin-top: 10px; font-size: 12.5px; color: var(--primary-dark); font-weight: 700;
     }
@@ -1055,7 +1096,7 @@
       cursor: pointer; letter-spacing: -0.2px;
     }
     .community-tab.active {
-      background: white; color: var(--text);
+      background: var(--paper); color: var(--text);
       box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
     .community-pane { display: none; }
@@ -1088,7 +1129,7 @@
       .apply-grid { grid-template-columns: repeat(3, 1fr); }
     }
     .apply-card {
-      background: white; border: 1px solid var(--line);
+      background: var(--paper); border: 1px solid var(--line);
       border-radius: 14px; padding: 18px 16px;
       cursor: pointer; transition: all 0.15s ease;
       display: flex; flex-direction: column; gap: 6px;
@@ -1341,9 +1382,13 @@
     .auth-screen.show { display: flex; }
     .auth-card {
       width: 100%; max-width: 400px;
-      background: white; border-radius: 18px;
+      background: var(--paper); border-radius: 18px;
       box-shadow: 0 12px 40px rgba(40,35,25,0.12);
       padding: 28px 24px 24px;
+    }
+    html[data-theme="dark"] .auth-screen { background: linear-gradient(170deg, var(--bg) 0%, var(--bg-2) 100%); }
+    @media (prefers-color-scheme: dark) {
+      html[data-theme="system"] .auth-screen { background: linear-gradient(170deg, var(--bg) 0%, var(--bg-2) 100%); }
     }
     .auth-brand { text-align: center; margin-bottom: 22px; }
     .auth-brand .logo { font-size: 36px; margin-bottom: 8px; }
@@ -1381,12 +1426,12 @@
       background: transparent; border: 0; cursor: pointer;
       color: var(--muted); border-radius: 9px;
     }
-    .auth-tab.active { background: white; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .auth-tab.active { background: var(--paper); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
     .auth-form label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 5px 2px; }
     .auth-form input,
     .auth-form .auth-select {
       width: 100%; padding: 12px 14px; border: 1.5px solid var(--line);
-      border-radius: 11px; font-size: 14px; background: white;
+      border-radius: 11px; font-size: 14px; background: var(--paper);
       outline: none; transition: border-color 0.15s;
       font-family: inherit; color: var(--text);
     }
