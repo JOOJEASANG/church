@@ -103,6 +103,7 @@ document.getElementById('authPaneLogin')?.addEventListener('submit', async (e) =
 document.getElementById('authPaneRegister')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = document.getElementById('regName').value.trim();
+  const phone = document.getElementById('regPhone').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const password = document.getElementById('regPassword').value;
   const passwordConfirm = document.getElementById('regPasswordConfirm').value;
@@ -113,6 +114,7 @@ document.getElementById('authPaneRegister')?.addEventListener('submit', async (e
   errEl.textContent = '';
 
   if (!name) { errEl.textContent = '이름을 입력해주세요.'; return; }
+  if (!phone) { errEl.textContent = '연락처를 입력해주세요.'; return; }
   if (password.length < 6) { errEl.textContent = '비밀번호는 6자 이상이어야 합니다.'; return; }
   if (password !== passwordConfirm) { errEl.textContent = '비밀번호가 일치하지 않습니다.'; return; }
   if (!agreeTos || !agreePrivacy) { errEl.textContent = '이용약관과 개인정보 처리방침에 동의해주세요.'; return; }
@@ -122,7 +124,7 @@ document.getElementById('authPaneRegister')?.addEventListener('submit', async (e
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName: name });
     await set(ref(db, `users/${cred.user.uid}`), {
-      email, displayName: name, createdAt: Date.now(),
+      email, displayName: name, phone, createdAt: Date.now(),
       agreedTosAt: Date.now(), agreedPrivacyAt: Date.now()
     });
     // onAuthStateChanged가 나머지 처리
@@ -169,36 +171,45 @@ function fillLegalModals() {
 
     <h4>제2조 (서비스의 내용)</h4>
     <ul>
-      <li>예배 안내, 설교 영상, 주보 열람</li>
+      <li>예배 안내, 설교 영상(이번 주·지난 설교), 주보 열람</li>
+      <li>오늘의 말씀, 교회 일정(캘린더), 공지사항·행사 안내</li>
       <li>기도제목 등록·참여, 재능나눔방 개설·신청</li>
-      <li>봉사·심방·새가족 등록 신청</li>
-      <li>교회 일정 및 공지사항 안내, 갤러리</li>
+      <li>행사 신청, 봉사 신청, 심방 요청, 새가족 등록</li>
+      <li>예배 체크(다중 참석 가능), 갤러리, 푸시 알림</li>
     </ul>
 
     <h4>제3조 (회원가입)</h4>
     <ul>
-      <li>이메일, 비밀번호, 이름을 입력하여 가입할 수 있습니다.</li>
+      <li>이름, 연락처, 이메일, 비밀번호를 입력하여 가입할 수 있습니다.</li>
       <li>회원은 본 약관과 개인정보 처리방침에 동의해야 가입이 완료됩니다.</li>
+      <li>등록한 이름·연락처는 행사·봉사 등 신청 시 자동으로 사용되어 빠른 신청을 돕습니다.</li>
       <li>타인의 정보를 도용하거나 허위 정보를 등록할 수 없습니다.</li>
     </ul>
 
-    <h4>제4조 (이용자의 의무)</h4>
+    <h4>제4조 (프로필 관리)</h4>
+    <ul>
+      <li>이용자는 "내정보 → 프로필 수정"에서 이름·연락처를 언제든지 변경할 수 있습니다.</li>
+      <li>이메일은 보안상 변경되지 않습니다.</li>
+    </ul>
+
+    <h4>제5조 (이용자의 의무)</h4>
     <ul>
       <li>타인을 비방·모욕·공격하는 내용을 등록하지 않습니다.</li>
       <li>저작권을 침해하거나 음란·폭력적 콘텐츠를 등록하지 않습니다.</li>
       <li>부적절한 게시물은 교회가 사전 통지 없이 삭제할 수 있습니다.</li>
+      <li>본인이 등록한 기도제목·신청은 본인이 직접 수정·삭제할 수 있습니다.</li>
     </ul>
 
-    <h4>제5조 (서비스 변경 및 중단)</h4>
+    <h4>제6조 (서비스 변경 및 중단)</h4>
     <p>교회는 운영상·기술상 필요한 경우 서비스를 변경하거나 중단할 수 있으며, 사전에 공지합니다.</p>
 
-    <h4>제6조 (탈퇴)</h4>
-    <p>이용자는 언제든지 "내정보 → 탈퇴"를 통해 회원 탈퇴 및 본인 데이터 삭제를 요청할 수 있습니다.</p>
+    <h4>제7조 (탈퇴)</h4>
+    <p>이용자는 언제든지 "내정보 → 탈퇴"를 통해 회원 탈퇴 및 본인 데이터(기도제목·신청·갤러리 사진·아멘 기록·프로필 등)의 영구 삭제를 요청할 수 있습니다.</p>
 
-    <h4>제7조 (책임의 한계)</h4>
+    <h4>제8조 (책임의 한계)</h4>
     <p>교회는 천재지변, 통신 장애 등 불가항력에 의한 서비스 중단에 대해 책임지지 않습니다.</p>
 
-    <h4>제8조 (분쟁 해결)</h4>
+    <h4>제9조 (분쟁 해결)</h4>
     <p>본 약관과 관련된 분쟁은 교회 소재지(${escapeHtml(address)}) 관할 법원을 1심 관할 법원으로 합니다.</p>
 
     <p style="margin-top:14px;color:var(--muted);font-size:12px;">
@@ -213,17 +224,20 @@ function fillLegalModals() {
 
     <h4>1. 수집하는 개인정보 항목</h4>
     <ul>
-      <li><b>회원가입 시</b>: 이메일, 비밀번호(암호화 저장), 이름</li>
-      <li><b>신청·요청 시</b>: 이름, 연락처(전화번호), 주소(새가족 등록 시), 희망일(심방 요청 시)</li>
+      <li><b>회원가입 시 (필수)</b>: 이름, 연락처(전화번호), 이메일, 비밀번호(암호화 저장)</li>
+      <li><b>각 신청 시 (선택)</b>: 주소(새가족 등록 시), 희망일·메모(심방 요청 시), 참석 인원·요청사항(행사·봉사 시)</li>
+      <li><b>예배 체크 시</b>: 참석 예배·날짜</li>
+      <li><b>갤러리 업로드 시</b>: 사진, 캡션, 업로더 표시명</li>
       <li><b>자동 수집</b>: 접속 시각, 기기 정보, FCM 알림 토큰(알림 동의 시)</li>
     </ul>
 
     <h4>2. 수집·이용 목적</h4>
     <ul>
       <li>회원 식별 및 본인 확인</li>
-      <li>봉사·심방·새가족 등록 등 신청 처리 및 연락</li>
+      <li>행사·봉사·심방·새가족 등 신청 접수 및 담당자 연락 (저장된 연락처로 연락 드립니다)</li>
       <li>기도제목·재능나눔방 등록 및 참여 관리</li>
-      <li>공지·행사 알림 발송 (동의자에 한함)</li>
+      <li>예배 출석 통계 및 사목 관리</li>
+      <li>공지·행사·푸시 알림 발송 (동의자에 한함)</li>
     </ul>
 
     <h4>3. 보유 및 이용 기간</h4>
@@ -234,17 +248,25 @@ function fillLegalModals() {
 
     <h4>5. 처리 위탁</h4>
     <ul>
-      <li>Google Firebase (Authentication, Realtime Database, Cloud Storage, FCM) — 미국, 데이터 호스팅 및 인증 서비스</li>
+      <li>Google Firebase (Authentication, Realtime Database, Cloud Storage, FCM) — 미국, 데이터 호스팅 및 인증 서비스 제공 목적</li>
     </ul>
 
     <h4>6. 이용자의 권리</h4>
     <ul>
-      <li>본인 정보의 열람·정정·삭제·처리 정지를 언제든지 요청할 수 있습니다.</li>
-      <li>"내정보" 탭에서 본인이 등록한 기도제목·신청은 직접 수정·삭제할 수 있습니다.</li>
-      <li>"내정보 → 탈퇴"를 통해 모든 개인정보를 영구 삭제할 수 있습니다.</li>
+      <li>본인 프로필(이름·연락처)을 "내정보 → 프로필 수정"에서 언제든지 열람·정정할 수 있습니다.</li>
+      <li>본인이 등록한 기도제목·신청·갤러리 사진은 직접 수정·삭제할 수 있습니다.</li>
+      <li>"내정보 → 탈퇴"를 통해 모든 개인정보(프로필·기도제목·신청·아멘 기록·알림 토큰·갤러리 등)를 영구 삭제할 수 있습니다.</li>
+      <li>탈퇴는 비밀번호 재확인 후 진행되며, 되돌릴 수 없습니다.</li>
     </ul>
 
-    <h4>7. 개인정보 보호책임자</h4>
+    <h4>7. 안전성 확보 조치</h4>
+    <ul>
+      <li>비밀번호는 Firebase Authentication에 의해 단방향 암호화되어 저장됩니다.</li>
+      <li>접근 제어: 본인 데이터는 본인만, 관리자 데이터는 관리자만 접근 가능하도록 보안 규칙으로 강제합니다.</li>
+      <li>전송 구간 보안: 모든 통신은 HTTPS(TLS)로 암호화됩니다.</li>
+    </ul>
+
+    <h4>8. 개인정보 보호책임자</h4>
     <p>
       ${escapeHtml(churchName)}<br/>
       주소: ${escapeHtml(address)}<br/>
@@ -252,7 +274,7 @@ function fillLegalModals() {
       이메일: ${escapeHtml(email)}
     </p>
 
-    <h4>8. 변경 고지</h4>
+    <h4>9. 변경 고지</h4>
     <p>본 방침은 법령 또는 서비스 변경 시 사전 공지 후 변경될 수 있습니다.</p>
 
     <p style="margin-top:14px;color:var(--muted);font-size:12px;">시행일: ${escapeHtml(today)}</p>
@@ -290,9 +312,67 @@ function applyProfile() {
   const p = state.userProfile || {};
   const nameEl = document.querySelector('#profileName');
   const emailEl = document.querySelector('#profileEmail');
+  const phoneEl = document.querySelector('#profilePhone');
   if (nameEl) nameEl.textContent = p.displayName || '성도님';
   if (emailEl) emailEl.textContent = p.email || '';
+  if (phoneEl) phoneEl.textContent = p.phone || '연락처 미등록';
 }
+
+// 신청 폼들에 프로필 자동 입력 (이름·연락처)
+function autofillFromProfile(map) {
+  const p = state.userProfile || {};
+  Object.entries(map).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (key === 'name' && p.displayName && !el.value) el.value = p.displayName;
+    if (key === 'phone' && p.phone && !el.value) el.value = p.phone;
+  });
+}
+
+// 프로필이 미완성이면 안내 (행사·봉사 등 신청 시)
+function ensureProfileComplete() {
+  const p = state.userProfile || {};
+  if (!p.phone) {
+    if (confirm('연락처가 프로필에 등록되어 있지 않습니다.\n\n지금 등록하시겠어요? (한 번만 등록하면 다음부터는 자동 입력됩니다)')) {
+      openProfileEdit();
+    }
+    return false;
+  }
+  return true;
+}
+
+// 프로필 수정 모달
+function openProfileEdit() {
+  const p = state.userProfile || {};
+  document.getElementById('peName').value = p.displayName || '';
+  document.getElementById('pePhone').value = p.phone || '';
+  document.getElementById('peEmail').value = p.email || auth.currentUser?.email || '';
+  openModal('profileEditModal');
+}
+
+document.getElementById('profileEditBtn')?.addEventListener('click', openProfileEdit);
+
+document.getElementById('peSubmit')?.addEventListener('click', async () => {
+  const name = document.getElementById('peName').value.trim();
+  const phone = document.getElementById('pePhone').value.trim();
+  if (!name) { toast('이름을 입력해주세요'); return; }
+  if (!phone) { toast('연락처를 입력해주세요'); return; }
+  try {
+    await update(ref(db, `users/${state.uid}`), {
+      displayName: name, phone, updatedAt: Date.now()
+    });
+    if (auth.currentUser && auth.currentUser.displayName !== name) {
+      await updateProfile(auth.currentUser, { displayName: name });
+    }
+    state.userProfile = { ...state.userProfile, displayName: name, phone };
+    applyProfile();
+    closeModal('profileEditModal');
+    toast('프로필이 저장되었습니다');
+  } catch (e) {
+    console.error('[profile-edit]', e);
+    toast('저장 실패: ' + (e.code || e.message));
+  }
+});
 
 
 // ===== 실시간 리스너 =====
@@ -545,9 +625,22 @@ function toast(msg) {
 }
 
 // ===== 모달 =====
+// 모달이 열릴 때 자동으로 프로필을 채울 폼 매핑
+const PROFILE_AUTOFILL_MAP = {
+  visitModal:     { name: 'vtName', phone: 'vtPhone' },
+  newcomerModal:  { name: 'ncName', phone: 'ncPhone' },
+  volunteerModal: { name: 'vName',  phone: 'vPhone'  },
+  roomApplyModal: { name: 'raName', phone: 'raPhone' },
+  eventApplyModal:{ name: 'eaName', phone: 'eaPhone' },
+  checkinModal:   { name: 'ciName' }
+};
+
 function openModal(id) {
   document.getElementById(id)?.classList.add('show');
   document.body.style.overflow = 'hidden';
+  // 신청 폼이면 프로필 자동 입력
+  const map = PROFILE_AUTOFILL_MAP[id];
+  if (map) autofillFromProfile(map);
 }
 function closeModal(id) {
   const m = document.getElementById(id);
@@ -748,16 +841,23 @@ function renderAnnouncements() {
 function openEventApplyModal(announcementId) {
   const a = (state.announcements || []).find((x) => x.id === announcementId);
   if (!a) return;
+  if (!ensureProfileComplete()) return;
   state.applyEventId = announcementId;
   document.getElementById('eaTitle').textContent = a.title || '행사 신청';
   document.getElementById('eaSub').textContent = [
     a.deadline ? `마감 ${a.deadline}` : '',
     a.capacity ? `정원 ${a.capacity}명` : ''
   ].filter(Boolean).join(' · ');
-  ['eaName', 'eaPhone', 'eaCount', 'eaNote'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.value = id === 'eaCount' ? '1' : '';
-  });
+  document.getElementById('eaCount').value = '1';
+  document.getElementById('eaNote').value = '';
+  // 이름·연락처는 프로필에서 자동 입력
+  autofillFromProfile({ name: 'eaName', phone: 'eaPhone' });
+  // 미리보기 텍스트도 갱신
+  const p = state.userProfile || {};
+  const nd = document.getElementById('eaName-display');
+  const pd = document.getElementById('eaPhone-display');
+  if (nd) nd.textContent = p.displayName || '—';
+  if (pd) pd.textContent = p.phone || '—';
   openModal('eventApplyModal');
 }
 
@@ -976,6 +1076,7 @@ function openRoomApply(roomId) {
   const title = document.getElementById('raTitle');
   if (title) title.textContent = `[${room.title}] 신청하기`;
   ['raName', 'raPhone'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
+  autofillFromProfile({ name: 'raName', phone: 'raPhone' });
   openModal('roomApplyModal');
 }
 
@@ -1433,8 +1534,16 @@ document.querySelectorAll('[data-action]').forEach((el) => {
     const a = el.dataset.action;
     if (a === 'attendance') openCheckinModal();
     else if (a === 'install') triggerInstall();
-    else if (a === 'visit') openModal('visitModal');
-    else if (a === 'newcomer') openModal('newcomerModal');
+    else if (a === 'visit') {
+      ['vtName', 'vtPhone', 'vtMsg'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
+      autofillFromProfile({ name: 'vtName', phone: 'vtPhone' });
+      openModal('visitModal');
+    }
+    else if (a === 'newcomer') {
+      ['ncName', 'ncPhone', 'ncAddress'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
+      autofillFromProfile({ name: 'ncName', phone: 'ncPhone' });
+      openModal('newcomerModal');
+    }
     else if (a === 'info' || a === 'contact') openInfoModal();
     else if (a === 'myPrayers') openMyPrayers();
     else if (a === 'myApplications') openMyApplications();

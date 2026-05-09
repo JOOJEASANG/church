@@ -541,6 +541,17 @@
     }
     .profile-card .who { font-size: 13px; opacity: 0.85; font-weight: 700; }
     .profile-card .me { font-size: 22px; font-weight: 900; margin-top: 2px; letter-spacing: -0.6px; }
+    .profile-card .profile-phone { font-size: 13px; opacity: 0.92; font-weight: 600; margin-top: 8px; letter-spacing: -0.1px; }
+    .profile-card .profile-edit-btn {
+      margin-top: 14px; padding: 8px 16px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.28);
+      color: white; border-radius: 999px;
+      font-size: 12.5px; font-weight: 700; cursor: pointer;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .profile-card .profile-edit-btn:hover { background: rgba(255,255,255,0.26); }
     .profile-card .login-btn {
       margin-top: 14px;
       background: white; color: var(--primary-dark);
@@ -692,6 +703,30 @@
     .list-row h4 { margin: 0 0 4px; font-size: 14.5px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.4; }
     .list-row p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; font-weight: 400; }
     .list-empty { padding: 40px 16px; text-align: center; color: var(--muted); font-weight: 500; font-size: 13px; }
+
+    /* 신청 모달 - 프로필 미리보기 박스 */
+    .profile-preview {
+      background: var(--green-soft); border: 1px solid #d9e6d0;
+      border-radius: 12px; padding: 14px 16px; margin: 4px 0 14px;
+    }
+    .profile-preview .pp-row {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13.5px; padding: 4px 0;
+    }
+    .profile-preview .pp-lbl {
+      font-size: 11.5px; font-weight: 800; color: var(--primary-dark);
+      letter-spacing: 0.3px; text-transform: uppercase; min-width: 56px;
+    }
+    .profile-preview .pp-val {
+      font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: -0.2px;
+    }
+    .profile-preview .pp-foot {
+      margin-top: 8px; font-size: 11.5px; color: var(--muted);
+      border-top: 1px dashed #cdddc1; padding-top: 8px;
+    }
+    .profile-preview .pp-foot a {
+      color: var(--primary); font-weight: 700; cursor: pointer; text-decoration: underline;
+    }
 
     /* 공지 카드 — 신청 가능 표시 */
     .feed-card.has-signup { border-color: #d9e6d0; background: linear-gradient(180deg, #fdfdfb 0%, #f5f7ee 100%); }
@@ -1205,6 +1240,8 @@
       <form class="auth-form auth-pane" id="authPaneRegister" autocomplete="on">
         <label>이름</label>
         <input type="text" id="regName" autocomplete="name" placeholder="예: 홍길동" required/>
+        <label>연락처</label>
+        <input type="tel" id="regPhone" autocomplete="tel" placeholder="010-0000-0000" data-format="phone" required/>
         <label>이메일</label>
         <input type="email" id="regEmail" autocomplete="email" required/>
         <label>비밀번호 (6자 이상)</label>
@@ -1446,6 +1483,8 @@
         <div class="profile-card">
           <div class="who" id="profileEmail">—</div>
           <div class="me" id="profileName">성도님</div>
+          <div class="profile-phone">📞 <span id="profilePhone">—</span></div>
+          <button class="profile-edit-btn" type="button" id="profileEditBtn">프로필 수정</button>
         </div>
 
         <div class="menu-list">
@@ -1818,6 +1857,27 @@
     </div>
   </div>
 
+  <!-- 프로필 수정 -->
+  <div class="modal-bg" id="profileEditModal">
+    <div class="modal">
+      <div class="modal-grip"></div>
+      <div class="modal-head">
+        <div>
+          <h3>프로필 수정</h3>
+          <p class="sub">신청 시 자동으로 입력되는 이름·연락처를 관리합니다</p>
+        </div>
+        <button class="close-btn" data-close="profileEditModal" type="button">×</button>
+      </div>
+      <label>이름</label>
+      <input class="field" id="peName" placeholder="홍길동"/>
+      <label>연락처</label>
+      <input class="field" id="pePhone" data-format="phone" placeholder="010-0000-0000"/>
+      <label>이메일 (변경 불가)</label>
+      <input class="field" id="peEmail" disabled style="background:var(--bg-2,#f4f1ea);color:var(--muted);"/>
+      <button class="submit-btn" type="button" id="peSubmit">저장</button>
+    </div>
+  </div>
+
   <!-- 행사 신청 -->
   <div class="modal-bg" id="eventApplyModal">
     <div class="modal">
@@ -1829,15 +1889,20 @@
         </div>
         <button class="close-btn" data-close="eventApplyModal" type="button">×</button>
       </div>
-      <label>이름</label>
-      <input class="field" id="eaName" placeholder="예: 홍길동"/>
-      <label>연락처</label>
-      <input class="field" id="eaPhone" placeholder="010-0000-0000" data-format="phone"/>
+
+      <div class="profile-preview">
+        <div class="pp-row"><span class="pp-lbl">이름</span><span class="pp-val" id="eaName-display">—</span></div>
+        <div class="pp-row"><span class="pp-lbl">연락처</span><span class="pp-val" id="eaPhone-display">—</span></div>
+        <div class="pp-foot">프로필 정보로 자동 입력됩니다 · <a data-modal="profileEditModal">변경</a></div>
+        <input type="hidden" id="eaName"/>
+        <input type="hidden" id="eaPhone"/>
+      </div>
+
       <label>참석 인원</label>
       <input class="field" id="eaCount" type="number" min="1" value="1"/>
       <label>요청·문의 사항 (선택)</label>
       <textarea class="field" id="eaNote" placeholder="차량 이용 여부, 알레르기 등 특이사항"></textarea>
-      <button class="submit-btn" type="button" id="eaSubmit">신청하기</button>
+      <button class="submit-btn" type="button" id="eaSubmit">📝 신청하기</button>
     </div>
   </div>
 
