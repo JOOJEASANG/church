@@ -854,13 +854,14 @@ function renderPosts() {
   feed.innerHTML = posts.map((p) => {
     const liked = !!state.postLikes[p.id];
     const thumb = safeImageUrl(p.imageUrl);
+    const signupTag = p.signupEnabled ? '<span class="pc-signup-tag">📝 신청</span>' : '';
     return `
-      <article class="post-card" data-post-id="${escapeHtml(p.id)}">
+      <article class="post-card${p.signupEnabled ? ' has-signup' : ''}" data-post-id="${escapeHtml(p.id)}">
         <div class="post-card-head">
           <span class="pc-author">${escapeHtml(p.authorName || '익명')}</span>
           <span class="pc-time">${timeAgo(p.timestamp)}</span>
         </div>
-        <h3>${escapeHtml(p.title || '')}</h3>
+        <h3>${escapeHtml(p.title || '')}${signupTag}</h3>
         ${thumb ? `<img class="pc-thumb" src="${escapeHtml(thumb)}" alt="" loading="lazy"/>` : ''}
         <p class="pc-body">${escapeHtml(p.body || '')}</p>
         <div class="post-card-foot">
@@ -884,12 +885,20 @@ function openPostCompose(editId) {
     state.editingPostId = editId;
     document.getElementById('postTitleInput').value = p.title || '';
     document.getElementById('postBodyInput').value = p.body || '';
+    document.getElementById('postSignupEnabled').checked = !!p.signupEnabled;
+    document.getElementById('postCapacity').value = p.capacity || '';
+    document.getElementById('postDeadline').value = p.deadline || '';
+    document.getElementById('postSignupOptions').style.display = p.signupEnabled ? '' : 'none';
     document.getElementById('postSubmitBtn').textContent = '수정하기';
     if (titleEl) titleEl.textContent = '나눔글 수정';
   } else {
     state.editingPostId = null;
     document.getElementById('postTitleInput').value = '';
     document.getElementById('postBodyInput').value = '';
+    document.getElementById('postSignupEnabled').checked = false;
+    document.getElementById('postCapacity').value = '';
+    document.getElementById('postDeadline').value = '';
+    document.getElementById('postSignupOptions').style.display = 'none';
     document.getElementById('postSubmitBtn').textContent = '등록하기';
     if (titleEl) titleEl.textContent = '새 나눔글';
   }
@@ -899,6 +908,11 @@ function openPostCompose(editId) {
   state.pendingPostImage = null;
   openModal('postComposeModal');
 }
+
+// 신청 받기 토글 → 옵션 표시
+document.getElementById('postSignupEnabled')?.addEventListener('change', (e) => {
+  document.getElementById('postSignupOptions').style.display = e.target.checked ? '' : 'none';
+});
 
 document.querySelector('[data-modal="postComposeModal"]')?.addEventListener('click', (e) => {
   e.preventDefault();
@@ -947,9 +961,19 @@ document.getElementById('postSubmitBtn')?.addEventListener('click', async () => 
       });
     }
     progress.textContent = '저장 중...';
+    const signupEnabled = document.getElementById('postSignupEnabled').checked;
+    const capacityNum = parseInt(document.getElementById('postCapacity').value, 10);
+    const deadlineVal = document.getElementById('postDeadline').value;
+
     if (state.editingPostId) {
-      // 수정: title/body/image만 갱신, count·timestamp·authorUid 보존
-      const upd = { title, body, updatedAt: Date.now() };
+      // 수정: title/body/image/signup만 갱신, count·timestamp·authorUid 보존
+      const upd = {
+        title, body,
+        signupEnabled: !!signupEnabled,
+        capacity: signupEnabled && !isNaN(capacityNum) && capacityNum > 0 ? capacityNum : null,
+        deadline: signupEnabled && deadlineVal ? deadlineVal : null,
+        updatedAt: Date.now()
+      };
       if (imageUrl) {
         upd.imageUrl = imageUrl;
         upd.imageStoragePath = storagePath;
@@ -962,7 +986,7 @@ document.getElementById('postSubmitBtn')?.addEventListener('click', async () => 
       await update(ref(db, `posts/${state.editingPostId}`), upd);
       toast('나눔글이 수정되었습니다');
     } else {
-      const newRef = await push(ref(db, 'posts'), {
+      const newData = {
         title, body,
         imageUrl: imageUrl || '',
         imageStoragePath: storagePath || '',
@@ -971,7 +995,13 @@ document.getElementById('postSubmitBtn')?.addEventListener('click', async () => 
         likeCount: 0,
         commentCount: 0,
         timestamp: Date.now()
-      });
+      };
+      if (signupEnabled) {
+        newData.signupEnabled = true;
+        if (!isNaN(capacityNum) && capacityNum > 0) newData.capacity = capacityNum;
+        if (deadlineVal) newData.deadline = deadlineVal;
+      }
+      await push(ref(db, 'posts'), newData);
       toast('나눔글이 등록되었습니다');
     }
     closeModal('postComposeModal');
@@ -1000,6 +1030,28 @@ async function openPostDetail(id) {
   // 좋아요 상태
   const likeBtn = document.getElementById('postDetailLikeBtn');
   likeBtn.classList.toggle('liked', !!state.postLikes[id]);
+  // 신청 받기 박스 표시
+  const signupBox = document.getElementById('postDetailSignup');
+  const signupBtn = document.getElementById('postDetailSignupBtn');
+  if (p.signupEnabled) {
+    signupBox.style.display = '';
+    const meta = [];
+    if (p.deadline) meta.push(`📅 마감: ${p.deadline}`);
+    if (p.capacity) meta.push(`👥 정원: ${p.capacity}명`);
+    document.getElementById('postDetailSignupMeta').textContent = meta.join(' · ') || '참여 신청을 받습니다';
+    const closed = p.deadline && new Date(p.deadline + 'T23:59:59') < new Date();
+    if (closed) {
+      signupBtn.disabled = true;
+      signupBtn.textContent = '마감되었습니다';
+      signupBtn.classList.add('closed');
+    } else {
+      signupBtn.disabled = false;
+      signupBtn.textContent = '📝 이 모임에 신청하기';
+      signupBtn.classList.remove('closed');
+    }
+  } else {
+    signupBox.style.display = 'none';
+  }
   // 본인 글이면 수정/삭제 노출
   const mine = p.authorUid === state.uid;
   document.getElementById('postDetailEditBtn').style.display = mine ? '' : 'none';
@@ -1165,21 +1217,24 @@ function renderAnnouncements() {
   });
 }
 
-function openEventApplyModal(announcementId) {
-  const a = (state.announcements || []).find((x) => x.id === announcementId);
-  if (!a) return;
+// eventApplyModal — announcement 또는 post 모두 처리
+// kind: 'announcement' | 'post'
+function openEventApplyModal(targetId, kind = 'announcement') {
+  const target = kind === 'post'
+    ? (state.posts || []).find((x) => x.id === targetId)
+    : (state.announcements || []).find((x) => x.id === targetId);
+  if (!target) return;
   if (!ensureProfileComplete()) return;
-  state.applyEventId = announcementId;
-  document.getElementById('eaTitle').textContent = a.title || '행사 신청';
+  state.applyEventId = targetId;
+  state.applyEventKind = kind;
+  document.getElementById('eaTitle').textContent = target.title || '신청';
   document.getElementById('eaSub').textContent = [
-    a.deadline ? `마감 ${a.deadline}` : '',
-    a.capacity ? `정원 ${a.capacity}명` : ''
+    target.deadline ? `마감 ${target.deadline}` : '',
+    target.capacity ? `정원 ${target.capacity}명` : ''
   ].filter(Boolean).join(' · ');
   document.getElementById('eaCount').value = '1';
   document.getElementById('eaNote').value = '';
-  // 이름·연락처는 프로필에서 자동 입력
   autofillFromProfile({ name: 'eaName', phone: 'eaPhone' });
-  // 미리보기 텍스트도 갱신
   const p = state.userProfile || {};
   const nd = document.getElementById('eaName-display');
   const pd = document.getElementById('eaPhone-display');
@@ -1190,8 +1245,11 @@ function openEventApplyModal(announcementId) {
 
 document.getElementById('eaSubmit')?.addEventListener('click', async () => {
   const id = state.applyEventId;
-  const a = (state.announcements || []).find((x) => x.id === id);
-  if (!a) return;
+  const kind = state.applyEventKind || 'announcement';
+  const target = kind === 'post'
+    ? (state.posts || []).find((x) => x.id === id)
+    : (state.announcements || []).find((x) => x.id === id);
+  if (!target) return;
   const name = document.getElementById('eaName').value.trim();
   const phone = document.getElementById('eaPhone').value.trim();
   const count = parseInt(document.getElementById('eaCount').value, 10) || 1;
@@ -1199,19 +1257,29 @@ document.getElementById('eaSubmit')?.addEventListener('click', async () => {
   if (!name) { toast('이름을 입력해주세요'); return; }
   if (!phone) { toast('연락처를 입력해주세요'); return; }
   try {
-    const newRef = await push(ref(db, 'applications'), {
-      kind: '행사', name, phone, count, note,
-      eventTitle: a.title || '',
-      announcementId: id,
+    const data = {
+      kind: kind === 'post' ? '모임' : '행사',
+      name, phone, count, note,
+      eventTitle: target.title || '',
       userUid: state.uid, timestamp: Date.now()
-    });
+    };
+    if (kind === 'post') data.postId = id; else data.announcementId = id;
+    const newRef = await push(ref(db, 'applications'), data);
     recordMyApplication(newRef.key);
     closeModal('eventApplyModal');
-    toast(`✅ "${a.title}" 신청이 접수되었습니다`);
+    toast(`✅ "${target.title}" 신청이 접수되었습니다`);
   } catch (e) {
     console.error('[event-apply]', e);
     toast('신청 중 오류: ' + (e.code || e.message));
   }
+});
+
+// 나눔글 상세에서 "이 모임 신청하기" 버튼
+document.getElementById('postDetailSignupBtn')?.addEventListener('click', () => {
+  const id = state.currentPostId;
+  if (!id) return;
+  closeModal('postDetailModal');
+  setTimeout(() => openEventApplyModal(id, 'post'), 250);
 });
 
 function tagLabel(t) {

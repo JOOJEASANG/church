@@ -742,6 +742,27 @@
     }
     .post-card-foot .liked { color: var(--primary-dark); }
 
+    /* 나눔글 신청 박스 */
+    .post-signup-box {
+      margin: 16px 0 0;
+      padding: 14px 16px;
+      background: linear-gradient(180deg, #fdfdfb 0%, #f5f7ee 100%);
+      border: 1px solid #d9e6d0;
+      border-radius: 12px;
+    }
+    .post-signup-box .ps-meta {
+      font-size: 12.5px; font-weight: 700; color: var(--primary-dark); margin-bottom: 10px;
+    }
+
+    /* 카드에서도 행사 아이콘 표시 */
+    .post-card.has-signup { border-color: #d9e6d0; }
+    .post-card .pc-signup-tag {
+      display: inline-block; margin-left: 6px;
+      font-size: 10.5px; font-weight: 700; padding: 2px 7px;
+      border-radius: 5px; background: var(--green-soft); color: var(--primary-dark);
+      letter-spacing: 0.1px; vertical-align: middle;
+    }
+
     /* 상세 모달 */
     .post-detail-meta {
       display: flex; align-items: center; gap: 10px;
@@ -1994,6 +2015,26 @@
         <img id="postImagePreviewImg" style="max-width:100%;border-radius:10px;border:1px solid var(--line);"/>
         <button type="button" id="postImageRemove" style="margin-top:6px;font-size:12px;color:var(--danger);background:transparent;border:0;cursor:pointer;">사진 제거</button>
       </div>
+
+      <div style="margin-top:14px;padding:12px 14px;background:var(--bg-2,#f4f1ea);border:1px dashed var(--line);border-radius:10px;">
+        <label class="auth-agree" style="margin:0;font-size:13px;color:var(--text);">
+          <input type="checkbox" id="postSignupEnabled"/>
+          <span><b>📝 신청 받기</b> — 소모임 행사·번개 모임 등 참여 신청을 받습니다</span>
+        </label>
+        <div id="postSignupOptions" style="display:none;margin-top:10px;">
+          <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="margin-top:4px;">정원 (선택)</label>
+              <input class="field" id="postCapacity" type="number" min="0" placeholder="예: 10 (비우면 무제한)"/>
+            </div>
+            <div>
+              <label style="margin-top:4px;">신청 마감일 (선택)</label>
+              <input class="field" id="postDeadline" type="date"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="postComposeProgress" style="margin-top:10px;font-size:12.5px;color:var(--muted);"></div>
       <button class="submit-btn" type="button" id="postSubmitBtn">등록하기</button>
     </div>
@@ -2013,6 +2054,12 @@
       </div>
       <img class="post-detail-img" id="postDetailImg" alt="" style="display:none;"/>
       <div class="post-detail-body" id="postDetailBody"></div>
+
+      <div id="postDetailSignup" class="post-signup-box" style="display:none;">
+        <div class="ps-meta" id="postDetailSignupMeta"></div>
+        <button type="button" class="ann-signup-btn" id="postDetailSignupBtn">📝 이 모임에 신청하기</button>
+      </div>
+
       <div class="post-detail-actions">
         <button type="button" class="post-action-btn" id="postDetailLikeBtn">👍 <span id="postDetailLikeCount">0</span></button>
         <span class="post-action-spacer"></span>

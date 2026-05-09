@@ -570,7 +570,7 @@ function renderApps() {
       detail = [a.date ? `희망일: ${a.date}` : '', a.message || ''].filter(Boolean).join(' / ');
     } else if (a.kind === '새가족') {
       detail = [a.address || '', a.how ? `경로: ${a.how}` : ''].filter(Boolean).join(' / ');
-    } else if (a.kind === '행사') {
+    } else if (a.kind === '행사' || a.kind === '모임') {
       detail = [
         a.eventTitle || '',
         a.count ? `${a.count}명` : '',
