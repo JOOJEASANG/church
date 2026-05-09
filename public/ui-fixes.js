@@ -1,7 +1,9 @@
 /* =============================================================
  * UI 보정 패치
  * - 관리자 사이드 메뉴 갤러리 제거
- * - 데스크탑 관리자 상단 중복 교회명 숨김
+ * - 관리자 사이드바 브랜드는 유지
+ * - PC모드 사용자 화면 상단 로고/교회명 중복 표시 정리
+ * - 데스크탑 관리자 상단 중복 교회명 정리
  * - 앱 설치 안내 배너 폭 보정
  * ============================================================= */
 
@@ -46,7 +48,21 @@ function injectUiFixStyles() {
       max-width: 100% !important;
     }
 
-    /* 관리자 데스크탑: 사이드바가 브랜드 영역이면 상단 중복 제목은 숨김 */
+    /* 사용자 앱 PC모드: 좌측/사이드 영역에 브랜드가 있을 때 우측 상단 로고·교회명만 숨김 */
+    @media (min-width: 761px) {
+      html:not([data-admin-page]) .app-header .greeting-block {
+        display: none !important;
+      }
+      html:not([data-admin-page]) .app-header .header-row {
+        justify-content: flex-end !important;
+      }
+      html:not([data-admin-page]) .app-header {
+        padding-top: 14px !important;
+        padding-bottom: 8px !important;
+      }
+    }
+
+    /* 관리자 데스크탑: 사이드바 브랜드는 유지하고, 상단바 중복 제목만 숨김 */
     @media (min-width: 761px) {
       html[data-admin-page] .topbar h1 {
         display: none !important;
