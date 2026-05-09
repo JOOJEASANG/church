@@ -1,9 +1,9 @@
 /* =============================================================
  * UI 보정 패치
  * - 관리자 사이드 메뉴 갤러리 제거
- * - 관리자 사이드바 브랜드는 유지
+ * - 관리자 사이드바 상단 로고 + 교회명 표시
+ * - 관리자 화면의 "관리자" 브랜드 문구 제거
  * - PC모드 사용자 화면 상단 로고/교회명 중복 표시 정리
- * - 데스크탑 관리자 상단 중복 교회명 정리
  * - 앱 설치 안내 배너 폭 보정
  * ============================================================= */
 
@@ -62,7 +62,34 @@ function injectUiFixStyles() {
       }
     }
 
-    /* 관리자 데스크탑: 사이드바 브랜드는 유지하고, 상단바 중복 제목만 숨김 */
+    /* 관리자 사이드바 브랜드 */
+    html[data-admin-page] .admin-sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 10px 14px;
+      margin: 0 0 8px;
+      border-bottom: 1px solid var(--line, #ebece8);
+    }
+    html[data-admin-page] .admin-sidebar-brand img {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      flex: 0 0 auto;
+      box-shadow: 0 2px 8px rgba(20, 22, 26, 0.08);
+    }
+    html[data-admin-page] .admin-sidebar-brand-title {
+      font-size: 18px;
+      line-height: 1.2;
+      font-weight: 900;
+      letter-spacing: -0.6px;
+      color: var(--text, #15171a);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* 관리자 데스크탑: 상단바 중복 제목은 숨기고, 계정/로그아웃만 표시 */
     @media (min-width: 761px) {
       html[data-admin-page] .topbar h1 {
         display: none !important;
@@ -71,36 +98,23 @@ function injectUiFixStyles() {
         justify-content: flex-end !important;
         min-height: 52px;
       }
-
-      /* 사이드바 상단 교회명 확대 */
-      html[data-admin-page] .sidebar .brand-title,
-      html[data-admin-page] .sidebar .brand-name,
-      html[data-admin-page] .sidebar .church-name,
-      html[data-admin-page] .sidebar .church-title,
-      html[data-admin-page] .sidebar .sidebar-title,
-      html[data-admin-page] .sidebar .sidebar-brand-title,
-      html[data-admin-page] .sidebar .admin-brand-title,
-      html[data-admin-page] .sidebar [id*="ChurchName"],
-      html[data-admin-page] .sidebar [id*="churchName"],
-      html[data-admin-page] .sidebar [class*="church-name"],
-      html[data-admin-page] .sidebar [class*="brand-title"],
-      html[data-admin-page] .sidebar [class*="brand-name"] {
-        font-size: 18px !important;
-        line-height: 1.25 !important;
-        font-weight: 900 !important;
-        letter-spacing: -0.55px !important;
-      }
-
-      html[data-admin-page] .sidebar h1,
-      html[data-admin-page] .sidebar h2 {
-        font-size: 18px !important;
-        line-height: 1.25 !important;
-        font-weight: 900 !important;
-        letter-spacing: -0.55px !important;
-      }
     }
   `;
   document.head.appendChild(style);
+}
+
+function ensureAdminSidebarBrand() {
+  if (!isAdminPage()) return;
+  const sidebar = document.querySelector('.sidebar');
+  if (!sidebar || sidebar.querySelector('.admin-sidebar-brand')) return;
+
+  const brand = document.createElement('div');
+  brand.className = 'admin-sidebar-brand';
+  brand.innerHTML = `
+    <img src="/icons/icon.svg" alt="천안남산교회 로고" />
+    <div class="admin-sidebar-brand-title">천안남산교회</div>
+  `;
+  sidebar.insertBefore(brand, sidebar.firstChild);
 }
 
 function removeAdminGalleryMenu() {
@@ -110,10 +124,19 @@ function removeAdminGalleryMenu() {
   document.getElementById('pane-gallery')?.remove();
 }
 
+function removeAdminWordFromBrand() {
+  if (!isAdminPage()) return;
+  document.querySelectorAll('.admin-sidebar-brand-title, .sidebar h1, .sidebar h2, .topbar h1').forEach((el) => {
+    el.textContent = el.textContent.replace(/\s*[·\-–—|]?\s*관리자\s*/g, '').trim();
+  });
+}
+
 function runUiFixes() {
   if (isAdminPage()) document.documentElement.setAttribute('data-admin-page', 'true');
   injectUiFixStyles();
+  ensureAdminSidebarBrand();
   removeAdminGalleryMenu();
+  removeAdminWordFromBrand();
 }
 
 if (document.readyState === 'loading') {
