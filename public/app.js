@@ -718,14 +718,74 @@ function renderAnnouncements() {
     feed.innerHTML = '<div class="feed-card"><h3>아직 등록된 소식이 없어요</h3><p>첫 공지가 등록되면 여기에 표시됩니다.</p></div>';
     return;
   }
-  feed.innerHTML = state.announcements.slice(0, 5).map((a) => `
-    <article class="feed-card">
+  feed.innerHTML = state.announcements.slice(0, 5).map((a) => {
+    const meta = [];
+    if (a.deadline) meta.push(`📅 마감: ${a.deadline}`);
+    if (a.capacity) meta.push(`👥 정원: ${a.capacity}명`);
+    const closed = a.deadline && new Date(a.deadline + 'T23:59:59') < new Date();
+    return `
+    <article class="feed-card${a.signupEnabled ? ' has-signup' : ''}">
       <div class="top"><span class="tag ${escapeHtml(a.tag || 'notice')}">${tagLabel(a.tag)}</span><span class="time">${timeAgo(a.timestamp)}</span></div>
       <h3>${escapeHtml(a.title || '')}</h3>
       <p>${escapeHtml(a.body || '')}</p>
+      ${meta.length ? `<div class="ann-meta">${escapeHtml(meta.join(' · '))}</div>` : ''}
+      ${a.signupEnabled
+        ? (closed
+          ? `<button class="ann-signup-btn closed" type="button" disabled>마감되었습니다</button>`
+          : `<button class="ann-signup-btn" type="button" data-event-signup="${escapeHtml(a.id)}">📝 이 행사 신청하기</button>`)
+        : ''}
     </article>
-  `).join('');
+  `;
+  }).join('');
+  feed.querySelectorAll('[data-event-signup]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openEventApplyModal(btn.dataset.eventSignup);
+    });
+  });
 }
+
+function openEventApplyModal(announcementId) {
+  const a = (state.announcements || []).find((x) => x.id === announcementId);
+  if (!a) return;
+  state.applyEventId = announcementId;
+  document.getElementById('eaTitle').textContent = a.title || '행사 신청';
+  document.getElementById('eaSub').textContent = [
+    a.deadline ? `마감 ${a.deadline}` : '',
+    a.capacity ? `정원 ${a.capacity}명` : ''
+  ].filter(Boolean).join(' · ');
+  ['eaName', 'eaPhone', 'eaCount', 'eaNote'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = id === 'eaCount' ? '1' : '';
+  });
+  openModal('eventApplyModal');
+}
+
+document.getElementById('eaSubmit')?.addEventListener('click', async () => {
+  const id = state.applyEventId;
+  const a = (state.announcements || []).find((x) => x.id === id);
+  if (!a) return;
+  const name = document.getElementById('eaName').value.trim();
+  const phone = document.getElementById('eaPhone').value.trim();
+  const count = parseInt(document.getElementById('eaCount').value, 10) || 1;
+  const note = document.getElementById('eaNote').value.trim();
+  if (!name) { toast('이름을 입력해주세요'); return; }
+  if (!phone) { toast('연락처를 입력해주세요'); return; }
+  try {
+    const newRef = await push(ref(db, 'applications'), {
+      kind: '행사', name, phone, count, note,
+      eventTitle: a.title || '',
+      announcementId: id,
+      userUid: state.uid, timestamp: Date.now()
+    });
+    recordMyApplication(newRef.key);
+    closeModal('eventApplyModal');
+    toast(`✅ "${a.title}" 신청이 접수되었습니다`);
+  } catch (e) {
+    console.error('[event-apply]', e);
+    toast('신청 중 오류: ' + (e.code || e.message));
+  }
+});
 
 function tagLabel(t) {
   return ({

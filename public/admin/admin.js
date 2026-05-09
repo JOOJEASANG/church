@@ -269,13 +269,34 @@ function renderRecent() {
 }
 
 // ===== 공지사항 =====
+// 분류가 행사 안내(event)면 신청 받기를 자동으로 켬
+$('annTag')?.addEventListener('change', () => {
+  const isEvent = $('annTag').value === 'event';
+  if (isEvent) $('annSignupEnabled').checked = true;
+});
+$('annSignupEnabled')?.addEventListener('change', () => {
+  $('annSignupOptions').style.display = $('annSignupEnabled').checked ? '' : 'none';
+});
+
 $('annSubmit').addEventListener('click', async () => {
   const title = $('annTitle').value.trim();
   const body = $('annBody').value.trim();
   const tag = $('annTag').value;
+  const signupEnabled = $('annSignupEnabled').checked;
+  const capacity = parseInt($('annCapacity').value, 10);
+  const deadline = $('annDeadline').value;
   if (!title) { alert('제목을 입력해주세요'); return; }
-  await push(ref(db, 'announcements'), { title, body, tag, timestamp: Date.now() });
+  const data = { title, body, tag, timestamp: Date.now() };
+  if (signupEnabled) {
+    data.signupEnabled = true;
+    if (!isNaN(capacity) && capacity > 0) data.capacity = capacity;
+    if (deadline) data.deadline = deadline;
+  }
+  await push(ref(db, 'announcements'), data);
   $('annTitle').value = ''; $('annBody').value = '';
+  $('annSignupEnabled').checked = false;
+  $('annSignupOptions').style.display = 'none';
+  $('annCapacity').value = ''; $('annDeadline').value = '';
   alert('공지가 등록되었습니다');
 });
 
@@ -549,6 +570,14 @@ function renderApps() {
       detail = [a.date ? `희망일: ${a.date}` : '', a.message || ''].filter(Boolean).join(' / ');
     } else if (a.kind === '새가족') {
       detail = [a.address || '', a.how ? `경로: ${a.how}` : ''].filter(Boolean).join(' / ');
+    } else if (a.kind === '행사') {
+      detail = [
+        a.eventTitle || '',
+        a.count ? `${a.count}명` : '',
+        a.note || ''
+      ].filter(Boolean).join(' / ');
+    } else if (a.kind === '출석') {
+      detail = [a.serviceName || '', a.date || ''].filter(Boolean).join(' · ');
     } else {
       detail = a.type || a.roomTitle || a.time || '';
     }

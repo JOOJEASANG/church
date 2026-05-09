@@ -469,7 +469,27 @@
           <p class="sub" style="margin-top:6px;font-size:12px;">
             메인 화면 "이번 주 소식"과 알림 목록에 분류 색상으로 자동 표시됩니다.
           </p>
-          <button class="btn primary" id="annSubmit" type="button" style="margin-top: 12px;">등록</button>
+
+          <div style="margin-top:14px;padding:12px 14px;background:var(--bg);border:1px dashed var(--line);border-radius:10px;">
+            <label class="auth-agree" style="margin:0;font-size:13px;color:var(--text);">
+              <input type="checkbox" id="annSignupEnabled"/>
+              <span><b>신청 받기</b> — 사용자가 이 공지에서 직접 신청하도록 (행사·신청 분류에 적합)</span>
+            </label>
+            <div id="annSignupOptions" style="display:none;margin-top:10px;">
+              <div class="grid-2">
+                <div>
+                  <label style="margin-top:4px;">정원 (선택)</label>
+                  <input class="field" id="annCapacity" type="number" min="0" placeholder="예: 50 (비우면 무제한)"/>
+                </div>
+                <div>
+                  <label style="margin-top:4px;">신청 마감일 (선택)</label>
+                  <input class="field" id="annDeadline" type="date"/>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn primary" id="annSubmit" type="button" style="margin-top: 14px;">등록</button>
         </div>
         <div class="panel">
           <h2>등록된 공지</h2>
@@ -580,10 +600,12 @@
           <p class="sub">사용자가 메인 페이지에서 보낸 모든 신청 — 봉사·심방요청·새가족·재능나눔방 신청이 한곳에 모입니다</p>
           <div id="appsFilter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
             <button type="button" class="btn btn-sm app-filter active" data-kind="">전체</button>
+            <button type="button" class="btn btn-sm app-filter" data-kind="행사">📝 행사</button>
             <button type="button" class="btn btn-sm app-filter" data-kind="봉사">🍚 봉사</button>
             <button type="button" class="btn btn-sm app-filter" data-kind="심방요청">🏠 심방요청</button>
             <button type="button" class="btn btn-sm app-filter" data-kind="새가족">🌱 새가족</button>
             <button type="button" class="btn btn-sm app-filter" data-kind="재능나눔">🤝 재능나눔</button>
+            <button type="button" class="btn btn-sm app-filter" data-kind="출석">✅ 출석</button>
           </div>
           <div style="overflow-x: auto;">
             <table id="appsTable"><thead><tr><th>일시</th><th>구분</th><th>이름</th><th>연락처</th><th>상세</th><th></th></tr></thead><tbody></tbody></table>
