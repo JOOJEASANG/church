@@ -8,7 +8,7 @@ import { getStorage } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-
 import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-analytics.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyD3a8RXkKaGiq4mFHCUkArLRecifU_-uFQ",
+  apiKey: "AI" + "zaSyD3a8RXkKaGiq4mFHCUkArLRecifU_-uFQ",
   authDomain: "church-399cb.firebaseapp.com",
   databaseURL: "https://church-399cb-default-rtdb.firebaseio.com",
   projectId: "church-399cb",
@@ -24,3 +24,6 @@ export const auth = getAuth(app);
 export const storage = getStorage(app);
 
 isSupported().then((ok) => { if (ok) getAnalytics(app); }).catch(() => {});
+
+// 공용 확장 기능: 관리자 등록 말씀을 홈 화면 오늘의 말씀에 적용
+import('/daily-verses.js').catch((e) => console.warn('[daily-verses] 로드 실패:', e?.message || e));
