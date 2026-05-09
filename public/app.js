@@ -180,8 +180,10 @@ function fillLegalModals() {
       <li>예배 안내, 설교 영상(이번 주·지난 설교), 주보 열람</li>
       <li>오늘의 말씀, 교회 일정(캘린더), 공지사항·행사 안내</li>
       <li>기도제목 등록·참여, 재능나눔방 개설·신청</li>
+      <li>나눔글 게시판(작성·좋아요·댓글), 소모임 행사 신청</li>
       <li>행사 신청, 봉사 신청, 심방 요청, 새가족 등록</li>
       <li>예배 체크(다중 참석 가능), 갤러리, 푸시 알림</li>
+      <li>의견·건의 보내기 (사용자 → 관리자)</li>
     </ul>
 
     <h4>제3조 (회원가입)</h4>
@@ -383,7 +385,7 @@ document.getElementById('fbSubmit')?.addEventListener('click', async () => {
   btn.disabled = true;
   status.textContent = '💾 보내는 중...'; status.style.color = '';
   try {
-    await push(ref(db, 'feedback'), {
+    const newRef = await push(ref(db, 'feedback'), {
       title, body,
       authorUid: state.uid,
       authorName: state.userProfile?.displayName || '성도',
@@ -392,6 +394,12 @@ document.getElementById('fbSubmit')?.addEventListener('click', async () => {
       timestamp: Date.now(),
       status: 'open'
     });
+    // 본인 의견 ID를 로컬에 기록 (탈퇴 시 정리용)
+    try {
+      const ids = JSON.parse(sessionStorage.getItem('myFeedbackIds') || '[]');
+      ids.unshift(newRef.key);
+      sessionStorage.setItem('myFeedbackIds', JSON.stringify(ids.slice(0, 100)));
+    } catch {}
     status.textContent = '✅ 의견이 관리자에게 전달되었습니다. 감사합니다!';
     status.style.color = 'var(--primary)';
     document.getElementById('fbTitle').value = '';
@@ -406,11 +414,9 @@ document.getElementById('fbSubmit')?.addEventListener('click', async () => {
 });
 
 document.getElementById('peSubmit')?.addEventListener('click', async () => {
-  console.log('[profile-edit] 저장 클릭');
   const name = document.getElementById('peName').value.trim();
   const role = document.getElementById('peRole').value || '성도';
   const phone = document.getElementById('pePhone').value.trim();
-  console.log('[profile-edit] 입력값:', { name, role, phone, uid: state.uid });
   if (!name) { toast('이름을 입력해주세요'); return; }
   if (!phone) { toast('연락처를 입력해주세요'); return; }
   if (!state.uid) { toast('로그인 상태를 확인해주세요'); return; }
@@ -418,21 +424,18 @@ document.getElementById('peSubmit')?.addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = '저장 중...';
   try {
-    console.log('[profile-edit] users/' + state.uid + ' 업데이트...');
     await update(ref(db, `users/${state.uid}`), {
       displayName: name, role, phone, updatedAt: Date.now()
     });
-    console.log('[profile-edit] update 완료');
     if (auth.currentUser && auth.currentUser.displayName !== name) {
       await updateProfile(auth.currentUser, { displayName: name });
-      console.log('[profile-edit] auth displayName 동기화');
     }
     state.userProfile = { ...state.userProfile, displayName: name, role, phone };
     applyProfile();
     closeModal('profileEditModal');
     toast('프로필이 저장되었습니다');
   } catch (e) {
-    console.error('[profile-edit] 실패:', e.code, e.message, e);
+    console.error('[profile-edit] 실패:', e.code || e.message);
     toast('저장 실패: ' + (e.code || e.message));
   } finally {
     btn.disabled = false;
@@ -734,25 +737,38 @@ const PROFILE_AUTOFILL_MAP = {
   checkinModal:   { name: 'ciName' }
 };
 
+// 모달이 닫힐 때 자동으로 폼/state를 정리할 항목
+// (보안 + UX: 다음 사용자가 열었을 때 이전 값이 남지 않도록)
+const MODAL_AUTORESET = {
+  prayerModal:        () => { state.editingPrayerId = null; },
+  postComposeModal:   () => { state.editingPostId = null; state.pendingPostImage = null; },
+  postDetailModal:    () => { state.currentPostId = null; },
+  sermonViewerModal:  (m) => { const f = m.querySelector('iframe'); if (f) f.src = ''; }
+};
+
+let _modalStack = 0;
 function openModal(id) {
-  document.getElementById(id)?.classList.add('show');
+  const m = document.getElementById(id);
+  if (!m || m.classList.contains('show')) return;
+  m.classList.add('show');
+  _modalStack++;
   document.body.style.overflow = 'hidden';
   // 신청 폼이면 프로필 자동 입력
   const map = PROFILE_AUTOFILL_MAP[id];
   if (map) autofillFromProfile(map);
 }
+
 function closeModal(id) {
   const m = document.getElementById(id);
-  if (!m) return;
+  if (!m || !m.classList.contains('show')) return;
   m.classList.remove('show');
-  document.body.style.overflow = '';
-  // 보안: 비밀번호 필드 자동 초기화
+  _modalStack = Math.max(0, _modalStack - 1);
+  if (_modalStack === 0) document.body.style.overflow = '';
+  // 보안: 비밀번호 자동 초기화
   m.querySelectorAll('input[type="password"]').forEach((i) => { i.value = ''; });
-  // sermon viewer는 iframe 정지
-  if (id === 'sermonViewerModal') {
-    const f = m.querySelector('iframe');
-    if (f) f.src = '';
-  }
+  // 모달별 추가 정리 (편집 모드 해제, iframe 정지 등)
+  const cleanup = MODAL_AUTORESET[id];
+  if (cleanup) try { cleanup(m); } catch {}
 }
 document.querySelectorAll('[data-modal]').forEach((el) => {
   el.addEventListener('click', (e) => { e.preventDefault(); openModal(el.dataset.modal); });
@@ -1959,23 +1975,19 @@ async function handleWithdraw() {
     ops.push(remove(ref(db, `postLikes/${postId}/${uid}`)).catch(() => {}));
   });
 
-  // 9) 의견·건의 (본인 것만)
+  // 9) 의견·건의 (sessionStorage에 기록된 본인 ID만 — /feedback 부모는 admin 전용 read)
   try {
-    const fbSnap = await get(ref(db, 'feedback'));
-    if (fbSnap.exists()) {
-      fbSnap.forEach((c) => {
-        if (c.child('authorUid').val() === uid) {
-          ops.push(remove(ref(db, `feedback/${c.key}`)).catch(() => {}));
-        }
-      });
-    }
+    const fbIds = JSON.parse(sessionStorage.getItem('myFeedbackIds') || '[]');
+    fbIds.forEach((fid) => {
+      ops.push(remove(ref(db, `feedback/${fid}`)).catch(() => {}));
+    });
   } catch {}
 
   // 모든 RTDB 삭제를 한 번에 await
   await Promise.all(ops);
 
   // 7) 로컬 저장소 정리
-  ['myAppIds', 'attendName', 'uploaderName', 'easyMode', 'notifEnabled', 'installDismissed']
+  ['myAppIds', 'myFeedbackIds', 'attendName', 'uploaderName', 'easyMode', 'notifEnabled', 'installDismissed']
     .forEach((k) => { try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch {} });
 
   // 8) Firebase Auth 계정 삭제 (recent login 필요 — 실패 시 재인증 후 재시도)
