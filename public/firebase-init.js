@@ -27,3 +27,6 @@ isSupported().then((ok) => { if (ok) getAnalytics(app); }).catch(() => {});
 
 // 공용 확장 기능: 관리자 등록 말씀을 홈 화면 오늘의 말씀에 적용
 import('/daily-verses.js').catch((e) => console.warn('[daily-verses] 로드 실패:', e?.message || e));
+
+// 공용 UI 보정: 관리자 메뉴 정리 + 설치 배너 폭 보정
+import('/ui-fixes.js').catch((e) => console.warn('[ui-fixes] 로드 실패:', e?.message || e));
