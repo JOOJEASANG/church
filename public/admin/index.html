@@ -493,7 +493,15 @@
             </div>
           </div>
 
-          <button class="btn primary" id="sermonSave" type="button" style="margin-top: 18px;">저장</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;">
+            <button class="btn primary" id="sermonSave" type="button">이번 주 설교로 저장</button>
+            <button class="btn" id="sermonAddHistory" type="button">📚 지난 설교로 추가</button>
+            <span id="sermonStatus" style="font-size:12.5px;font-weight:600;color:var(--muted);align-self:center;"></span>
+          </div>
+          <p class="sub" style="margin-top:10px;">
+            <b>이번 주 설교로 저장</b>: 입력한 내용이 <b>이번 주 설교</b>가 되고, 기존 이번 주 설교는 자동으로 <b>지난 설교</b> 목록에 보관됩니다.<br/>
+            <b>지난 설교로 추가</b>: 이번 주 설교는 그대로 두고, 입력한 내용을 <b>지난 설교 목록에만 추가</b>합니다 (옛날 설교 직접 등록할 때 사용).
+          </p>
         </div>
 
         <div class="panel">

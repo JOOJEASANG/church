@@ -394,7 +394,53 @@ $('sermonSave')?.addEventListener('click', async () => {
     await push(ref(db, 'sermons/history'), state.sermon);
   }
   await set(ref(db, 'sermons/current'), data);
-  alert('이번 주 설교가 저장되었습니다');
+  setSermonStatus('✅ 이번 주 설교로 저장되었습니다', 'var(--primary)');
+});
+
+function setSermonStatus(msg, color = 'var(--muted)') {
+  const el = $('sermonStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = color;
+  setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+}
+
+function clearSermonForm() {
+  ['sermonTitle', 'sermonVerse', 'sermonUrl', 'startH', 'startM', 'startS', 'endH', 'endM', 'endS']
+    .forEach((id) => { const el = $(id); if (el) el.value = ''; });
+}
+
+// 지난 설교 목록에만 추가 (이번 주 설교는 건드리지 않음)
+$('sermonAddHistory')?.addEventListener('click', async () => {
+  const inputUrl = $('sermonUrl').value.trim();
+  const videoId = extractVideoId(inputUrl);
+  if (inputUrl && !videoId) {
+    alert('유튜브 영상 ID를 인식하지 못했습니다.\n\n예시:\n• https://www.youtube.com/watch?v=XXXXX\n• https://youtu.be/XXXXX\n• https://www.youtube.com/live/XXXXX');
+    return;
+  }
+  const title = $('sermonTitle').value.trim();
+  if (!title) { alert('설교 제목을 입력해주세요'); return; }
+  const data = {
+    title,
+    verse: $('sermonVerse').value.trim(),
+    videoId,
+    start: combineTime('start') || 0,
+    end: combineTime('end') || 0,
+    timestamp: Date.now()
+  };
+  const btn = $('sermonAddHistory');
+  btn.disabled = true;
+  setSermonStatus('💾 지난 설교에 추가 중...');
+  try {
+    await push(ref(db, 'sermons/history'), data);
+    setSermonStatus(`✅ "${title}" 지난 설교에 추가됨`, 'var(--primary)');
+    clearSermonForm();
+  } catch (e) {
+    console.error('[sermon] add history 실패:', e);
+    setSermonStatus(`❌ 추가 실패: ${e.code || e.message}`, 'var(--danger)');
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 // ===== 지난 설교 =====
