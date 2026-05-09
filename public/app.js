@@ -8,7 +8,7 @@ import {
   ref, onValue, push, update, get, set, remove, serverTimestamp, query, orderByChild
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import {
-  signInAnonymously, onAuthStateChanged, updateProfile
+  signInAnonymously, onAuthStateChanged, updateProfile, signOut, deleteUser
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 import {
   ref as sRef, uploadBytesResumable, getDownloadURL, deleteObject
@@ -862,6 +862,94 @@ if (localStorage.getItem('notifEnabled') === '1' && Notification.permission === 
 }
 
 // ===== 그 외 =====
+// ===== 로그아웃 =====
+async function handleLogout() {
+  if (!confirm('로그아웃하시겠어요?\n\n• 익명 세션이 종료됩니다\n• 임시 보관된 "내 신청 내역" 캐시가 삭제됩니다\n• 다음 방문 시 새로운 익명 사용자로 시작됩니다\n\n(서버에 등록된 데이터는 그대로 남습니다)')) return;
+  try {
+    sessionStorage.removeItem('myAppIds');
+    await signOut(auth);
+    toast('로그아웃되었습니다');
+    setTimeout(() => location.reload(), 800);
+  } catch (e) {
+    console.error('[logout] 실패:', e);
+    toast('로그아웃 중 오류: ' + (e.code || e.message));
+  }
+}
+
+// ===== 탈퇴 (내 모든 데이터 영구 삭제) =====
+async function handleWithdraw() {
+  if (!state.uid) { toast('로그인 정보가 없어요'); return; }
+
+  const confirmMsg = [
+    '⚠️ 정말 탈퇴하시겠어요?',
+    '',
+    '다음 데이터가 모두 영구 삭제됩니다:',
+    '• 내가 등록한 기도제목',
+    '• 내가 신청한 모든 신청 (재능나눔·심방·새가족·봉사)',
+    '• 내가 올린 갤러리 사진 (파일 포함)',
+    '• 내가 참여(아멘)한 기도 기록',
+    '• 알림 토큰',
+    '• 익명 계정 자체',
+    '',
+    '이 작업은 되돌릴 수 없습니다.'
+  ].join('\n');
+  if (!confirm(confirmMsg)) return;
+
+  const phrase = prompt('삭제를 진행하려면 아래 단어를 정확히 입력해주세요:\n\n삭제');
+  if (phrase !== '삭제') { toast('탈퇴가 취소되었습니다'); return; }
+
+  toast('데이터를 삭제 중입니다…');
+  const uid = state.uid;
+  const ops = [];
+
+  // 1) 내가 등록한 기도제목 + 그 기도의 prayedBy 컬렉션 전체
+  (state.prayers || []).filter((p) => p.createdBy === uid).forEach((p) => {
+    ops.push(remove(ref(db, `prayers/${p.id}`)).catch(() => {}));
+    ops.push(remove(ref(db, `prayedBy/${p.id}`)).catch(() => {}));
+  });
+
+  // 2) 내가 제출한 신청 (sessionStorage에 저장된 ID 기반)
+  try {
+    const myAppIds = JSON.parse(sessionStorage.getItem('myAppIds') || '[]');
+    myAppIds.forEach((id) => {
+      ops.push(remove(ref(db, `applications/${id}`)).catch(() => {}));
+    });
+  } catch {}
+
+  // 3) 내가 올린 갤러리 사진 (RTDB 레코드 + Storage 파일)
+  (state.gallery || []).filter((g) => g.uploaderUid === uid).forEach((g) => {
+    ops.push(remove(ref(db, `gallery/${g.id}`)).catch(() => {}));
+    if (g.storagePath) {
+      ops.push(deleteObject(sRef(storage, g.storagePath)).catch(() => {}));
+    }
+  });
+
+  // 4) 내가 참여(아멘)한 기록
+  Object.keys(state.prayedBy || {}).forEach((prayerId) => {
+    ops.push(remove(ref(db, `prayedBy/${prayerId}/${uid}`)).catch(() => {}));
+  });
+
+  // 5) FCM 토큰
+  ops.push(remove(ref(db, `fcmTokens/${uid}`)).catch(() => {}));
+
+  await Promise.all(ops);
+
+  // 6) 로컬 저장소 정리
+  ['myAppIds', 'attendName', 'uploaderName', 'easyMode', 'notifEnabled', 'installDismissed']
+    .forEach((k) => { try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch {} });
+
+  // 7) Firebase Auth 익명 계정 삭제
+  try {
+    if (auth.currentUser) await deleteUser(auth.currentUser);
+  } catch (e) {
+    console.warn('[withdraw] deleteUser 실패, signOut으로 대체:', e.code);
+    try { await signOut(auth); } catch {}
+  }
+
+  toast('탈퇴가 완료되었습니다');
+  setTimeout(() => location.reload(), 1500);
+}
+
 document.querySelectorAll('[data-action]').forEach((el) => {
   el.addEventListener('click', () => {
     const a = el.dataset.action;
@@ -873,6 +961,8 @@ document.querySelectorAll('[data-action]').forEach((el) => {
     else if (a === 'info' || a === 'contact') openInfoModal();
     else if (a === 'myPrayers') openMyPrayers();
     else if (a === 'myApplications') openMyApplications();
+    else if (a === 'logout') handleLogout();
+    else if (a === 'withdraw') handleWithdraw();
     else toast('기능 준비 중이에요');
   });
 });

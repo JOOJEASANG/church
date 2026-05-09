@@ -62,7 +62,7 @@
       ".indexOn": ["timestamp"],
       "$id": {
         ".read": "auth != null && (root.child('admins').child(auth.uid).exists() || data.child('userUid').val() === auth.uid)",
-        ".write": "auth != null && ((!data.exists() && newData.child('userUid').val() === auth.uid) || root.child('admins').child(auth.uid).exists())"
+        ".write": "auth != null && ((!data.exists() && newData.child('userUid').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('userUid').val() === auth.uid) || root.child('admins').child(auth.uid).exists())"
       }
     },
 
