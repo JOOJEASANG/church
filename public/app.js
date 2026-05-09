@@ -325,7 +325,6 @@ onAuthStateChanged(auth, async (user) => {
     state.userProfile = { email: user.email, displayName: user.displayName || '' };
   }
   applyProfile();
-  await seedIfEmpty();
   attachListeners();
   loadMyPrayedFlags();
 });
@@ -1430,7 +1429,7 @@ async function handleWithdraw() {
 document.querySelectorAll('[data-action]').forEach((el) => {
   el.addEventListener('click', () => {
     const a = el.dataset.action;
-    if (a === 'qr' || a === 'attendance') openCheckinModal();
+    if (a === 'attendance') openCheckinModal();
     else if (a === 'install') triggerInstall();
     else if (a === 'visit') openModal('visitModal');
     else if (a === 'newcomer') openModal('newcomerModal');
@@ -1662,7 +1661,7 @@ document.getElementById('ciSubmit')?.addEventListener('click', async () => {
     });
     recordMyApplication(newRef.key);
     localStorage.setItem('attendName', name);
-    if (status) { status.textContent = `✅ ${today} 출석이 기록되었습니다`; status.style.color = 'var(--primary)'; }
+    if (status) { status.textContent = `✅ ${today} 참석이 기록되었습니다`; status.style.color = 'var(--primary)'; }
     setTimeout(() => closeModal('checkinModal'), 1200);
   } catch (e) {
     if (status) { status.textContent = '저장 실패: ' + e.message; status.style.color = '#c44'; }
