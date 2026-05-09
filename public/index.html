@@ -206,15 +206,42 @@
     }
     .service-times-head {
       display: flex; align-items: center; gap: 8px;
-      margin-bottom: 14px; padding-bottom: 12px;
+      margin-bottom: 0;
+      padding: 0; padding-bottom: 0;
+      border-bottom: 0;
+      cursor: pointer;
+      user-select: none;
+      background: transparent;
+      border: 0;
+      width: 100%;
+      text-align: left;
+      color: inherit;
+      font: inherit;
+    }
+    .service-times.open .service-times-head {
+      margin-bottom: 14px;
+      padding-bottom: 12px;
       border-bottom: 1px solid var(--line);
     }
     .service-times-head .ico { font-size: 18px; }
     .service-times-head h2 {
       margin: 0; font-size: 15px; font-weight: 800;
       letter-spacing: -0.4px; color: var(--text);
+      flex: 1;
     }
-    .service-list { display: block; }
+    .service-times-toggle {
+      font-size: 12.5px; font-weight: 700;
+      color: var(--primary); padding: 6px 12px;
+      border: 1px solid var(--line); border-radius: 999px;
+      background: var(--paper);
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .service-times-toggle .arrow { transition: transform 0.2s ease; display: inline-block; }
+    .service-times.open .service-times-toggle .arrow { transform: rotate(180deg); }
+    .service-list {
+      display: none;
+    }
+    .service-times.open .service-list { display: block; }
     .service-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .service-table th {
       text-align: left; padding: 10px 12px;
@@ -972,10 +999,14 @@
         </div>
 
         <div class="service-times" id="serviceTimes">
-          <div class="service-times-head">
+          <button class="service-times-head" type="button" id="serviceTimesToggle" aria-expanded="false">
             <span class="ico">🕊️</span>
             <h2>예배 안내</h2>
-          </div>
+            <span class="service-times-toggle">
+              <span class="toggle-label">예배시간 보기</span>
+              <span class="arrow">▾</span>
+            </span>
+          </button>
           <div class="service-list" id="serviceList">
             <div class="service-empty">예배 시간을 불러오는 중...</div>
           </div>

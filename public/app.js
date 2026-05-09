@@ -397,6 +397,19 @@ document.addEventListener('keydown', (e) => {
 // ===== 예배 시간표 =====
 const DAY_NAMES_KO = ['일','월','화','수','목','금','토'];
 
+// 접기/펼치기 토글
+(function setupServiceTimesToggle() {
+  const head = document.getElementById('serviceTimesToggle');
+  const wrap = document.getElementById('serviceTimes');
+  if (!head || !wrap) return;
+  head.addEventListener('click', () => {
+    const open = wrap.classList.toggle('open');
+    head.setAttribute('aria-expanded', open ? 'true' : 'false');
+    const label = head.querySelector('.toggle-label');
+    if (label) label.textContent = open ? '접기' : '예배시간 보기';
+  });
+})();
+
 function formatHM(time) {
   const [hh, mm] = (time || '11:00').split(':').map(Number);
   const ampm = hh < 12 ? '오전' : '오후';
@@ -439,14 +452,14 @@ function renderServiceTimes() {
     return;
   }
   list.innerHTML = `<table class="service-table">
-    <thead><tr><th class="col-day">요일</th><th class="col-name">예배명</th><th class="col-time">시간</th></tr></thead>
+    <thead><tr><th class="col-name">예배명</th><th class="col-day">요일</th><th class="col-time">시간</th></tr></thead>
     <tbody>${services.map((s) => `
       <tr>
-        <td class="col-day">${escapeHtml(formatDays(s))}</td>
         <td>
           <div class="col-name">${escapeHtml(s.name)}</div>
           ${s.place ? `<div class="col-place">${escapeHtml(s.place)}</div>` : ''}
         </td>
+        <td class="col-day">${escapeHtml(formatDays(s))}</td>
         <td class="col-time">${formatHM(s.time)}</td>
       </tr>
     `).join('')}</tbody>
