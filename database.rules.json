@@ -15,6 +15,12 @@
       ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
     },
 
+    "dailyVerses": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".indexOn": ["createdAt", "updatedAt"]
+    },
+
     "announcements": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
