@@ -463,65 +463,17 @@
       <div class="pane" id="pane-sermon">
         <div class="panel">
           <h2>📖 이번 주 설교</h2>
-          <p class="sub">유튜브 풀영상에서 설교 구간만 잘라 표시할 수 있습니다</p>
-          <div class="grid-2">
-            <div>
-              <label>설교 제목</label>
-              <input class="field" id="sermonTitle" placeholder="예: 서로 사랑하라"/>
-            </div>
-            <div>
-              <label>본문 (성경 구절)</label>
-              <input class="field" id="sermonVerse" placeholder="예: 요한복음 13장 34절"/>
-            </div>
-          </div>
-          <label>설교 안내 (날짜·설교자)</label>
-          <input class="field" id="sermonMeta" placeholder="예: 2026년 5월 첫째 주 · 담임목사 설교"/>
+          <p class="sub">설교 제목·본문·유튜브 URL만 입력하면 메인 페이지 말씀 탭에 표시됩니다</p>
+          <label>설교 제목</label>
+          <input class="field" id="sermonTitle" placeholder="예: 서로 사랑하라"/>
 
-          <label>설교 요약</label>
-          <textarea class="field" id="sermonBody" placeholder="이번 주 말씀의 핵심 메시지"></textarea>
+          <label style="margin-top:14px;">본문 (성경 구절)</label>
+          <input class="field" id="sermonVerse" placeholder="예: 요한복음 13장 34절"/>
 
-          <div class="grid-2">
-            <div>
-              <label>이번 주 실천</label>
-              <input class="field" id="sermonPractice" placeholder="예: 한 사람에게 먼저 안부 연락하기"/>
-            </div>
-            <div>
-              <label>나눔 질문</label>
-              <input class="field" id="sermonQ" placeholder="예: 이번 주 사랑할 한 사람은?"/>
-            </div>
-          </div>
+          <label style="margin-top:14px;">유튜브 URL 또는 영상 ID</label>
+          <input class="field" id="sermonUrl" placeholder="예: https://youtu.be/abc123 또는 https://www.youtube.com/live/abc123"/>
 
-          <hr style="border: 0; border-top: 1px solid var(--line); margin: 22px 0;"/>
-
-          <h3 style="margin: 0 0 6px; font-size: 16px;">유튜브 영상 구간</h3>
-          <p class="sub" style="margin-bottom: 14px;">전체 영상 중 설교 부분만 자동 재생/종료</p>
-          <label>유튜브 URL 또는 영상 ID</label>
-          <input class="field" id="sermonUrl" placeholder="예: https://youtu.be/abc123 또는 abc123"/>
-
-          <div class="grid-3">
-            <div>
-              <label>시작 (시:분:초)</label>
-              <div class="row">
-                <input class="field" id="startH" type="number" min="0" placeholder="시" style="width: 33%;"/>
-                <input class="field" id="startM" type="number" min="0" max="59" placeholder="분" style="width: 33%;"/>
-                <input class="field" id="startS" type="number" min="0" max="59" placeholder="초" style="width: 33%;"/>
-              </div>
-            </div>
-            <div>
-              <label>종료 (시:분:초) — 비우면 끝까지</label>
-              <div class="row">
-                <input class="field" id="endH" type="number" min="0" placeholder="시" style="width: 33%;"/>
-                <input class="field" id="endM" type="number" min="0" max="59" placeholder="분" style="width: 33%;"/>
-                <input class="field" id="endS" type="number" min="0" max="59" placeholder="초" style="width: 33%;"/>
-              </div>
-            </div>
-            <div>
-              <label>미리보기</label>
-              <div id="sermonPreview" style="font-size: 12px; color: var(--muted); padding: 12px 14px; background: #f7f5f1; border-radius: 12px;">유튜브 ID + 시간 입력 시 미리보기 표시</div>
-            </div>
-          </div>
-
-          <button class="btn primary" id="sermonSave" type="button" style="margin-top: 16px;">저장</button>
+          <button class="btn primary" id="sermonSave" type="button" style="margin-top: 18px;">저장</button>
         </div>
 
         <div class="panel">

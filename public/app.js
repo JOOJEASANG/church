@@ -563,14 +563,35 @@ function renderSermon(s) {
   const titleEl = document.querySelector('#tab-word h3');
   const verseEl = document.querySelector('#tab-word .verse');
   const bodyEl = document.querySelector('#tab-word .video-info p:last-of-type');
-  const practiceP = document.querySelector('#tab-word .practice-box:not(.q) p');
-  const questionP = document.querySelector('#tab-word .practice-box.q p');
-  if (meta) meta.textContent = s.meta || '';
+  const practiceBox = document.querySelector('#tab-word .practice-box:not(.q)');
+  const questionBox = document.querySelector('#tab-word .practice-box.q');
+  const practiceGrid = document.querySelector('#tab-word .practice-grid');
   if (titleEl) titleEl.textContent = s.title || '';
-  if (verseEl) verseEl.textContent = s.verse || '';
-  if (bodyEl) bodyEl.textContent = s.body || '';
-  if (practiceP) practiceP.textContent = s.practice || '';
-  if (questionP) questionP.textContent = s.question || '';
+  if (verseEl) {
+    verseEl.textContent = s.verse || '';
+    verseEl.style.display = s.verse ? '' : 'none';
+  }
+  if (meta) {
+    meta.textContent = s.meta || '';
+    meta.style.display = s.meta ? '' : 'none';
+  }
+  if (bodyEl) {
+    bodyEl.textContent = s.body || '';
+    bodyEl.style.display = s.body ? '' : 'none';
+  }
+  if (practiceBox) {
+    const p = practiceBox.querySelector('p');
+    if (p) p.textContent = s.practice || '';
+    practiceBox.style.display = s.practice ? '' : 'none';
+  }
+  if (questionBox) {
+    const p = questionBox.querySelector('p');
+    if (p) p.textContent = s.question || '';
+    questionBox.style.display = s.question ? '' : 'none';
+  }
+  if (practiceGrid) {
+    practiceGrid.style.display = (s.practice || s.question) ? '' : 'none';
+  }
 
   if (s.videoId && /^[a-zA-Z0-9_-]{6,}$/.test(s.videoId)) {
     const params = new URLSearchParams({ rel: '0', modestbranding: '1' });

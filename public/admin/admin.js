@@ -335,32 +335,9 @@ function editAnnouncement(id) {
 function fillSermonForm() {
   if (!state.sermon) return;
   const s = state.sermon;
-  $('sermonTitle').value = s.title || '';
-  $('sermonVerse').value = s.verse || '';
-  $('sermonMeta').value = s.meta || '';
-  $('sermonBody').value = s.body || '';
-  $('sermonPractice').value = s.practice || '';
-  $('sermonQ').value = s.question || '';
-  $('sermonUrl').value = s.videoId || '';
-  if (s.start) splitTime(s.start, 'start');
-  if (s.end) splitTime(s.end, 'end');
-  updatePreview();
-}
-
-function splitTime(sec, prefix) {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  $(prefix + 'H').value = h || '';
-  $(prefix + 'M').value = m || '';
-  $(prefix + 'S').value = s || '';
-}
-
-function combineTime(prefix) {
-  const h = Number($(prefix + 'H').value || 0);
-  const m = Number($(prefix + 'M').value || 0);
-  const s = Number($(prefix + 'S').value || 0);
-  return h * 3600 + m * 60 + s;
+  if ($('sermonTitle')) $('sermonTitle').value = s.title || '';
+  if ($('sermonVerse')) $('sermonVerse').value = s.verse || '';
+  if ($('sermonUrl')) $('sermonUrl').value = s.videoId || '';
 }
 
 function extractVideoId(input) {
@@ -377,23 +354,7 @@ function extractVideoId(input) {
   return ''; // 인식 실패 — 전체 URL을 그대로 저장하면 embed가 깨짐
 }
 
-function updatePreview() {
-  const id = extractVideoId($('sermonUrl').value);
-  const start = combineTime('start');
-  const end = combineTime('end');
-  if (!id) { $('sermonPreview').textContent = '유튜브 URL 또는 영상 ID 입력 필요'; return; }
-  const params = new URLSearchParams({ rel: '0', modestbranding: '1' });
-  if (start) params.set('start', start);
-  if (end) params.set('end', end);
-  $('sermonPreview').innerHTML = `<div style="color: var(--text); font-weight: 700;">ID: ${escapeHtml(id)}</div>` +
-    `시작 ${start || 0}s · 종료 ${end || '끝까지'}s`;
-}
-
-['sermonUrl', 'startH', 'startM', 'startS', 'endH', 'endM', 'endS'].forEach((id) => {
-  $(id)?.addEventListener('input', updatePreview);
-});
-
-$('sermonSave').addEventListener('click', async () => {
+$('sermonSave')?.addEventListener('click', async () => {
   const inputUrl = $('sermonUrl').value.trim();
   const videoId = extractVideoId(inputUrl);
   if (inputUrl && !videoId) {
@@ -403,13 +364,7 @@ $('sermonSave').addEventListener('click', async () => {
   const data = {
     title: $('sermonTitle').value.trim(),
     verse: $('sermonVerse').value.trim(),
-    meta: $('sermonMeta').value.trim(),
-    body: $('sermonBody').value.trim(),
-    practice: $('sermonPractice').value.trim(),
-    question: $('sermonQ').value.trim(),
     videoId,
-    start: combineTime('start') || 0,
-    end: combineTime('end') || 0,
     timestamp: Date.now()
   };
   if (!data.title) { alert('설교 제목을 입력해주세요'); return; }
