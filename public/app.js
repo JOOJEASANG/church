@@ -37,6 +37,7 @@ const state = {
   currentPostId: null,
   editingPrayerId: null,
   editingPostId: null,
+  editingNoteKey: null,
   pendingPostImages: [],
   currentMonth: new Date()
 };
@@ -705,6 +706,7 @@ const MODAL_AUTORESET = {
   prayerModal:        () => { state.editingPrayerId = null; },
   postComposeModal:   () => { state.editingPostId = null; state.pendingPostImages = []; },
   postDetailModal:    () => { state.currentPostId = null; },
+  devotionModal:      () => { state.editingNoteKey = null; },
   sermonViewerModal:  (m) => { const f = m.querySelector('iframe'); if (f) f.src = ''; }
 };
 
@@ -851,6 +853,172 @@ const DAILY_VERSES = [
   { ref: '마태복음 5:16', text: '이같이 너희 빛이 사람 앞에 비치게 하여 그들로 너희 착한 행실을 보고 하늘에 계신 너희 아버지께 영광을 돌리게 하라.' },
   { ref: '신명기 6:5', text: '너는 마음을 다하고 뜻을 다하고 힘을 다하여 네 하나님 여호와를 사랑하라.' }
 ];
+
+function getTodaysVerse() {
+  const start = new Date(new Date().getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((Date.now() - start.getTime()) / 86400000);
+  return DAILY_VERSES[dayOfYear % DAILY_VERSES.length];
+}
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ===== 묵상 노트 =====
+async function openDevotionForToday() {
+  if (!state.uid) { toast('로그인 후 이용 가능합니다'); return; }
+  const v = getTodaysVerse();
+  document.getElementById('devotionVerseRef').textContent = v.ref;
+  document.getElementById('devotionVerseText').textContent = v.text;
+  document.getElementById('devTitle').value = '';
+  document.getElementById('devBody').value = '';
+  document.getElementById('devStatus').textContent = '';
+  // 오늘 작성한 노트가 있으면 prefill
+  try {
+    const snap = await get(ref(db, `userNotes/${state.uid}/${todayKey()}`));
+    if (snap.exists()) {
+      const n = snap.val();
+      document.getElementById('devTitle').value = n.title || '';
+      document.getElementById('devBody').value = n.body || '';
+    }
+  } catch {}
+  openModal('devotionModal');
+}
+
+document.getElementById('devSubmit')?.addEventListener('click', async () => {
+  if (!state.uid) return;
+  const title = document.getElementById('devTitle').value.trim();
+  const body = document.getElementById('devBody').value.trim();
+  const status = document.getElementById('devStatus');
+  if (!body) { status.textContent = '묵상 내용을 입력해주세요'; status.style.color = 'var(--danger)'; return; }
+  const v = getTodaysVerse();
+  const key = state.editingNoteKey || todayKey();
+  const btn = document.getElementById('devSubmit');
+  btn.disabled = true;
+  status.textContent = '저장 중...'; status.style.color = '';
+  try {
+    // 옛 노트 수정 시 verse 정보는 보존 (오늘 작성·신규는 현재 verse 사용)
+    const verseRef = state.editingNoteKey ? document.getElementById('devotionVerseRef').textContent : v.ref;
+    const verseText = state.editingNoteKey ? document.getElementById('devotionVerseText').textContent : v.text;
+    await set(ref(db, `userNotes/${state.uid}/${key}`), {
+      title, body,
+      verseRef, verseText,
+      timestamp: Date.now()
+    });
+    state.editingNoteKey = null;
+    status.textContent = '✅ 묵상이 저장되었습니다';
+    status.style.color = 'var(--primary)';
+    setTimeout(() => closeModal('devotionModal'), 1200);
+  } catch (e) {
+    status.textContent = '❌ 저장 실패: ' + (e.code || e.message);
+    status.style.color = 'var(--danger)';
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function openMyNotes() {
+  if (!state.uid) { toast('로그인 후 이용 가능합니다'); return; }
+  const list = document.getElementById('myNotesList');
+  list.innerHTML = '<div style="padding:18px;text-align:center;color:var(--muted);font-size:13px;">불러오는 중...</div>';
+  openModal('myNotesModal');
+  try {
+    const snap = await get(ref(db, `userNotes/${state.uid}`));
+    const arr = [];
+    if (snap.exists()) snap.forEach((c) => { arr.push({ key: c.key, ...c.val() }); });
+    arr.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    if (!arr.length) {
+      list.innerHTML = '<div class="list-empty">아직 작성한 묵상이 없어요. "오늘의 말씀 → 묵상하기"로 첫 노트를 남겨보세요.</div>';
+      return;
+    }
+    list.innerHTML = arr.map((n) => {
+      const date = n.key.length === 8
+        ? `${n.key.slice(0,4)}.${n.key.slice(4,6)}.${n.key.slice(6,8)}`
+        : new Date(n.timestamp || 0).toLocaleDateString('ko-KR');
+      return `
+        <div class="note-row" data-note-key="${escapeHtml(n.key)}">
+          <div class="nr-date">📅 ${escapeHtml(date)}</div>
+          ${n.title ? `<div class="nr-title">${escapeHtml(n.title)}</div>` : ''}
+          <div class="nr-snippet">${escapeHtml(n.body || '')}</div>
+          ${n.verseRef ? `<div class="nr-verse">📖 ${escapeHtml(n.verseRef)}</div>` : ''}
+          <div class="nr-actions">
+            <button data-edit-note="${escapeHtml(n.key)}">수정</button>
+            <button class="del" data-del-note="${escapeHtml(n.key)}">삭제</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    list.querySelectorAll('[data-edit-note]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const key = b.dataset.editNote;
+        const n = arr.find((x) => x.key === key);
+        if (!n) return;
+        // 노트 모달 prefill (오늘이 아니더라도 그 날짜 노트 수정)
+        document.getElementById('devotionVerseRef').textContent = n.verseRef || '';
+        document.getElementById('devotionVerseText').textContent = n.verseText || '';
+        document.getElementById('devTitle').value = n.title || '';
+        document.getElementById('devBody').value = n.body || '';
+        document.getElementById('devStatus').textContent = '';
+        // 저장 키를 일시적으로 해당 날짜로 (devSubmit이 todayKey()를 쓰므로 별도 처리 필요)
+        state.editingNoteKey = key;
+        closeModal('myNotesModal');
+        setTimeout(() => openModal('devotionModal'), 250);
+      });
+    });
+    list.querySelectorAll('[data-del-note]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        if (!confirm('이 묵상 노트를 삭제하시겠어요?')) return;
+        try {
+          await remove(ref(db, `userNotes/${state.uid}/${b.dataset.delNote}`));
+          openMyNotes(); // refresh
+        } catch (e) { toast('삭제 실패: ' + (e.code || e.message)); }
+      });
+    });
+  } catch (e) {
+    list.innerHTML = `<div style="padding:18px;text-align:center;color:var(--danger);">불러오기 실패: ${escapeHtml(e.code || e.message)}</div>`;
+  }
+}
+
+// ===== 공유 (Web Share API + 클립보드 fallback) =====
+async function nativeShareOrCopy(payload) {
+  if (navigator.share) {
+    try { await navigator.share(payload); return true; } catch {}
+  }
+  // fallback: 클립보드
+  const txt = [payload.title, payload.text, payload.url].filter(Boolean).join('\n\n');
+  try {
+    await navigator.clipboard.writeText(txt);
+    toast('📋 클립보드에 복사되었습니다');
+    return true;
+  } catch {
+    toast('공유를 지원하지 않는 브라우저입니다');
+    return false;
+  }
+}
+
+async function shareTodaysVerse() {
+  const v = getTodaysVerse();
+  const c = state.church?.name || '천안남산교회';
+  await nativeShareOrCopy({
+    title: `📖 오늘의 말씀 — ${v.ref}`,
+    text: `"${v.text}"\n\n— ${c}`,
+    url: location.origin
+  });
+}
+
+document.getElementById('postDetailShareBtn')?.addEventListener('click', async () => {
+  const id = state.currentPostId;
+  if (!id) return;
+  const p = (state.posts || []).find((x) => x.id === id);
+  if (!p) return;
+  const c = state.church?.name || '천안남산교회';
+  await nativeShareOrCopy({
+    title: p.title,
+    text: `${p.body || ''}\n\n— ${c}`,
+    url: `${location.origin}/?tab=board`
+  });
+});
 
 function setDailyVerse() {
   const start = new Date(new Date().getFullYear(), 0, 0);
@@ -1906,6 +2074,34 @@ document.getElementById('easyToggle')?.addEventListener('click', () => {
   toast(on ? '큰글씨 모드 켜짐' : '기본 글씨 모드');
 });
 
+// ===== 다크 모드 =====
+function applyTheme(mode) {
+  // mode: 'dark' | 'light' | 'system'
+  document.documentElement.setAttribute('data-theme', mode === 'system' ? 'system' : mode);
+  // theme-color 메타도 함께 변경 (브라우저 상단 컬러)
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    const isDark = mode === 'dark' || (mode === 'system' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
+    meta.setAttribute('content', isDark ? '#16181c' : '#73926d');
+  }
+}
+const _savedTheme = localStorage.getItem('theme') || 'light';
+applyTheme(_savedTheme);
+const darkSwitch = document.getElementById('darkSwitch');
+if (_savedTheme === 'dark') darkSwitch?.classList.add('on');
+document.getElementById('darkToggle')?.addEventListener('click', () => {
+  const cur = localStorage.getItem('theme') || 'light';
+  const next = cur === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('theme', next);
+  applyTheme(next);
+  darkSwitch?.classList.toggle('on', next === 'dark');
+  toast(next === 'dark' ? '다크 모드' : '라이트 모드');
+});
+// 시스템 다크모드 변화 감지 (mode === 'system'일 때 theme-color 갱신)
+window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', () => {
+  applyTheme(localStorage.getItem('theme') || 'light');
+});
+
 // ===== 알림 토글 (FCM) =====
 document.getElementById('notifToggle')?.addEventListener('click', async () => {
   const sw = document.getElementById('notifSwitch');
@@ -1979,6 +2175,7 @@ async function handleWithdraw() {
     '• 내가 등록한 기도제목',
     '• 내가 신청한 모든 신청 (행사·소모임·재능나눔·심방·새가족·봉사)',
     '• 내가 작성한 커뮤니티 글 + 댓글·좋아요 기록',
+    '• 내가 작성한 묵상 노트 (개인 비공개)',
     '• 내가 보낸 의견·건의',
     '• 내가 참여(아멘)한 기도 기록',
     '• 프로필·알림 토큰',
@@ -2021,6 +2218,9 @@ async function handleWithdraw() {
 
   // 6) /users/{uid} 프로필 삭제
   ops.push(remove(ref(db, `users/${uid}`)).catch(() => {}));
+
+  // 6-1) 묵상 노트 (본인만 read/write 가능한 컬렉션)
+  ops.push(remove(ref(db, `userNotes/${uid}`)).catch(() => {}));
 
   // 7) 내가 작성한 커뮤니티 글 + 그 글의 좋아요/댓글 컬렉션 전체 + 첨부 사진(다중)
   (state.posts || []).filter((p) => p.authorUid === uid).forEach((p) => {
@@ -2104,6 +2304,9 @@ document.querySelectorAll('[data-action]').forEach((el) => {
     else if (a === 'myApplications') openMyApplications();
     else if (a === 'logout') handleLogout();
     else if (a === 'withdraw') handleWithdraw();
+    else if (a === 'devotion') openDevotionForToday();
+    else if (a === 'shareVerse') shareTodaysVerse();
+    else if (a === 'myNotes') openMyNotes();
     else toast('기능 준비 중이에요');
   });
 });
@@ -2258,28 +2461,80 @@ function openNotifications() {
 }
 
 // ===== 검색 =====
+// 검색 결과용 — 클릭 라우팅을 위해 data-attribute를 단 listRowHtml
+function searchRowHtml(opts) {
+  const { tag, tagClass = 'notice', title, body, time, dataAttrs = '' } = opts;
+  return `<div class="list-row" ${dataAttrs} style="cursor:pointer;">
+    <div class="lr-top"><span class="lr-tag ${escapeHtml(tagClass)}">${escapeHtml(tag)}</span><span>${escapeHtml(time || '')}</span></div>
+    <h4>${escapeHtml(title || '')}</h4>
+    ${body ? `<p>${escapeHtml(body)}</p>` : ''}
+  </div>`;
+}
+
 function openSearch() {
+  const placeholderEmpty = '<div class="list-empty">교회 소식·말씀·기도제목·커뮤니티를 검색해보세요</div>';
   const renderResults = (q) => {
     const body = document.getElementById('listBody');
     if (!body) return;
-    if (!q) { body.innerHTML = '<div class="list-empty">교회 소식·말씀·재능나눔방을 검색해보세요</div>'; return; }
+    if (!q) { body.innerHTML = placeholderEmpty; return; }
     const lq = q.toLowerCase();
     const matchAnn = (state.announcements || []).filter((a) =>
       (a.title || '').toLowerCase().includes(lq) || (a.body || '').toLowerCase().includes(lq)
-    ).map((a) => listRowHtml({ tag: '공지', tagClass: a.tag || 'notice', title: a.title, body: a.body, time: timeAgo(a.timestamp) }));
+    ).map((a) => searchRowHtml({
+      tag: '공지', tagClass: a.tag || 'notice', title: a.title, body: a.body, time: timeAgo(a.timestamp),
+      dataAttrs: a.signupEnabled ? `data-search-go="ann" data-id="${escapeHtml(a.id)}"` : ''
+    }));
+    const matchPost = (state.posts || []).filter((p) =>
+      (p.title || '').toLowerCase().includes(lq) ||
+      (p.body || '').toLowerCase().includes(lq) ||
+      (p.authorName || '').toLowerCase().includes(lq)
+    ).map((p) => searchRowHtml({
+      tag: '커뮤니티', tagClass: 'event', title: p.title, body: (p.body || '').slice(0, 80), time: timeAgo(p.timestamp),
+      dataAttrs: `data-search-go="post" data-id="${escapeHtml(p.id)}"`
+    }));
+    const matchPrayer = (state.prayers || []).filter((p) => p.type !== '교역자에게만 전달' &&
+      ((p.text || '').toLowerCase().includes(lq) || (p.name || '').toLowerCase().includes(lq))
+    ).map((p) => searchRowHtml({
+      tag: '기도', title: p.text, body: p.name || '익명', time: timeAgo(p.timestamp),
+      dataAttrs: 'data-search-go="prayer-tab"'
+    }));
     const matchRoom = (state.rooms || []).filter((r) => r.approved !== false &&
       ((r.title || '').toLowerCase().includes(lq) || (r.desc || '').toLowerCase().includes(lq) || (r.category || '').toLowerCase().includes(lq))
-    ).map((r) => listRowHtml({ tag: '재능나눔방', title: r.title, body: r.desc, time: r.schedule }));
-    const matchPrayer = (state.prayers || []).filter((p) => p.type !== '교역자에게만 전달' &&
-      (p.text || '').toLowerCase().includes(lq)
-    ).map((p) => listRowHtml({ tag: '기도', title: p.text, body: p.name || '익명', time: timeAgo(p.timestamp) }));
+    ).map((r) => searchRowHtml({
+      tag: '재능나눔', title: r.title, body: r.desc, time: r.schedule,
+      dataAttrs: 'data-search-go="rooms-tab"'
+    }));
+    const matchSermon = (state.sermonHistory || []).filter((s) =>
+      (s.title || '').toLowerCase().includes(lq) || (s.verse || '').toLowerCase().includes(lq)
+    ).map((s) => searchRowHtml({
+      tag: '설교', tagClass: 'notice', title: s.title, body: s.verse, time: timeAgo(s.timestamp),
+      dataAttrs: `data-search-go="sermon" data-id="${escapeHtml(s.id)}"`
+    }));
     const matchBul = (state.bulletins || []).filter((b) => (b.title || '').toLowerCase().includes(lq))
-      .map((b) => listRowHtml({ tag: '주보', tagClass: 'event', title: b.title, body: b.date, time: timeAgo(b.timestamp) }));
-    const all = [...matchAnn, ...matchRoom, ...matchPrayer, ...matchBul];
+      .map((b) => searchRowHtml({
+        tag: '주보', tagClass: 'notice', title: b.title, body: b.date, time: timeAgo(b.timestamp),
+        dataAttrs: b.url ? `data-search-go="url" data-url="${escapeHtml(b.url)}"` : ''
+      }));
+    const all = [...matchAnn, ...matchPost, ...matchPrayer, ...matchRoom, ...matchSermon, ...matchBul];
     body.innerHTML = all.length ? all.join('') : `<div class="list-empty">"${escapeHtml(q)}"에 대한 결과가 없어요</div>`;
+
+    // 클릭 라우팅
+    body.querySelectorAll('[data-search-go]').forEach((el) => {
+      el.addEventListener('click', () => {
+        const kind = el.dataset.searchGo;
+        const id = el.dataset.id;
+        closeModal('listModal');
+        if (kind === 'post' && id) setTimeout(() => openPostDetail(id), 250);
+        else if (kind === 'sermon' && id) setTimeout(() => openSermonViewer(id), 250);
+        else if (kind === 'ann' && id) setTimeout(() => openEventApplyModal(id, 'announcement'), 250);
+        else if (kind === 'prayer-tab') setTimeout(() => switchTab('community'), 200);
+        else if (kind === 'rooms-tab') setTimeout(() => { switchTab('community'); document.querySelector('[data-ctab="rooms"]')?.click(); }, 200);
+        else if (kind === 'url' && el.dataset.url) window.open(el.dataset.url, '_blank', 'noopener');
+      });
+    });
   };
-  openListModal('검색', '<div class="list-empty">교회 소식·말씀·재능나눔방을 검색해보세요</div>', {
-    searchPlaceholder: '예: 야외예배, 기타, 봉사',
+  openListModal('검색', placeholderEmpty, {
+    searchPlaceholder: '예: 야외예배, 봉사, 감사',
     onSearch: renderResults
   });
 }

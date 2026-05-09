@@ -15,9 +15,19 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <title>천안남산교회</title>
+  <script>
+    /* FOUC 방지: CSS 로드 전 data-theme 적용 */
+    (function () {
+      try {
+        var t = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
   <style>
     :root {
       --bg: #fafaf7;
+      --bg-2: #f4f1ea;
       --paper: #ffffff;
       --card: #ffffff;
       --text: #15171a;
@@ -34,6 +44,8 @@
       --green-soft: #eef5e8;
       --blue-soft: #eef3fb;
       --red-soft: #fbf0ef;
+      --danger: #d05656;
+      --warn: #d49a3c;
       --shadow-xs: 0 1px 2px rgba(20, 22, 26, 0.04);
       --shadow-sm: 0 2px 8px rgba(20, 22, 26, 0.05), 0 1px 2px rgba(20, 22, 26, 0.04);
       --shadow: 0 8px 24px rgba(20, 22, 26, 0.06), 0 2px 6px rgba(20, 22, 26, 0.04);
@@ -45,6 +57,46 @@
       --tab-h: 72px;
       --safe-bottom: env(safe-area-inset-bottom, 0px);
       --safe-top: env(safe-area-inset-top, 0px);
+    }
+
+    /* 다크 모드 — system / 명시적 토글 */
+    html[data-theme="dark"] {
+      --bg: #16181c;
+      --bg-2: #1f2228;
+      --paper: #20232a;
+      --card: #20232a;
+      --text: #ecedef;
+      --text-soft: #c5c8cd;
+      --muted: #8a9098;
+      --muted-2: #6c7178;
+      --line: #2c3138;
+      --line-strong: #3a4049;
+      --primary: #93b787;
+      --primary-dark: #b9d3ad;
+      --primary-soft: #2a3328;
+      --accent: #d8a273;
+      --accent-soft: #2f2820;
+      --green-soft: #2a3328;
+      --blue-soft: #1f2a38;
+      --red-soft: #382020;
+      --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.20);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.30);
+      --shadow: 0 8px 24px rgba(0, 0, 0, 0.40);
+      --shadow-lg: 0 20px 44px rgba(0, 0, 0, 0.50);
+    }
+    @media (prefers-color-scheme: dark) {
+      html[data-theme="system"] {
+        --bg: #16181c; --bg-2: #1f2228; --paper: #20232a; --card: #20232a;
+        --text: #ecedef; --text-soft: #c5c8cd; --muted: #8a9098; --muted-2: #6c7178;
+        --line: #2c3138; --line-strong: #3a4049;
+        --primary: #93b787; --primary-dark: #b9d3ad; --primary-soft: #2a3328;
+        --accent: #d8a273; --accent-soft: #2f2820;
+        --green-soft: #2a3328; --blue-soft: #1f2a38; --red-soft: #382020;
+        --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.20);
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.30);
+        --shadow: 0 8px 24px rgba(0, 0, 0, 0.40);
+        --shadow-lg: 0 20px 44px rgba(0, 0, 0, 0.50);
+      }
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -710,6 +762,51 @@
     .list-row h4 { margin: 0 0 4px; font-size: 14.5px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.4; }
     .list-row p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; font-weight: 400; }
     .list-empty { padding: 40px 16px; text-align: center; color: var(--muted); font-weight: 500; font-size: 13px; }
+
+    /* 오늘의 말씀 액션 버튼 */
+    .verse-actions {
+      display: flex; gap: 8px; margin-top: 12px;
+      padding-top: 10px; border-top: 1px solid rgba(95, 111, 82, 0.18);
+    }
+    .verse-action-btn {
+      flex: 1; padding: 8px 10px;
+      background: rgba(255,255,255,0.45);
+      border: 1px solid #d8d2bb;
+      border-radius: 999px;
+      font-size: 12.5px; font-weight: 700;
+      color: var(--primary-dark); cursor: pointer;
+      letter-spacing: -0.2px;
+    }
+    .verse-action-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+
+    /* 묵상 노트 모달 */
+    .devotion-verse {
+      background: var(--primary-soft); color: var(--primary-dark);
+      padding: 14px 16px; border-radius: 12px;
+      font-size: 13.5px; font-weight: 600; line-height: 1.6;
+      margin: 4px 0 8px;
+    }
+    .note-row {
+      padding: 14px 16px; background: var(--bg-2, #f4f1ea);
+      border-radius: 12px; margin-bottom: 10px; cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .note-row:hover { transform: translateY(-1px); }
+    .note-row .nr-date { font-size: 11.5px; color: var(--muted); font-weight: 700; }
+    .note-row .nr-title { font-size: 14px; font-weight: 700; margin: 4px 0 2px; }
+    .note-row .nr-snippet {
+      font-size: 12.5px; color: var(--muted); line-height: 1.5;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .note-row .nr-verse { font-size: 11.5px; color: var(--primary-dark); font-weight: 700; margin-top: 4px; }
+    .note-row .nr-actions {
+      margin-top: 8px; display: flex; gap: 6px;
+    }
+    .note-row .nr-actions button {
+      padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px;
+      background: var(--paper); font-size: 11.5px; font-weight: 700; cursor: pointer;
+    }
+    .note-row .nr-actions .del:hover { border-color: var(--danger); color: var(--danger); }
 
     /* ===== 나눔글 게시판 ===== */
     .post-feed { display: grid; gap: 12px; margin-top: 6px; }
@@ -1523,6 +1620,10 @@
           <div class="verse-label">📖 오늘의 말씀</div>
           <p class="verse-text" id="verseText">여호와는 나의 목자시니 내게 부족함이 없으리로다.</p>
           <div class="verse-ref" id="verseRef">시편 23:1</div>
+          <div class="verse-actions">
+            <button type="button" class="verse-action-btn" data-action="devotion">✍️ 묵상하기</button>
+            <button type="button" class="verse-action-btn" data-action="shareVerse">↗ 공유</button>
+          </div>
         </div>
 
         <div class="quick-actions">
@@ -1705,6 +1806,11 @@
             <div class="label">내 신청 내역</div>
             <div class="arrow">›</div>
           </div>
+          <div class="menu-item" data-action="myNotes">
+            <div class="icon">✍️</div>
+            <div class="label">내 묵상 노트</div>
+            <div class="arrow">›</div>
+          </div>
           <div class="menu-item" data-action="attendance">
             <div class="icon">✅</div>
             <div class="label">예배 체크</div>
@@ -1717,6 +1823,11 @@
             <div class="icon">🔠</div>
             <div class="label">큰글씨 모드</div>
             <div class="switch" id="easySwitch"></div>
+          </div>
+          <div class="menu-item" id="darkToggle">
+            <div class="icon">🌙</div>
+            <div class="label">다크 모드</div>
+            <div class="switch" id="darkSwitch"></div>
           </div>
           <div class="menu-item" id="notifToggle">
             <div class="icon">🔔</div>
@@ -2114,6 +2225,7 @@
       <div class="post-detail-actions">
         <button type="button" class="post-action-btn" id="postDetailLikeBtn">👍 <span id="postDetailLikeCount">0</span></button>
         <span class="post-action-spacer"></span>
+        <button type="button" class="post-action-btn small" id="postDetailShareBtn">↗ 공유</button>
         <button type="button" class="post-action-btn small" id="postDetailEditBtn" style="display:none;">✏️ 수정</button>
         <button type="button" class="post-action-btn small danger" id="postDetailDelBtn" style="display:none;">🗑️ 삭제</button>
       </div>
@@ -2184,6 +2296,42 @@
       <label>요청·문의 사항 (선택)</label>
       <textarea class="field" id="eaNote" placeholder="차량 이용 여부, 알레르기 등 특이사항"></textarea>
       <button class="submit-btn" type="button" id="eaSubmit">📝 신청하기</button>
+    </div>
+  </div>
+
+  <!-- 묵상 노트 (오늘의 말씀에 대한 개인 묵상) -->
+  <div class="modal-bg" id="devotionModal">
+    <div class="modal">
+      <div class="modal-grip"></div>
+      <div class="modal-head">
+        <div>
+          <h3>✍️ 오늘의 묵상</h3>
+          <p class="sub" id="devotionVerseRef">시편 23:1</p>
+        </div>
+        <button class="close-btn" data-close="devotionModal" type="button">×</button>
+      </div>
+      <div class="devotion-verse" id="devotionVerseText">여호와는 나의 목자시니...</div>
+      <label>제목 (선택)</label>
+      <input class="field" id="devTitle" placeholder="예: 부족함을 채우시는 주님" maxlength="80"/>
+      <label>묵상 내용</label>
+      <textarea class="field" id="devBody" placeholder="오늘 말씀을 통해 받은 은혜와 결단을 적어보세요" style="min-height:160px;" maxlength="3000"></textarea>
+      <div class="auth-agree" style="margin-top:8px;font-size:12px;color:var(--muted);">
+        🔒 본인만 볼 수 있는 비공개 노트입니다.
+      </div>
+      <button class="submit-btn" type="button" id="devSubmit">저장하기</button>
+      <div id="devStatus" style="margin-top:10px;font-size:13px;text-align:center;font-weight:600;"></div>
+    </div>
+  </div>
+
+  <!-- 내 묵상 노트 목록 -->
+  <div class="modal-bg" id="myNotesModal">
+    <div class="modal" style="max-width:680px;">
+      <div class="modal-grip"></div>
+      <div class="modal-head">
+        <h3>✍️ 내 묵상 노트</h3>
+        <button class="close-btn" data-close="myNotesModal" type="button">×</button>
+      </div>
+      <div id="myNotesList" style="padding:0 4px;"></div>
     </div>
   </div>
 
