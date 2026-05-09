@@ -5,7 +5,7 @@
 import { db, auth, storage } from '/firebase-init.js';
 import { resizeImage, humanSize } from '/img-utils.js';
 import {
-  ref, onValue, push, update, get, set, remove, serverTimestamp, query, orderByChild
+  ref, onValue, push, update, get, set, remove, serverTimestamp, query, orderByChild, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import {
   onAuthStateChanged, updateProfile, signOut, deleteUser,
@@ -1383,11 +1383,14 @@ document.getElementById('eaSubmit')?.addEventListener('click', async () => {
     if (kind === 'post') data.postId = id; else data.announcementId = id;
     const newRef = await push(ref(db, 'applications'), data);
     recordMyApplication(newRef.key);
-    // post 신청이면 signupCount 증가
+    // post 신청이면 signupCount 원자적 증가 (race-safe transaction)
     if (kind === 'post') {
       try {
-        await update(ref(db, `posts/${id}`), {
-          signupCount: (target.signupCount || 0) + count
+        await runTransaction(ref(db, `posts/${id}/signupCount`), (cur) => {
+          const next = (cur || 0) + count;
+          // 정원 초과 시 트랜잭션 중단 (서버 측 최종 검증)
+          if (target.capacity && next > target.capacity) return;
+          return next;
         });
       } catch (e) { console.warn('[signup-count]', e.code); }
     }
