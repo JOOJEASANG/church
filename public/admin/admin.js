@@ -855,12 +855,27 @@ $('svAdd')?.addEventListener('click', async () => {
   btn.disabled = true;
   btn.textContent = '저장 중...';
   setSvStatus('💾 저장 중...');
+  // Pre-flight: verify admin auth state at the moment of write
+  console.log('[svc] === svAdd 클릭 시점 진단 ===');
+  console.log('[svc] auth.currentUser:', auth.currentUser?.email, auth.currentUser?.uid);
+  console.log('[svc] state.isAdmin (클라이언트 플래그):', state.isAdmin);
+  try {
+    const adminCheck = await get(ref(db, `admins/${auth.currentUser?.uid}`));
+    console.log('[svc] /admins/{내UID} 존재 여부:', adminCheck.exists(), adminCheck.val());
+    if (!adminCheck.exists()) {
+      setSvStatus(`❌ 관리자 권한 없음 — /admins/${auth.currentUser?.uid} 가 비어있음`, 'var(--danger)');
+      btn.disabled = false; btn.textContent = '예배 시간 추가';
+      return;
+    }
+  } catch (e) {
+    console.error('[svc] 관리자 확인 실패:', e.code, e.message);
+  }
   try {
     console.log('[svc] pushing:', { name, day, time, place });
     const ts = Date.now();
     const newData = { name, day, time, place, createdAt: ts };
     const newRef = await push(ref(db, 'config/services'), newData);
-    console.log('[svc] pushed key:', newRef.key);
+    console.log('[svc] pushed key:', newRef.key, '— path:', newRef.toString());
     $('svName').value = ''; $('svTime').value = ''; $('svPlace').value = '';
     // Immediately reflect new item in UI without waiting for onValue to fire
     if (!state.services.some((s) => s.id === newRef.key)) {
