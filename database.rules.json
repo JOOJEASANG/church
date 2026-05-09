@@ -95,6 +95,15 @@
       ".indexOn": ["date"]
     },
 
+    "feedback": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".indexOn": ["timestamp"],
+      "$id": {
+        ".read": "auth != null && (root.child('admins').child(auth.uid).exists() || data.child('authorUid').val() === auth.uid)",
+        ".write": "auth != null && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid && !newData.exists()) || root.child('admins').child(auth.uid).exists())"
+      }
+    },
+
     "posts": {
       ".read": "auth != null",
       ".indexOn": ["timestamp"],

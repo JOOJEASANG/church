@@ -541,6 +541,13 @@
     }
     .profile-card .who { font-size: 13px; opacity: 0.85; font-weight: 700; }
     .profile-card .me { font-size: 22px; font-weight: 900; margin-top: 2px; letter-spacing: -0.6px; }
+    .profile-card .profile-role-pill {
+      display: inline-block; vertical-align: middle;
+      font-size: 11.5px; font-weight: 700; letter-spacing: 0;
+      padding: 3px 9px; border-radius: 999px;
+      background: rgba(255,255,255,0.22); margin-left: 4px;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    }
     .profile-card .profile-phone { font-size: 13px; opacity: 0.92; font-weight: 600; margin-top: 8px; letter-spacing: -0.1px; }
     .profile-card .profile-edit-btn {
       margin-top: 14px; padding: 8px 16px;
@@ -1190,12 +1197,15 @@
     }
     .auth-tab.active { background: white; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
     .auth-form label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 5px 2px; }
-    .auth-form input {
+    .auth-form input,
+    .auth-form .auth-select {
       width: 100%; padding: 12px 14px; border: 1.5px solid var(--line);
       border-radius: 11px; font-size: 14px; background: white;
       outline: none; transition: border-color 0.15s;
+      font-family: inherit; color: var(--text);
     }
-    .auth-form input:focus { border-color: var(--primary); }
+    .auth-form input:focus,
+    .auth-form .auth-select:focus { border-color: var(--primary); }
     .auth-submit {
       width: 100%; margin-top: 18px; padding: 13px;
       background: var(--primary); color: white; border: 0;
@@ -1368,6 +1378,15 @@
       <form class="auth-form auth-pane" id="authPaneRegister" autocomplete="on">
         <label>이름</label>
         <input type="text" id="regName" autocomplete="name" placeholder="예: 홍길동" required/>
+        <label>직분</label>
+        <select id="regRole" class="auth-select" required>
+          <option value="성도">성도</option>
+          <option value="집사">집사</option>
+          <option value="권사">권사</option>
+          <option value="장로">장로</option>
+          <option value="부목사">부목사</option>
+          <option value="목사">목사</option>
+        </select>
         <label>연락처</label>
         <input type="tel" id="regPhone" autocomplete="tel" placeholder="010-0000-0000" data-format="phone" required/>
         <label>이메일</label>
@@ -1622,7 +1641,7 @@
       <section class="tab-pane" id="tab-me">
         <div class="profile-card">
           <div class="who" id="profileEmail">—</div>
-          <div class="me" id="profileName">성도님</div>
+          <div class="me"><span id="profileName">성도님</span> <span class="profile-role-pill" id="profileRolePill">성도</span></div>
           <div class="profile-phone">📞 <span id="profilePhone">—</span></div>
           <button class="profile-edit-btn" type="button" id="profileEditBtn">프로필 수정</button>
         </div>
@@ -1677,6 +1696,11 @@
         </div>
 
         <div class="menu-list">
+          <div class="menu-item" data-modal="feedbackModal">
+            <div class="icon">💡</div>
+            <div class="label">의견·건의 보내기</div>
+            <div class="arrow">›</div>
+          </div>
           <div class="menu-item" data-modal="tosModal">
             <div class="icon">📄</div>
             <div class="label">이용약관</div>
@@ -2019,19 +2043,11 @@
       <div style="margin-top:14px;padding:12px 14px;background:var(--bg-2,#f4f1ea);border:1px dashed var(--line);border-radius:10px;">
         <label class="auth-agree" style="margin:0;font-size:13px;color:var(--text);">
           <input type="checkbox" id="postSignupEnabled"/>
-          <span><b>📝 신청 받기</b> — 소모임 행사·번개 모임 등 참여 신청을 받습니다</span>
+          <span><b>📝 신청 받기</b> — 소모임 행사·번개 모임 등 참여 신청을 받습니다 (인원 제한 없음)</span>
         </label>
         <div id="postSignupOptions" style="display:none;margin-top:10px;">
-          <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div>
-              <label style="margin-top:4px;">정원 (선택)</label>
-              <input class="field" id="postCapacity" type="number" min="0" placeholder="예: 10 (비우면 무제한)"/>
-            </div>
-            <div>
-              <label style="margin-top:4px;">신청 마감일 (선택)</label>
-              <input class="field" id="postDeadline" type="date"/>
-            </div>
-          </div>
+          <label style="margin-top:4px;">신청 마감일 (선택)</label>
+          <input class="field" id="postDeadline" type="date"/>
         </div>
       </div>
 
@@ -2091,6 +2107,15 @@
       </div>
       <label>이름</label>
       <input class="field" id="peName" placeholder="홍길동"/>
+      <label>직분</label>
+      <select class="field" id="peRole">
+        <option value="성도">성도</option>
+        <option value="집사">집사</option>
+        <option value="권사">권사</option>
+        <option value="장로">장로</option>
+        <option value="부목사">부목사</option>
+        <option value="목사">목사</option>
+      </select>
       <label>연락처</label>
       <input class="field" id="pePhone" data-format="phone" placeholder="010-0000-0000"/>
       <label>이메일 (변경 불가)</label>
@@ -2124,6 +2149,26 @@
       <label>요청·문의 사항 (선택)</label>
       <textarea class="field" id="eaNote" placeholder="차량 이용 여부, 알레르기 등 특이사항"></textarea>
       <button class="submit-btn" type="button" id="eaSubmit">📝 신청하기</button>
+    </div>
+  </div>
+
+  <!-- 의견·건의 -->
+  <div class="modal-bg" id="feedbackModal">
+    <div class="modal">
+      <div class="modal-grip"></div>
+      <div class="modal-head">
+        <div>
+          <h3>💡 의견·건의 보내기</h3>
+          <p class="sub">교회 사이트에 추가했으면 좋겠는 기능, 개선 의견을 관리자에게 직접 전달합니다</p>
+        </div>
+        <button class="close-btn" data-close="feedbackModal" type="button">×</button>
+      </div>
+      <label>제목</label>
+      <input class="field" id="fbTitle" placeholder="예: 청년부 게시판 추가 부탁드려요" maxlength="80"/>
+      <label>내용</label>
+      <textarea class="field" id="fbBody" placeholder="자유롭게 의견을 남겨주세요" style="min-height:140px;" maxlength="1500"></textarea>
+      <button class="submit-btn" type="button" id="fbSubmit">보내기</button>
+      <div id="fbStatus" style="margin-top:10px;font-size:13px;text-align:center;font-weight:600;"></div>
     </div>
   </div>
 

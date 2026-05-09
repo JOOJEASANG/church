@@ -108,6 +108,7 @@ document.getElementById('authPaneLogin')?.addEventListener('submit', async (e) =
 document.getElementById('authPaneRegister')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const name = document.getElementById('regName').value.trim();
+  const role = document.getElementById('regRole').value || '성도';
   const phone = document.getElementById('regPhone').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const password = document.getElementById('regPassword').value;
@@ -129,7 +130,7 @@ document.getElementById('authPaneRegister')?.addEventListener('submit', async (e
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName: name });
     await set(ref(db, `users/${cred.user.uid}`), {
-      email, displayName: name, phone, createdAt: Date.now(),
+      email, displayName: name, phone, role, createdAt: Date.now(),
       agreedTosAt: Date.now(), agreedPrivacyAt: Date.now()
     });
     // onAuthStateChanged가 나머지 처리
@@ -319,9 +320,21 @@ function applyProfile() {
   const nameEl = document.querySelector('#profileName');
   const emailEl = document.querySelector('#profileEmail');
   const phoneEl = document.querySelector('#profilePhone');
+  const rolePill = document.querySelector('#profileRolePill');
   if (nameEl) nameEl.textContent = p.displayName || '성도님';
   if (emailEl) emailEl.textContent = p.email || '';
   if (phoneEl) phoneEl.textContent = p.phone || '연락처 미등록';
+  if (rolePill) {
+    rolePill.textContent = p.role || '성도';
+    rolePill.style.display = p.displayName ? '' : 'none';
+  }
+}
+
+// 다른 사용자에게 표시할 이름 라벨 — "홍길동 집사" 형태
+function userLabel(name, role) {
+  const n = name || '익명';
+  const r = role && role !== '성도' ? ` ${role}` : '';
+  return n + r;
 }
 
 // 신청 폼들에 프로필 자동 입력 (이름·연락처)
@@ -351,6 +364,7 @@ function ensureProfileComplete() {
 function openProfileEdit() {
   const p = state.userProfile || {};
   document.getElementById('peName').value = p.displayName || '';
+  document.getElementById('peRole').value = p.role || '성도';
   document.getElementById('pePhone').value = p.phone || '';
   document.getElementById('peEmail').value = p.email || auth.currentUser?.email || '';
   openModal('profileEditModal');
@@ -358,19 +372,53 @@ function openProfileEdit() {
 
 document.getElementById('profileEditBtn')?.addEventListener('click', openProfileEdit);
 
+// ===== 의견·건의 =====
+document.getElementById('fbSubmit')?.addEventListener('click', async () => {
+  const title = document.getElementById('fbTitle').value.trim();
+  const body = document.getElementById('fbBody').value.trim();
+  const status = document.getElementById('fbStatus');
+  if (!title) { status.textContent = '제목을 입력해주세요'; status.style.color = 'var(--danger)'; return; }
+  if (!body) { status.textContent = '내용을 입력해주세요'; status.style.color = 'var(--danger)'; return; }
+  const btn = document.getElementById('fbSubmit');
+  btn.disabled = true;
+  status.textContent = '💾 보내는 중...'; status.style.color = '';
+  try {
+    await push(ref(db, 'feedback'), {
+      title, body,
+      authorUid: state.uid,
+      authorName: state.userProfile?.displayName || '성도',
+      authorRole: state.userProfile?.role || '성도',
+      authorEmail: state.userProfile?.email || '',
+      timestamp: Date.now(),
+      status: 'open'
+    });
+    status.textContent = '✅ 의견이 관리자에게 전달되었습니다. 감사합니다!';
+    status.style.color = 'var(--primary)';
+    document.getElementById('fbTitle').value = '';
+    document.getElementById('fbBody').value = '';
+    setTimeout(() => closeModal('feedbackModal'), 1500);
+  } catch (e) {
+    status.textContent = '❌ 전송 실패: ' + (e.code || e.message);
+    status.style.color = 'var(--danger)';
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 document.getElementById('peSubmit')?.addEventListener('click', async () => {
   const name = document.getElementById('peName').value.trim();
+  const role = document.getElementById('peRole').value || '성도';
   const phone = document.getElementById('pePhone').value.trim();
   if (!name) { toast('이름을 입력해주세요'); return; }
   if (!phone) { toast('연락처를 입력해주세요'); return; }
   try {
     await update(ref(db, `users/${state.uid}`), {
-      displayName: name, phone, updatedAt: Date.now()
+      displayName: name, role, phone, updatedAt: Date.now()
     });
     if (auth.currentUser && auth.currentUser.displayName !== name) {
       await updateProfile(auth.currentUser, { displayName: name });
     }
-    state.userProfile = { ...state.userProfile, displayName: name, phone };
+    state.userProfile = { ...state.userProfile, displayName: name, role, phone };
     applyProfile();
     closeModal('profileEditModal');
     toast('프로필이 저장되었습니다');
@@ -858,7 +906,7 @@ function renderPosts() {
     return `
       <article class="post-card${p.signupEnabled ? ' has-signup' : ''}" data-post-id="${escapeHtml(p.id)}">
         <div class="post-card-head">
-          <span class="pc-author">${escapeHtml(p.authorName || '익명')}</span>
+          <span class="pc-author">${escapeHtml(userLabel(p.authorName, p.authorRole))}</span>
           <span class="pc-time">${timeAgo(p.timestamp)}</span>
         </div>
         <h3>${escapeHtml(p.title || '')}${signupTag}</h3>
@@ -886,7 +934,6 @@ function openPostCompose(editId) {
     document.getElementById('postTitleInput').value = p.title || '';
     document.getElementById('postBodyInput').value = p.body || '';
     document.getElementById('postSignupEnabled').checked = !!p.signupEnabled;
-    document.getElementById('postCapacity').value = p.capacity || '';
     document.getElementById('postDeadline').value = p.deadline || '';
     document.getElementById('postSignupOptions').style.display = p.signupEnabled ? '' : 'none';
     document.getElementById('postSubmitBtn').textContent = '수정하기';
@@ -896,7 +943,6 @@ function openPostCompose(editId) {
     document.getElementById('postTitleInput').value = '';
     document.getElementById('postBodyInput').value = '';
     document.getElementById('postSignupEnabled').checked = false;
-    document.getElementById('postCapacity').value = '';
     document.getElementById('postDeadline').value = '';
     document.getElementById('postSignupOptions').style.display = 'none';
     document.getElementById('postSubmitBtn').textContent = '등록하기';
@@ -962,7 +1008,6 @@ document.getElementById('postSubmitBtn')?.addEventListener('click', async () => 
     }
     progress.textContent = '저장 중...';
     const signupEnabled = document.getElementById('postSignupEnabled').checked;
-    const capacityNum = parseInt(document.getElementById('postCapacity').value, 10);
     const deadlineVal = document.getElementById('postDeadline').value;
 
     if (state.editingPostId) {
@@ -970,7 +1015,6 @@ document.getElementById('postSubmitBtn')?.addEventListener('click', async () => 
       const upd = {
         title, body,
         signupEnabled: !!signupEnabled,
-        capacity: signupEnabled && !isNaN(capacityNum) && capacityNum > 0 ? capacityNum : null,
         deadline: signupEnabled && deadlineVal ? deadlineVal : null,
         updatedAt: Date.now()
       };
@@ -992,13 +1036,13 @@ document.getElementById('postSubmitBtn')?.addEventListener('click', async () => 
         imageStoragePath: storagePath || '',
         authorUid: state.uid,
         authorName: state.userProfile?.displayName || '성도',
+        authorRole: state.userProfile?.role || '성도',
         likeCount: 0,
         commentCount: 0,
         timestamp: Date.now()
       };
       if (signupEnabled) {
         newData.signupEnabled = true;
-        if (!isNaN(capacityNum) && capacityNum > 0) newData.capacity = capacityNum;
         if (deadlineVal) newData.deadline = deadlineVal;
       }
       await push(ref(db, 'posts'), newData);
@@ -1019,7 +1063,7 @@ async function openPostDetail(id) {
   if (!p) return;
   state.currentPostId = id;
   document.getElementById('postDetailTitle').textContent = p.title || '';
-  document.getElementById('postDetailAuthor').textContent = p.authorName || '익명';
+  document.getElementById('postDetailAuthor').textContent = userLabel(p.authorName, p.authorRole);
   document.getElementById('postDetailTime').textContent = p.timestamp ? new Date(p.timestamp).toLocaleString('ko-KR') : '';
   document.getElementById('postDetailBody').textContent = p.body || '';
   const img = document.getElementById('postDetailImg');
@@ -1035,10 +1079,8 @@ async function openPostDetail(id) {
   const signupBtn = document.getElementById('postDetailSignupBtn');
   if (p.signupEnabled) {
     signupBox.style.display = '';
-    const meta = [];
-    if (p.deadline) meta.push(`📅 마감: ${p.deadline}`);
-    if (p.capacity) meta.push(`👥 정원: ${p.capacity}명`);
-    document.getElementById('postDetailSignupMeta').textContent = meta.join(' · ') || '참여 신청을 받습니다';
+    document.getElementById('postDetailSignupMeta').textContent = p.deadline
+      ? `📅 마감: ${p.deadline}` : '참여 신청을 받습니다';
     const closed = p.deadline && new Date(p.deadline + 'T23:59:59') < new Date();
     if (closed) {
       signupBtn.disabled = true;
@@ -1078,7 +1120,7 @@ async function loadPostComments(postId) {
       const mine = c.authorUid === state.uid;
       return `<div class="comment-item" data-comment-id="${escapeHtml(c.id)}">
         <div class="comment-meta">
-          <span class="ca-author">${escapeHtml(c.authorName || '익명')}</span>
+          <span class="ca-author">${escapeHtml(userLabel(c.authorName, c.authorRole))}</span>
           <span class="ca-time">${timeAgo(c.timestamp)}</span>
           ${mine ? `<button class="ca-del" type="button" data-del-comment="${escapeHtml(c.id)}" title="삭제">🗑️</button>` : ''}
         </div>
@@ -1141,6 +1183,7 @@ document.getElementById('commentSubmit')?.addEventListener('click', async () => 
       body,
       authorUid: state.uid,
       authorName: state.userProfile?.displayName || '성도',
+      authorRole: state.userProfile?.role || '성도',
       timestamp: Date.now()
     });
     await update(ref(db, `posts/${id}`), {
@@ -1230,7 +1273,8 @@ function openEventApplyModal(targetId, kind = 'announcement') {
   document.getElementById('eaTitle').textContent = target.title || '신청';
   document.getElementById('eaSub').textContent = [
     target.deadline ? `마감 ${target.deadline}` : '',
-    target.capacity ? `정원 ${target.capacity}명` : ''
+    // capacity는 announcements에만 사용 (posts는 무제한)
+    kind === 'announcement' && target.capacity ? `정원 ${target.capacity}명` : ''
   ].filter(Boolean).join(' · ');
   document.getElementById('eaCount').value = '1';
   document.getElementById('eaNote').value = '';

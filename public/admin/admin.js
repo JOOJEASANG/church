@@ -37,7 +37,8 @@ const state = {
   services: [],
   hero: null,
   gallery: [],
-  events: []
+  events: [],
+  feedback: []
 };
 
 // ===== 로그인 =====
@@ -220,6 +221,67 @@ function attachListeners() {
     snap.forEach((c) => { state.gallery.push({ id: c.key, ...c.val() }); });
     state.gallery.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderGallery();
+  });
+
+  onValueWithError('feedback', (snap) => {
+    state.feedback = [];
+    snap.forEach((c) => { state.feedback.push({ id: c.key, ...c.val() }); });
+    state.feedback.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderFeedback();
+    // 사이드바 뱃지 (open 상태인 항목 수)
+    const openCount = state.feedback.filter((f) => f.status === 'open').length;
+    const badge = $('badgeFeedback');
+    if (badge) {
+      badge.textContent = openCount;
+      badge.style.display = openCount > 0 ? '' : 'none';
+    }
+  });
+}
+
+function renderFeedback() {
+  const list = $('feedbackList');
+  if (!list) return;
+  if (!state.feedback.length) {
+    list.innerHTML = '<div class="empty">아직 받은 의견이 없습니다</div>';
+    return;
+  }
+  list.innerHTML = `<table><thead><tr><th>일시</th><th>보낸이</th><th>제목</th><th>내용</th><th>상태</th><th></th></tr></thead><tbody>${
+    state.feedback.map((f) => `
+      <tr>
+        <td>${fmt(f.timestamp)}</td>
+        <td>
+          <b>${escapeHtml(f.authorName || '익명')}</b>
+          ${f.authorRole ? `<span style="color:var(--muted);font-size:11px;"> ${escapeHtml(f.authorRole)}</span>` : ''}
+          ${f.authorEmail ? `<br/><span style="color:var(--muted);font-size:11px;">${escapeHtml(f.authorEmail)}</span>` : ''}
+        </td>
+        <td><b>${escapeHtml(f.title || '')}</b></td>
+        <td style="font-size:12.5px;max-width:340px;white-space:pre-wrap;">${escapeHtml(f.body || '')}</td>
+        <td>${f.status === 'done' ? '<span class="pill" style="background:var(--green-soft);color:var(--primary-dark);">처리완료</span>' : '<span class="pill" style="background:var(--accent-soft);color:var(--accent);">대기</span>'}</td>
+        <td>
+          ${f.status === 'open' ? `<button class="btn btn-sm primary" data-fb-done="${f.id}">처리완료</button>` : `<button class="btn btn-sm" data-fb-reopen="${f.id}">대기로</button>`}
+          <button class="btn btn-sm danger" data-fb-del="${f.id}">삭제</button>
+        </td>
+      </tr>
+    `).join('')
+  }</tbody></table>`;
+  list.querySelectorAll('[data-fb-done]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      try { await update(ref(db, `feedback/${b.dataset.fbDone}`), { status: 'done', resolvedAt: Date.now() }); }
+      catch (e) { alert('실패: ' + e.message); }
+    });
+  });
+  list.querySelectorAll('[data-fb-reopen]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      try { await update(ref(db, `feedback/${b.dataset.fbReopen}`), { status: 'open' }); }
+      catch (e) { alert('실패: ' + e.message); }
+    });
+  });
+  list.querySelectorAll('[data-fb-del]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      if (!confirm('이 의견을 영구 삭제할까요?')) return;
+      try { await remove(ref(db, `feedback/${b.dataset.fbDel}`)); }
+      catch (e) { alert('실패: ' + e.message); }
+    });
   });
 }
 
