@@ -406,25 +406,37 @@ document.getElementById('fbSubmit')?.addEventListener('click', async () => {
 });
 
 document.getElementById('peSubmit')?.addEventListener('click', async () => {
+  console.log('[profile-edit] 저장 클릭');
   const name = document.getElementById('peName').value.trim();
   const role = document.getElementById('peRole').value || '성도';
   const phone = document.getElementById('pePhone').value.trim();
+  console.log('[profile-edit] 입력값:', { name, role, phone, uid: state.uid });
   if (!name) { toast('이름을 입력해주세요'); return; }
   if (!phone) { toast('연락처를 입력해주세요'); return; }
+  if (!state.uid) { toast('로그인 상태를 확인해주세요'); return; }
+  const btn = document.getElementById('peSubmit');
+  btn.disabled = true;
+  btn.textContent = '저장 중...';
   try {
+    console.log('[profile-edit] users/' + state.uid + ' 업데이트...');
     await update(ref(db, `users/${state.uid}`), {
       displayName: name, role, phone, updatedAt: Date.now()
     });
+    console.log('[profile-edit] update 완료');
     if (auth.currentUser && auth.currentUser.displayName !== name) {
       await updateProfile(auth.currentUser, { displayName: name });
+      console.log('[profile-edit] auth displayName 동기화');
     }
     state.userProfile = { ...state.userProfile, displayName: name, role, phone };
     applyProfile();
     closeModal('profileEditModal');
     toast('프로필이 저장되었습니다');
   } catch (e) {
-    console.error('[profile-edit]', e);
+    console.error('[profile-edit] 실패:', e.code, e.message, e);
     toast('저장 실패: ' + (e.code || e.message));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '저장';
   }
 });
 
