@@ -30,7 +30,6 @@ const state = {
   church: {},
   services: [],
   hero: null,
-  gallery: [],
   events: [],
   sermonHistory: [],
   posts: [],
@@ -38,7 +37,7 @@ const state = {
   currentPostId: null,
   editingPrayerId: null,
   editingPostId: null,
-  pendingPostImage: null,
+  pendingPostImages: [],
   currentMonth: new Date()
 };
 
@@ -180,7 +179,7 @@ function fillLegalModals() {
       <li>예배 안내, 설교 영상(이번 주·지난 설교), 주보 열람</li>
       <li>오늘의 말씀, 교회 일정(캘린더), 공지사항·행사 안내</li>
       <li>기도제목 등록·참여, 재능나눔방 개설·신청</li>
-      <li>나눔글 게시판(작성·좋아요·댓글), 소모임 행사 신청</li>
+      <li>커뮤니티 게시판(작성·좋아요·댓글·다중 사진), 소모임 행사 신청</li>
       <li>행사 신청, 봉사 신청, 심방 요청, 새가족 등록</li>
       <li>예배 체크(다중 참석 가능), 갤러리, 푸시 알림</li>
       <li>의견·건의 보내기 (사용자 → 관리자)</li>
@@ -526,13 +525,6 @@ function attachListeners() {
     applyHero();
   });
 
-  onValueWithError('gallery', (snap) => {
-    state.gallery = [];
-    snap.forEach((c) => { state.gallery.push({ id: c.key, ...c.val() }); });
-    state.gallery.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    renderGallery();
-  });
-
   onValueWithError('events', (snap) => {
     state.events = [];
     snap.forEach((c) => { state.events.push({ id: c.key, ...c.val() }); });
@@ -557,36 +549,6 @@ function attachListeners() {
       }
     }
   });
-}
-
-function renderGallery() {
-  const grid = document.getElementById('galleryGrid');
-  if (!grid) return;
-  if (!state.gallery.length) {
-    grid.innerHTML = '<div class="gallery-empty">아직 등록된 사진이 없어요. 첫 사진을 올려주세요!</div>';
-    return;
-  }
-  grid.innerHTML = state.gallery.map((g) => `
-    <div class="gallery-item" data-view="${g.id}">
-      <img src="${escapeHtml(safeImageUrl(g.url))}" alt="${escapeHtml(g.caption || '')}" loading="lazy"/>
-    </div>
-  `).join('');
-  grid.querySelectorAll('[data-view]').forEach((el) => {
-    el.addEventListener('click', () => openGalleryViewer(el.dataset.view));
-  });
-}
-
-function openGalleryViewer(id) {
-  const g = state.gallery.find((x) => x.id === id);
-  if (!g) return;
-  const img = document.getElementById('gvImg');
-  const meta = document.getElementById('gvMeta');
-  img.src = safeImageUrl(g.url);
-  img.alt = g.caption || '';
-  const date = g.timestamp ? new Date(g.timestamp) : null;
-  const dateStr = date ? `${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,'0')}.${String(date.getDate()).padStart(2,'0')}` : '';
-  meta.innerHTML = `<b>${escapeHtml(g.uploaderName || '익명')}</b>${g.caption ? ' · ' + escapeHtml(g.caption) : ''}${dateStr ? ' · ' + dateStr : ''}`;
-  openModal('galleryViewer');
 }
 
 function applyHero() {
@@ -741,7 +703,7 @@ const PROFILE_AUTOFILL_MAP = {
 // (보안 + UX: 다음 사용자가 열었을 때 이전 값이 남지 않도록)
 const MODAL_AUTORESET = {
   prayerModal:        () => { state.editingPrayerId = null; },
-  postComposeModal:   () => { state.editingPostId = null; state.pendingPostImage = null; },
+  postComposeModal:   () => { state.editingPostId = null; state.pendingPostImages = []; },
   postDetailModal:    () => { state.currentPostId = null; },
   sermonViewerModal:  (m) => { const f = m.querySelector('iframe'); if (f) f.src = ''; }
 };
@@ -919,18 +881,36 @@ function timeAgo(ts) {
 }
 
 // ===== 나눔글 게시판 =====
+// 옛 imageUrl(단일) + 새 imageUrls(배열) 둘 다 지원
+function postImages(p) {
+  if (Array.isArray(p?.imageUrls) && p.imageUrls.length) return p.imageUrls.map(safeImageUrl).filter(Boolean);
+  if (p?.imageUrl) return [safeImageUrl(p.imageUrl)].filter(Boolean);
+  return [];
+}
+
 function renderPosts() {
   const feed = document.getElementById('postFeed');
   if (!feed) return;
   const posts = state.posts || [];
   if (!posts.length) {
-    feed.innerHTML = '<div class="feed-card"><h3>아직 등록된 나눔글이 없어요</h3><p>첫 글을 남겨주세요.</p></div>';
+    feed.innerHTML = '<div class="feed-card"><h3>아직 등록된 글이 없어요</h3><p>첫 글을 남겨주세요.</p></div>';
     return;
   }
   feed.innerHTML = posts.map((p) => {
     const liked = !!state.postLikes[p.id];
-    const thumb = safeImageUrl(p.imageUrl);
+    const imgs = postImages(p);
+    const shown = imgs.slice(0, 3);
+    const more = imgs.length - shown.length;
+    const thumbsHtml = shown.length ? `<div class="pc-thumbs n${shown.length}">${
+      shown.map((u, i) => {
+        const isLast = i === shown.length - 1 && more > 0;
+        return `<div class="${isLast ? 'more' : ''}" ${isLast ? `data-more="+${more}"` : ''}><img src="${escapeHtml(u)}" alt="" loading="lazy"/></div>`;
+      }).join('')
+    }</div>` : '';
     const signupTag = p.signupEnabled ? '<span class="pc-signup-tag">📝 신청</span>' : '';
+    const signupCount = p.signupCount || 0;
+    const cap = p.capacity || 0;
+    const signupInfo = p.signupEnabled && cap ? ` · 👥 ${signupCount}/${cap}` : '';
     return `
       <article class="post-card${p.signupEnabled ? ' has-signup' : ''}" data-post-id="${escapeHtml(p.id)}">
         <div class="post-card-head">
@@ -938,11 +918,12 @@ function renderPosts() {
           <span class="pc-time">${timeAgo(p.timestamp)}</span>
         </div>
         <h3>${escapeHtml(p.title || '')}${signupTag}</h3>
-        ${thumb ? `<img class="pc-thumb" src="${escapeHtml(thumb)}" alt="" loading="lazy"/>` : ''}
+        ${thumbsHtml}
         <p class="pc-body">${escapeHtml(p.body || '')}</p>
         <div class="post-card-foot">
           <span class="${liked ? 'liked' : ''}">👍 ${p.likeCount || 0}</span>
           <span>💬 ${p.commentCount || 0}</span>
+          ${signupInfo ? `<span style="margin-left:auto;color:var(--primary-dark);">${signupInfo.replace(' · ', '')}</span>` : ''}
         </div>
       </article>
     `;
@@ -962,24 +943,27 @@ function openPostCompose(editId) {
     document.getElementById('postTitleInput').value = p.title || '';
     document.getElementById('postBodyInput').value = p.body || '';
     document.getElementById('postSignupEnabled').checked = !!p.signupEnabled;
+    document.getElementById('postCapacity').value = p.capacity || '';
     document.getElementById('postDeadline').value = p.deadline || '';
     document.getElementById('postSignupOptions').style.display = p.signupEnabled ? '' : 'none';
     document.getElementById('postSubmitBtn').textContent = '수정하기';
-    if (titleEl) titleEl.textContent = '나눔글 수정';
+    if (titleEl) titleEl.textContent = '커뮤니티 글 수정';
   } else {
     state.editingPostId = null;
     document.getElementById('postTitleInput').value = '';
     document.getElementById('postBodyInput').value = '';
     document.getElementById('postSignupEnabled').checked = false;
+    document.getElementById('postCapacity').value = '';
     document.getElementById('postDeadline').value = '';
     document.getElementById('postSignupOptions').style.display = 'none';
     document.getElementById('postSubmitBtn').textContent = '등록하기';
-    if (titleEl) titleEl.textContent = '새 나눔글';
+    if (titleEl) titleEl.textContent = '새 글 작성';
   }
   document.getElementById('postImageInput').value = '';
   document.getElementById('postImagePreview').style.display = 'none';
+  document.getElementById('postImagePreview').innerHTML = '';
   document.getElementById('postComposeProgress').textContent = '';
-  state.pendingPostImage = null;
+  state.pendingPostImages = [];
   openModal('postComposeModal');
 }
 
@@ -994,20 +978,39 @@ document.querySelector('[data-modal="postComposeModal"]')?.addEventListener('cli
   openPostCompose(null);
 });
 
+const POST_MAX_IMAGES = 6;
+
+function renderPostImagePreview() {
+  const wrap = document.getElementById('postImagePreview');
+  if (!wrap) return;
+  const arr = state.pendingPostImages || [];
+  if (!arr.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  wrap.style.display = '';
+  wrap.innerHTML = arr.map((f, i) => {
+    const url = URL.createObjectURL(f);
+    return `<div class="preview-item"><img src="${url}" alt=""/><button type="button" data-rm="${i}" aria-label="제거">×</button></div>`;
+  }).join('');
+  wrap.querySelectorAll('[data-rm]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const idx = parseInt(b.dataset.rm, 10);
+      state.pendingPostImages.splice(idx, 1);
+      renderPostImagePreview();
+    });
+  });
+}
+
 document.getElementById('postImageInput')?.addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) { state.pendingPostImage = null; document.getElementById('postImagePreview').style.display = 'none'; return; }
-  if (!file.type.startsWith('image/')) { toast('이미지 파일만 가능합니다'); e.target.value = ''; return; }
-  if (file.size > 8 * 1024 * 1024) { toast('파일 크기가 8MB를 초과합니다'); e.target.value = ''; return; }
-  state.pendingPostImage = file;
-  const url = URL.createObjectURL(file);
-  document.getElementById('postImagePreviewImg').src = url;
-  document.getElementById('postImagePreview').style.display = '';
-});
-document.getElementById('postImageRemove')?.addEventListener('click', () => {
-  state.pendingPostImage = null;
-  document.getElementById('postImageInput').value = '';
-  document.getElementById('postImagePreview').style.display = 'none';
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  const valid = files.filter((f) => f.type.startsWith('image/'));
+  if (valid.length !== files.length) toast('이미지 파일만 추가됩니다');
+  const room = POST_MAX_IMAGES - (state.pendingPostImages || []).length;
+  if (room <= 0) { toast(`사진은 최대 ${POST_MAX_IMAGES}장까지 가능합니다`); e.target.value = ''; return; }
+  const taking = valid.slice(0, room);
+  if (valid.length > room) toast(`최대 ${POST_MAX_IMAGES}장까지만 추가됩니다`);
+  state.pendingPostImages = [...(state.pendingPostImages || []), ...taking];
+  e.target.value = '';
+  renderPostImagePreview();
 });
 
 document.getElementById('postSubmitBtn')?.addEventListener('click', async () => {
@@ -1015,66 +1018,86 @@ document.getElementById('postSubmitBtn')?.addEventListener('click', async () => 
   const body = document.getElementById('postBodyInput').value.trim();
   if (!title) { toast('제목을 입력해주세요'); return; }
   if (!body) { toast('내용을 입력해주세요'); return; }
+
+  const signupEnabled = document.getElementById('postSignupEnabled').checked;
+  const capacityNum = parseInt(document.getElementById('postCapacity').value, 10);
+  const deadlineVal = document.getElementById('postDeadline').value;
+  if (signupEnabled && (!capacityNum || capacityNum < 1)) {
+    toast('정원을 입력해주세요 (1명 이상)'); return;
+  }
+
   const btn = document.getElementById('postSubmitBtn');
   const progress = document.getElementById('postComposeProgress');
   btn.disabled = true;
   try {
-    let imageUrl = '';
-    let storagePath = '';
-    if (state.pendingPostImage) {
-      progress.textContent = '사진 업로드 중...';
-      const ext = state.pendingPostImage.name.split('.').pop() || 'jpg';
-      storagePath = `posts/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-      const task = uploadBytesResumable(sRef(storage, storagePath), state.pendingPostImage, { contentType: state.pendingPostImage.type });
-      imageUrl = await new Promise((resolve, reject) => {
-        task.on('state_changed',
-          (s) => { progress.textContent = `사진 업로드 ${Math.round((s.bytesTransferred/s.totalBytes)*100)}%`; },
-          reject,
-          async () => { try { resolve(await getDownloadURL(task.snapshot.ref)); } catch (e) { reject(e); } }
-        );
-      });
+    // 다중 이미지 업로드 (각각 자동 리사이즈 → 병렬 업로드)
+    const pending = (state.pendingPostImages || []).slice(0, POST_MAX_IMAGES);
+    const uploaded = [];
+    if (pending.length) {
+      progress.textContent = `사진 ${pending.length}장 처리 중...`;
+      for (let i = 0; i < pending.length; i++) {
+        const orig = pending[i];
+        progress.textContent = `사진 ${i + 1}/${pending.length} 처리 중...`;
+        let f = orig;
+        try {
+          if (orig.type !== 'image/gif') {
+            f = await resizeImage(orig, { maxDim: 1600, quality: 0.86 });
+          }
+        } catch { f = orig; }
+        const ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
+        const path = `posts/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${i}.${ext}`;
+        const task = uploadBytesResumable(sRef(storage, path), f, { contentType: f.type });
+        const url = await new Promise((resolve, reject) => {
+          task.on('state_changed', null, reject,
+            async () => { try { resolve(await getDownloadURL(task.snapshot.ref)); } catch (e) { reject(e); } }
+          );
+        });
+        uploaded.push({ url, path });
+      }
     }
     progress.textContent = '저장 중...';
-    const signupEnabled = document.getElementById('postSignupEnabled').checked;
-    const deadlineVal = document.getElementById('postDeadline').value;
 
     if (state.editingPostId) {
-      // 수정: title/body/image/signup만 갱신, count·timestamp·authorUid 보존
+      // 수정: title/body/signup/이미지(추가/유지)
+      const old = state.posts.find((x) => x.id === state.editingPostId);
       const upd = {
         title, body,
         signupEnabled: !!signupEnabled,
+        capacity: signupEnabled && capacityNum > 0 ? capacityNum : null,
         deadline: signupEnabled && deadlineVal ? deadlineVal : null,
         updatedAt: Date.now()
       };
-      if (imageUrl) {
-        upd.imageUrl = imageUrl;
-        upd.imageStoragePath = storagePath;
-        // 옛 사진 삭제
-        const old = state.posts.find((x) => x.id === state.editingPostId);
-        if (old?.imageStoragePath) {
-          deleteObject(sRef(storage, old.imageStoragePath)).catch(() => {});
-        }
+      if (uploaded.length) {
+        // 새 사진을 추가 (옛 사진은 보존)
+        const oldUrls = old?.imageUrls || (old?.imageUrl ? [old.imageUrl] : []);
+        const oldPaths = old?.imageStoragePaths || (old?.imageStoragePath ? [old.imageStoragePath] : []);
+        upd.imageUrls = [...oldUrls, ...uploaded.map((u) => u.url)].slice(0, POST_MAX_IMAGES);
+        upd.imageStoragePaths = [...oldPaths, ...uploaded.map((u) => u.path)].slice(0, POST_MAX_IMAGES);
+        // 옛 단일 필드 정리
+        upd.imageUrl = null; upd.imageStoragePath = null;
       }
       await update(ref(db, `posts/${state.editingPostId}`), upd);
-      toast('나눔글이 수정되었습니다');
+      toast('수정되었습니다');
     } else {
       const newData = {
         title, body,
-        imageUrl: imageUrl || '',
-        imageStoragePath: storagePath || '',
+        imageUrls: uploaded.map((u) => u.url),
+        imageStoragePaths: uploaded.map((u) => u.path),
         authorUid: state.uid,
         authorName: state.userProfile?.displayName || '성도',
         authorRole: state.userProfile?.role || '성도',
         likeCount: 0,
         commentCount: 0,
+        signupCount: 0,
         timestamp: Date.now()
       };
       if (signupEnabled) {
         newData.signupEnabled = true;
+        newData.capacity = capacityNum;
         if (deadlineVal) newData.deadline = deadlineVal;
       }
       await push(ref(db, 'posts'), newData);
-      toast('나눔글이 등록되었습니다');
+      toast('등록되었습니다');
     }
     closeModal('postComposeModal');
   } catch (e) {
@@ -1094,9 +1117,18 @@ async function openPostDetail(id) {
   document.getElementById('postDetailAuthor').textContent = userLabel(p.authorName, p.authorRole);
   document.getElementById('postDetailTime').textContent = p.timestamp ? new Date(p.timestamp).toLocaleString('ko-KR') : '';
   document.getElementById('postDetailBody').textContent = p.body || '';
-  const img = document.getElementById('postDetailImg');
-  const u = safeImageUrl(p.imageUrl);
-  if (u) { img.src = u; img.style.display = ''; } else { img.style.display = 'none'; img.src = ''; }
+  // 다중 이미지 표시
+  const imgs = postImages(p);
+  const wrap = document.getElementById('postDetailImgs');
+  if (wrap) {
+    if (imgs.length) {
+      wrap.className = 'post-detail-imgs n' + Math.min(imgs.length, 6);
+      wrap.innerHTML = imgs.map((u) => `<img src="${escapeHtml(u)}" alt="" loading="lazy"/>`).join('');
+    } else {
+      wrap.className = 'post-detail-imgs';
+      wrap.innerHTML = '';
+    }
+  }
   document.getElementById('postDetailLikeCount').textContent = p.likeCount || 0;
   document.getElementById('postDetailCommentCount').textContent = p.commentCount || 0;
   // 좋아요 상태
@@ -1107,12 +1139,17 @@ async function openPostDetail(id) {
   const signupBtn = document.getElementById('postDetailSignupBtn');
   if (p.signupEnabled) {
     signupBox.style.display = '';
-    document.getElementById('postDetailSignupMeta').textContent = p.deadline
-      ? `📅 마감: ${p.deadline}` : '참여 신청을 받습니다';
+    const cap = p.capacity || 0;
+    const cnt = p.signupCount || 0;
+    const meta = [];
+    if (p.deadline) meta.push(`📅 마감: ${p.deadline}`);
+    if (cap) meta.push(`👥 ${cnt}/${cap}명`);
+    document.getElementById('postDetailSignupMeta').textContent = meta.join(' · ') || '참여 신청을 받습니다';
     const closed = p.deadline && new Date(p.deadline + 'T23:59:59') < new Date();
-    if (closed) {
+    const full = cap > 0 && cnt >= cap;
+    if (closed || full) {
       signupBtn.disabled = true;
-      signupBtn.textContent = '마감되었습니다';
+      signupBtn.textContent = closed ? '마감되었습니다' : '정원이 찼습니다';
       signupBtn.classList.add('closed');
     } else {
       signupBtn.disabled = false;
@@ -1233,17 +1270,17 @@ document.getElementById('postDetailDelBtn')?.addEventListener('click', async () 
   const id = state.currentPostId;
   const post = state.posts.find((x) => x.id === id);
   if (!post || post.authorUid !== state.uid) return;
-  if (!confirm('이 나눔글을 삭제하시겠어요?\n\n댓글과 좋아요 기록도 함께 삭제됩니다.')) return;
+  if (!confirm('이 글을 삭제하시겠어요?\n\n댓글과 좋아요 기록도 함께 삭제됩니다.')) return;
   try {
-    if (post.imageStoragePath) {
-      await deleteObject(sRef(storage, post.imageStoragePath)).catch(() => {});
-    }
+    // 첨부 사진 삭제 — 옛 단일·새 다중 형식 모두 지원
+    const paths = post.imageStoragePaths || (post.imageStoragePath ? [post.imageStoragePath] : []);
+    paths.forEach((path) => { deleteObject(sRef(storage, path)).catch(() => {}); });
     await remove(ref(db, `posts/${id}`));
     await remove(ref(db, `postLikes/${id}`)).catch(() => {});
     await remove(ref(db, `postComments/${id}`)).catch(() => {});
     closeModal('postDetailModal');
     state.currentPostId = null;
-    toast('나눔글이 삭제되었습니다');
+    toast('글이 삭제되었습니다');
   } catch (e) { toast('삭제 실패: ' + (e.code || e.message)); }
 });
 
@@ -1328,6 +1365,14 @@ document.getElementById('eaSubmit')?.addEventListener('click', async () => {
   const note = document.getElementById('eaNote').value.trim();
   if (!name) { toast('이름을 입력해주세요'); return; }
   if (!phone) { toast('연락처를 입력해주세요'); return; }
+  // 정원 초과 체크 (post: 정원 필수)
+  if (kind === 'post' && target.capacity) {
+    const cnt = target.signupCount || 0;
+    if (cnt + count > target.capacity) {
+      toast(`정원이 ${target.capacity}명입니다 (현재 ${cnt}명 신청). 인원을 줄여주세요.`);
+      return;
+    }
+  }
   try {
     const data = {
       kind: kind === 'post' ? '모임' : '행사',
@@ -1338,6 +1383,14 @@ document.getElementById('eaSubmit')?.addEventListener('click', async () => {
     if (kind === 'post') data.postId = id; else data.announcementId = id;
     const newRef = await push(ref(db, 'applications'), data);
     recordMyApplication(newRef.key);
+    // post 신청이면 signupCount 증가
+    if (kind === 'post') {
+      try {
+        await update(ref(db, `posts/${id}`), {
+          signupCount: (target.signupCount || 0) + count
+        });
+      } catch (e) { console.warn('[signup-count]', e.code); }
+    }
     closeModal('eventApplyModal');
     toast(`✅ "${target.title}" 신청이 접수되었습니다`);
   } catch (e) {
@@ -1922,8 +1975,7 @@ async function handleWithdraw() {
     '다음 데이터가 모두 영구 삭제됩니다:',
     '• 내가 등록한 기도제목',
     '• 내가 신청한 모든 신청 (행사·소모임·재능나눔·심방·새가족·봉사)',
-    '• 내가 올린 갤러리 사진 (파일 포함)',
-    '• 내가 작성한 나눔글 + 댓글·좋아요 기록',
+    '• 내가 작성한 커뮤니티 글 + 댓글·좋아요 기록',
     '• 내가 보낸 의견·건의',
     '• 내가 참여(아멘)한 기도 기록',
     '• 프로필·알림 토큰',
@@ -1954,13 +2006,7 @@ async function handleWithdraw() {
     });
   } catch {}
 
-  // 3) 내가 올린 갤러리 사진 (RTDB 레코드 + Storage 파일)
-  (state.gallery || []).filter((g) => g.uploaderUid === uid).forEach((g) => {
-    ops.push(remove(ref(db, `gallery/${g.id}`)).catch(() => {}));
-    if (g.storagePath) {
-      ops.push(deleteObject(sRef(storage, g.storagePath)).catch(() => {}));
-    }
-  });
+  // (갤러리 기능은 제거됨 — 옛 데이터는 보존됨)
 
   // 4) 내가 참여(아멘)한 기록
   Object.keys(state.prayedBy || {}).forEach((prayerId) => {
@@ -1973,14 +2019,15 @@ async function handleWithdraw() {
   // 6) /users/{uid} 프로필 삭제
   ops.push(remove(ref(db, `users/${uid}`)).catch(() => {}));
 
-  // 7) 내가 작성한 나눔글 + 그 글의 좋아요/댓글 컬렉션 전체 + 첨부 사진
+  // 7) 내가 작성한 커뮤니티 글 + 그 글의 좋아요/댓글 컬렉션 전체 + 첨부 사진(다중)
   (state.posts || []).filter((p) => p.authorUid === uid).forEach((p) => {
     ops.push(remove(ref(db, `posts/${p.id}`)).catch(() => {}));
     ops.push(remove(ref(db, `postLikes/${p.id}`)).catch(() => {}));
     ops.push(remove(ref(db, `postComments/${p.id}`)).catch(() => {}));
-    if (p.imageStoragePath) {
-      ops.push(deleteObject(sRef(storage, p.imageStoragePath)).catch(() => {}));
-    }
+    const paths = p.imageStoragePaths || (p.imageStoragePath ? [p.imageStoragePath] : []);
+    paths.forEach((path) => {
+      ops.push(deleteObject(sRef(storage, path)).catch(() => {}));
+    });
   });
 
   // 8) 다른 사람 글에 내가 누른 좋아요 기록 정리
@@ -2371,110 +2418,6 @@ async function triggerInstall() {
 window.addEventListener('appinstalled', () => {
   installBanner?.classList.remove('show');
   toast('홈화면에 앱이 추가되었어요');
-});
-
-// ===== 갤러리 업로드 =====
-const gFileInput = document.getElementById('gFile');
-const gPreviewEl = document.getElementById('gPreview');
-const gNameEl = document.getElementById('gName');
-const gCaptionEl = document.getElementById('gCaption');
-const gProgressEl = document.getElementById('gProgress');
-const gSubmitBtn = document.getElementById('gSubmit');
-
-const MAX_GALLERY_FILES = 7;
-let preparedPhotos = [];  // 리사이즈된 File 배열
-
-if (gNameEl) {
-  const saved = localStorage.getItem('uploaderName');
-  if (saved) gNameEl.value = saved;
-}
-
-gFileInput?.addEventListener('change', async (e) => {
-  preparedPhotos = [];
-  gPreviewEl.style.display = 'none';
-  gPreviewEl.innerHTML = '';
-  gProgressEl.textContent = '';
-  const files = Array.from(e.target.files || []);
-  if (!files.length) return;
-  const images = files.filter((f) => f.type.startsWith('image/'));
-  if (images.length !== files.length) toast('이미지 파일만 올릴 수 있어요 (비이미지 제외됨)');
-  const selected = images.slice(0, MAX_GALLERY_FILES);
-  if (images.length > MAX_GALLERY_FILES) toast(`최대 ${MAX_GALLERY_FILES}장까지 가능해요. 앞 ${MAX_GALLERY_FILES}장만 선택됩니다`);
-  gProgressEl.textContent = `📐 ${selected.length}장 변환 중...`;
-  for (const f of selected) {
-    try {
-      const resized = await resizeImage(f, { maxDim: 2400, quality: 0.88 });
-      preparedPhotos.push(resized);
-      const item = document.createElement('div');
-      item.className = 'g-preview-item';
-      item.innerHTML = `<img src="${URL.createObjectURL(resized)}" alt="미리보기"/><div class="g-item-size">${humanSize(resized.size)}</div>`;
-      gPreviewEl.appendChild(item);
-    } catch {
-      preparedPhotos.push(f);
-      const item = document.createElement('div');
-      item.className = 'g-preview-item';
-      item.innerHTML = `<img src="${URL.createObjectURL(f)}" alt="미리보기"/><div class="g-item-size">${humanSize(f.size)}</div>`;
-      gPreviewEl.appendChild(item);
-    }
-  }
-  gPreviewEl.style.display = preparedPhotos.length ? '' : 'none';
-  gProgressEl.textContent = preparedPhotos.length ? `${preparedPhotos.length}장 준비 완료` : '';
-});
-
-gSubmitBtn?.addEventListener('click', async () => {
-  if (!state.uid) { toast('잠시 후 다시 시도해주세요'); return; }
-  if (!preparedPhotos.length) { toast('사진을 먼저 선택해주세요'); return; }
-  const name = gNameEl.value.trim() || '익명';
-  const caption = gCaptionEl.value.trim();
-  localStorage.setItem('uploaderName', name === '익명' ? '' : name);
-
-  gSubmitBtn.disabled = true;
-  const total = preparedPhotos.length;
-  let done = 0;
-
-  const uploadOne = (photo, idx) => new Promise((resolve, reject) => {
-    const path = `gallery/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-    const task = uploadBytesResumable(sRef(storage, path), photo, { contentType: photo.type });
-    task.on('state_changed',
-      (snap) => {
-        const pct = (snap.bytesTransferred / snap.totalBytes * 100).toFixed(0);
-        gProgressEl.textContent = `업로드 중 ${done + 1}/${total}... ${pct}%`;
-      },
-      reject,
-      async () => {
-        try {
-          const url = await getDownloadURL(task.snapshot.ref);
-          await push(ref(db, 'gallery'), {
-            url, storagePath: path,
-            caption: total === 1 ? caption : (caption ? `${caption} (${idx + 1}/${total})` : ''),
-            uploaderName: name,
-            uploaderUid: state.uid,
-            contentType: photo.type,
-            size: photo.size,
-            timestamp: Date.now() + idx
-          });
-          done++;
-          resolve();
-        } catch (e) { reject(e); }
-      }
-    );
-  });
-
-  try {
-    for (let i = 0; i < preparedPhotos.length; i++) {
-      await uploadOne(preparedPhotos[i], i);
-    }
-    gProgressEl.textContent = `✅ ${total}장 업로드 완료!`;
-    gFileInput.value = '';
-    if (gCaptionEl) gCaptionEl.value = '';
-    gPreviewEl.style.display = 'none'; gPreviewEl.innerHTML = '';
-    preparedPhotos = [];
-    setTimeout(() => { gProgressEl.textContent = ''; closeModal('galleryModal'); }, 800);
-  } catch (e) {
-    gProgressEl.textContent = `❌ 업로드 실패 (${done}/${total} 완료): ` + e.message;
-  } finally {
-    gSubmitBtn.disabled = false;
-  }
 });
 
 // ===== 교회 캘린더 =====

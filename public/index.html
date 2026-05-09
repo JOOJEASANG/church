@@ -744,6 +744,69 @@
       object-fit: cover; border-radius: 10px;
       display: block; margin-bottom: 10px;
     }
+    /* 다중 이미지 그리드 (피드 카드) */
+    .post-card .pc-thumbs {
+      display: grid; gap: 4px; margin-bottom: 10px;
+      border-radius: 10px; overflow: hidden;
+    }
+    .post-card .pc-thumbs.n1 { grid-template-columns: 1fr; }
+    .post-card .pc-thumbs.n2 { grid-template-columns: 1fr 1fr; }
+    .post-card .pc-thumbs.n3,
+    .post-card .pc-thumbs.n4,
+    .post-card .pc-thumbs.n5,
+    .post-card .pc-thumbs.n6 { grid-template-columns: 1fr 1fr 1fr; }
+    .post-card .pc-thumbs img {
+      width: 100%; aspect-ratio: 1/1;
+      object-fit: cover; display: block;
+    }
+    .post-card .pc-thumbs.n1 img { aspect-ratio: 16/10; max-height: 280px; }
+    .post-card .pc-thumbs .more {
+      position: relative;
+    }
+    .post-card .pc-thumbs .more::after {
+      content: attr(data-more);
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.55); color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 800;
+    }
+
+    /* 작성 모달 - 다중 이미지 미리보기 */
+    .post-img-preview {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+      margin-top: 10px;
+    }
+    .post-img-preview .preview-item {
+      position: relative; aspect-ratio: 1/1;
+      border-radius: 8px; overflow: hidden;
+      background: var(--bg-2, #f4f1ea);
+    }
+    .post-img-preview .preview-item img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .post-img-preview .preview-item button {
+      position: absolute; top: 4px; right: 4px;
+      width: 24px; height: 24px; border-radius: 999px;
+      background: rgba(0,0,0,0.65); color: white;
+      border: 0; cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    /* 상세 이미지 그리드 */
+    .post-detail-imgs {
+      display: grid; gap: 8px; margin-bottom: 14px;
+    }
+    .post-detail-imgs.n1 { grid-template-columns: 1fr; }
+    .post-detail-imgs.n2,
+    .post-detail-imgs.n4 { grid-template-columns: 1fr 1fr; }
+    .post-detail-imgs.n3,
+    .post-detail-imgs.n5,
+    .post-detail-imgs.n6 { grid-template-columns: 1fr 1fr 1fr; }
+    .post-detail-imgs img {
+      width: 100%; aspect-ratio: 4/3; object-fit: cover;
+      border-radius: 10px; cursor: pointer;
+    }
+    .post-detail-imgs.n1 img { aspect-ratio: auto; max-height: 480px; object-fit: contain; background: #f5f3ec; }
+
     .post-card-foot {
       display: flex; gap: 14px; font-size: 12.5px; font-weight: 700; color: var(--muted);
     }
@@ -1553,7 +1616,6 @@
       <section class="tab-pane" id="tab-community">
         <div class="community-tabs" id="communityTabs">
           <button type="button" class="community-tab active" data-ctab="prayer">기도제목</button>
-          <button type="button" class="community-tab" data-ctab="board">나눔글</button>
           <button type="button" class="community-tab" data-ctab="rooms">재능나눔</button>
           <button type="button" class="community-tab" data-ctab="apply">교회 신청</button>
         </div>
@@ -1565,17 +1627,6 @@
           </div>
           <div class="prayer-feed" id="prayerFeed">
             <div class="feed-card"><h3>기도제목을 불러오는 중...</h3></div>
-          </div>
-        </div>
-
-        <div class="community-pane" data-cpane="board">
-          <div class="section-head">
-            <h2>나눔글</h2>
-            <button class="head-btn" type="button" data-modal="postComposeModal">+ 글쓰기</button>
-          </div>
-          <p class="section-sub">간증·소식·후기를 자유롭게 나눠요. 사진도 첨부 가능합니다.</p>
-          <div id="postFeed" class="post-feed">
-            <div class="feed-card"><h3>아직 등록된 나눔글이 없어요</h3><p>첫 글을 남겨주세요.</p></div>
           </div>
         </div>
 
@@ -1622,18 +1673,15 @@
         </div>
       </section>
 
-      <!-- 6) 갤러리 -->
-      <section class="tab-pane" id="tab-gallery">
-        <div class="section-title" style="margin-top: 12px;">
-          <h2>교회 갤러리</h2>
+      <!-- 6) 커뮤니티 (옛 갤러리 자리) -->
+      <section class="tab-pane" id="tab-board">
+        <div class="section-head" style="margin-top:12px;">
+          <h2>커뮤니티</h2>
+          <button class="head-btn" type="button" data-modal="postComposeModal">+ 글쓰기</button>
         </div>
-        <p style="color: var(--muted); font-size: 13px; margin: 0 4px 14px; font-weight: 500;">
-          예배·행사·교제 사진을 함께 나눠요. 부적절한 사진은 관리자가 즉시 삭제합니다.
-        </p>
-        <button class="compose-btn" type="button" data-modal="galleryModal">+ 사진 올리기</button>
-
-        <div class="gallery-grid" id="galleryGrid">
-          <div class="gallery-empty">아직 등록된 사진이 없어요. 첫 사진을 올려주세요!</div>
+        <p class="section-sub">간증·소식·소모임 행사를 자유롭게 나눠요.</p>
+        <div id="postFeed" class="post-feed">
+          <div class="feed-card"><h3>아직 등록된 글이 없어요</h3><p>첫 글을 남겨주세요.</p></div>
         </div>
       </section>
 
@@ -1749,8 +1797,8 @@
       <button class="tabbar-item" data-tab="community" type="button">
         <span class="ti">🤝</span><span class="tl">공동체</span>
       </button>
-      <button class="tabbar-item" data-tab="gallery" type="button">
-        <span class="ti">🖼️</span><span class="tl">갤러리</span>
+      <button class="tabbar-item" data-tab="board" type="button">
+        <span class="ti">💬</span><span class="tl">커뮤니티</span>
       </button>
       <button class="tabbar-item" data-tab="me" type="button">
         <span class="ti">👤</span><span class="tl">내정보</span>
@@ -1937,37 +1985,6 @@
       <button class="submit-btn" type="button" id="vSubmit">신청하기</button>
     </div>
   </div>
-
-  <!-- 사진 올리기 모달 -->
-  <div class="modal-bg" id="galleryModal">
-    <div class="modal">
-      <div class="modal-grip"></div>
-      <div class="modal-head">
-        <div>
-          <h3>사진 올리기</h3>
-          <p class="sub">자동으로 작은 크기로 변환되어 빠르게 올라갑니다</p>
-        </div>
-        <button class="close-btn" data-close="galleryModal" type="button">×</button>
-      </div>
-      <label>이름 (선택)</label>
-      <input class="field" id="gName" placeholder="예: 김OO 집사 (안 적으면 익명)"/>
-      <label>한 줄 설명 (선택)</label>
-      <input class="field" id="gCaption" placeholder="예: 5월 첫째 주 야외예배"/>
-      <label>사진 (최대 7장)</label>
-      <input class="field" id="gFile" type="file" accept="image/*" multiple/>
-      <div id="gPreview" class="g-preview" style="display:none;"></div>
-      <div id="gProgress" style="margin-top:10px;font-size:12.5px;color:var(--muted);font-weight:500;"></div>
-      <button class="submit-btn" type="button" id="gSubmit">올리기</button>
-    </div>
-  </div>
-
-  <!-- 사진 뷰어 모달 (확대) -->
-  <div class="modal-bg gallery-viewer" id="galleryViewer">
-    <button class="gv-close" data-close="galleryViewer" type="button" aria-label="닫기">×</button>
-    <img id="gvImg" src="" alt=""/>
-    <div class="gv-meta" id="gvMeta"></div>
-  </div>
-
   <!-- 교회 안내 모달 -->
   <div class="modal-bg" id="infoModal">
     <div class="modal info-modal">
@@ -2034,33 +2051,38 @@
     </div>
   </div>
 
-  <!-- 나눔글 작성 -->
+  <!-- 커뮤니티 글 작성 -->
   <div class="modal-bg" id="postComposeModal">
     <div class="modal">
       <div class="modal-grip"></div>
       <div class="modal-head">
-        <h3 id="postComposeTitle">새 나눔글</h3>
+        <h3 id="postComposeTitle">새 글 작성</h3>
         <button class="close-btn" data-close="postComposeModal" type="button">×</button>
       </div>
       <label>제목</label>
       <input class="field" id="postTitleInput" placeholder="예: 봄 야외예배 후기" maxlength="80"/>
       <label>내용</label>
       <textarea class="field" id="postBodyInput" placeholder="자유롭게 나눠주세요" style="min-height:140px;" maxlength="3000"></textarea>
-      <label>사진 (선택)</label>
-      <input class="field" id="postImageInput" type="file" accept="image/*"/>
-      <div id="postImagePreview" style="display:none;margin-top:10px;">
-        <img id="postImagePreviewImg" style="max-width:100%;border-radius:10px;border:1px solid var(--line);"/>
-        <button type="button" id="postImageRemove" style="margin-top:6px;font-size:12px;color:var(--danger);background:transparent;border:0;cursor:pointer;">사진 제거</button>
-      </div>
+      <label>사진 (선택, 최대 6장)</label>
+      <input class="field" id="postImageInput" type="file" accept="image/*" multiple/>
+      <div id="postImagePreview" class="post-img-preview" style="display:none;"></div>
 
       <div style="margin-top:14px;padding:12px 14px;background:var(--bg-2,#f4f1ea);border:1px dashed var(--line);border-radius:10px;">
         <label class="auth-agree" style="margin:0;font-size:13px;color:var(--text);">
           <input type="checkbox" id="postSignupEnabled"/>
-          <span><b>📝 신청 받기</b> — 소모임 행사·번개 모임 등 참여 신청을 받습니다 (인원 제한 없음)</span>
+          <span><b>📝 신청 받기</b> — 소모임 행사·번개 모임 등 참여 신청을 받습니다</span>
         </label>
         <div id="postSignupOptions" style="display:none;margin-top:10px;">
-          <label style="margin-top:4px;">신청 마감일 (선택)</label>
-          <input class="field" id="postDeadline" type="date"/>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="margin-top:4px;">정원 (명) *</label>
+              <input class="field" id="postCapacity" type="number" min="1" placeholder="예: 10"/>
+            </div>
+            <div>
+              <label style="margin-top:4px;">신청 마감일 (선택)</label>
+              <input class="field" id="postDeadline" type="date"/>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2081,7 +2103,7 @@
         <span class="pd-author" id="postDetailAuthor">—</span>
         <span class="pd-time" id="postDetailTime">—</span>
       </div>
-      <img class="post-detail-img" id="postDetailImg" alt="" style="display:none;"/>
+      <div class="post-detail-imgs" id="postDetailImgs"></div>
       <div class="post-detail-body" id="postDetailBody"></div>
 
       <div id="postDetailSignup" class="post-signup-box" style="display:none;">
