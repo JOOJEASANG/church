@@ -338,6 +338,25 @@ function fillSermonForm() {
   if ($('sermonTitle')) $('sermonTitle').value = s.title || '';
   if ($('sermonVerse')) $('sermonVerse').value = s.verse || '';
   if ($('sermonUrl')) $('sermonUrl').value = s.videoId || '';
+  if (s.start) splitTime(s.start, 'start');
+  if (s.end) splitTime(s.end, 'end');
+}
+
+function splitTime(sec, prefix) {
+  const total = Number(sec) || 0;
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if ($(prefix + 'H')) $(prefix + 'H').value = h || '';
+  if ($(prefix + 'M')) $(prefix + 'M').value = m || '';
+  if ($(prefix + 'S')) $(prefix + 'S').value = s || '';
+}
+
+function combineTime(prefix) {
+  const h = Number($(prefix + 'H')?.value || 0);
+  const m = Number($(prefix + 'M')?.value || 0);
+  const s = Number($(prefix + 'S')?.value || 0);
+  return h * 3600 + m * 60 + s;
 }
 
 function extractVideoId(input) {
@@ -365,6 +384,8 @@ $('sermonSave')?.addEventListener('click', async () => {
     title: $('sermonTitle').value.trim(),
     verse: $('sermonVerse').value.trim(),
     videoId,
+    start: combineTime('start') || 0,
+    end: combineTime('end') || 0,
     timestamp: Date.now()
   };
   if (!data.title) { alert('설교 제목을 입력해주세요'); return; }
