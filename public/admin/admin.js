@@ -737,9 +737,24 @@ function fillChurchForm() {
   if ($('chDirections')) $('chDirections').value = c.directions || '';
   if ($('chTagline')) $('chTagline').value = c.tagline || '';
   if ($('chSubtitle')) $('chSubtitle').value = c.subtitle || '';
+  renderLogoPreview();
+}
+
+function renderLogoPreview() {
+  const wrap = $('logoPreviewWrap');
+  const img = $('logoPreview');
+  if (!wrap || !img) return;
+  const url = safeImageUrl(state.church?.logoUrl);
+  if (url) {
+    img.src = url;
+    wrap.style.display = '';
+  } else {
+    wrap.style.display = 'none';
+  }
 }
 
 $('chSave')?.addEventListener('click', async () => {
+  // update() preserves logoUrl/logoStoragePath that were uploaded separately
   const data = {
     name: $('chName').value.trim(),
     pastor: $('chPastor').value.trim(),
@@ -752,7 +767,7 @@ $('chSave')?.addEventListener('click', async () => {
     updatedAt: Date.now()
   };
   try {
-    await set(ref(db, 'config/church'), data);
+    await update(ref(db, 'config/church'), data);
     flashSaved($('chSave'));
   } catch (e) {
     alert('저장 실패: ' + e.message);
@@ -990,6 +1005,53 @@ $('heroRemove')?.addEventListener('click', async () => {
       await deleteObject(sRef(storage, state.hero.storagePath)).catch(() => {});
     }
     await remove(ref(db, 'config/hero'));
+  } catch (e) {
+    alert('삭제 실패: ' + e.message);
+  }
+});
+
+// ===== 교회 로고 업로드 =====
+$('logoUpload')?.addEventListener('click', () => {
+  const file = $('logoFile').files[0];
+  const progress = $('logoProgress');
+  if (!file) { alert('이미지 파일을 선택하세요'); return; }
+  if (!file.type.startsWith('image/')) { alert('이미지 파일만 업로드 가능합니다'); return; }
+  if (file.size > 3 * 1024 * 1024) { alert('파일 크기가 3MB를 초과합니다'); return; }
+  const ext = file.name.split('.').pop() || 'png';
+  const path = `img/logo/${Date.now()}.${ext}`;
+  const task = uploadBytesResumable(sRef(storage, path), file, { contentType: file.type });
+  $('logoUpload').disabled = true;
+  progress.textContent = '업로드 중... 0%';
+  task.on('state_changed',
+    (s) => { progress.textContent = `업로드 중... ${Math.round((s.bytesTransferred / s.totalBytes) * 100)}%`; },
+    (err) => { progress.textContent = '❌ 업로드 실패: ' + err.message; $('logoUpload').disabled = false; },
+    async () => {
+      try {
+        const url = await getDownloadURL(task.snapshot.ref);
+        const prevPath = state.church?.logoStoragePath;
+        await update(ref(db, 'config/church'), { logoUrl: url, logoStoragePath: path, updatedAt: Date.now() });
+        if (prevPath && prevPath !== path) {
+          await deleteObject(sRef(storage, prevPath)).catch(() => {});
+        }
+        progress.textContent = '✅ 업로드 완료';
+        $('logoFile').value = '';
+      } catch (e) {
+        progress.textContent = '❌ 저장 실패: ' + e.message;
+      } finally {
+        $('logoUpload').disabled = false;
+      }
+    }
+  );
+});
+
+$('logoRemove')?.addEventListener('click', async () => {
+  if (!state.church?.logoUrl) return;
+  if (!confirm('교회 로고를 삭제하시겠어요? 기본 표시(이니셜)로 돌아갑니다.')) return;
+  try {
+    if (state.church.logoStoragePath) {
+      await deleteObject(sRef(storage, state.church.logoStoragePath)).catch(() => {});
+    }
+    await update(ref(db, 'config/church'), { logoUrl: null, logoStoragePath: null });
   } catch (e) {
     alert('삭제 실패: ' + e.message);
   }

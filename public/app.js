@@ -270,9 +270,32 @@ function applyHero() {
   }
 }
 
+function applyLogo() {
+  const url = safeImageUrl(state.church?.logoUrl);
+  document.querySelectorAll('.brand-mark').forEach((mark) => {
+    const txt = mark.querySelector('.brand-mark-text');
+    let img = mark.querySelector('img');
+    if (url) {
+      if (!img) {
+        img = document.createElement('img');
+        img.alt = '교회 로고';
+        mark.appendChild(img);
+      }
+      img.src = url;
+      if (txt) txt.style.display = 'none';
+      mark.classList.add('has-logo');
+    } else {
+      if (img) img.remove();
+      if (txt) txt.style.display = '';
+      mark.classList.remove('has-logo');
+    }
+  });
+}
+
 function applyChurchInfo() {
   const c = state.church || {};
   document.querySelectorAll('[data-church="name"]').forEach((el) => { el.textContent = c.name || '천안남산교회'; });
+  applyLogo();
   document.querySelectorAll('[data-church="pastor"]').forEach((el) => { el.textContent = c.pastor || ''; });
   document.querySelectorAll('[data-church="phone"]').forEach((el) => {
     el.textContent = c.phone || '';
@@ -393,14 +416,51 @@ function renderServiceTimes() {
   `).join('');
 }
 
-// ===== 인사말 =====
-function setGreeting() {
-  const h = new Date().getHours();
-  const greeting = h < 6 ? '평안한 새벽입니다' : h < 12 ? '좋은 아침입니다' : h < 18 ? '평안한 오후입니다' : '평안한 저녁입니다';
-  const el = document.getElementById('greetingHi');
-  if (el) el.textContent = greeting;
+// ===== 오늘의 말씀 =====
+const DAILY_VERSES = [
+  { ref: '시편 23:1', text: '여호와는 나의 목자시니 내게 부족함이 없으리로다.' },
+  { ref: '요한복음 3:16', text: '하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니 이는 그를 믿는 자마다 멸망하지 않고 영생을 얻게 하려 하심이라.' },
+  { ref: '빌립보서 4:13', text: '내게 능력 주시는 자 안에서 내가 모든 것을 할 수 있느니라.' },
+  { ref: '잠언 3:5-6', text: '너는 마음을 다하여 여호와를 신뢰하고 네 명철을 의지하지 말라 너는 범사에 그를 인정하라 그리하면 네 길을 지도하시리라.' },
+  { ref: '이사야 41:10', text: '두려워하지 말라 내가 너와 함께 함이라 놀라지 말라 나는 네 하나님이 됨이라 내가 너를 굳세게 하리라 참으로 너를 도와 주리라.' },
+  { ref: '로마서 8:28', text: '우리가 알거니와 하나님을 사랑하는 자 곧 그의 뜻대로 부르심을 입은 자들에게는 모든 것이 합력하여 선을 이루느니라.' },
+  { ref: '예레미야 29:11', text: '여호와의 말씀이니라 너희를 향한 나의 생각을 내가 아나니 평안이요 재앙이 아니니라 너희에게 미래와 희망을 주는 것이니라.' },
+  { ref: '시편 46:1', text: '하나님은 우리의 피난처시요 힘이시니 환난 중에 만날 큰 도움이시라.' },
+  { ref: '마태복음 11:28', text: '수고하고 무거운 짐 진 자들아 다 내게로 오라 내가 너희를 쉬게 하리라.' },
+  { ref: '시편 119:105', text: '주의 말씀은 내 발에 등이요 내 길에 빛이니이다.' },
+  { ref: '고린도전서 13:4-5', text: '사랑은 오래 참고 사랑은 온유하며 시기하지 아니하며 사랑은 자랑하지 아니하며 교만하지 아니하며.' },
+  { ref: '요한복음 14:6', text: '예수께서 이르시되 내가 곧 길이요 진리요 생명이니 나로 말미암지 않고는 아버지께로 올 자가 없느니라.' },
+  { ref: '시편 27:1', text: '여호와는 나의 빛이요 나의 구원이시니 내가 누구를 두려워하리요 여호와는 내 생명의 능력이시니 내가 누구를 무서워하리요.' },
+  { ref: '베드로전서 5:7', text: '너희 염려를 다 주께 맡기라 이는 그가 너희를 돌보심이라.' },
+  { ref: '이사야 40:31', text: '오직 여호와를 앙망하는 자는 새 힘을 얻으리니 독수리가 날개치며 올라감 같을 것이요 달음박질하여도 곤비하지 아니하겠고 걸어가도 피곤하지 아니하리로다.' },
+  { ref: '로마서 12:2', text: '너희는 이 세대를 본받지 말고 오직 마음을 새롭게 함으로 변화를 받아 하나님의 선하시고 기뻐하시고 온전하신 뜻이 무엇인지 분별하도록 하라.' },
+  { ref: '갈라디아서 5:22-23', text: '오직 성령의 열매는 사랑과 희락과 화평과 오래 참음과 자비와 양선과 충성과 온유와 절제니 이 같은 것을 금지할 법이 없느니라.' },
+  { ref: '여호수아 1:9', text: '내가 네게 명령한 것이 아니냐 강하고 담대하라 두려워하지 말며 놀라지 말라 네가 어디로 가든지 네 하나님 여호와가 너와 함께 하느니라.' },
+  { ref: '시편 121:1-2', text: '내가 산을 향하여 눈을 들리라 나의 도움이 어디서 올까 나의 도움은 천지를 지으신 여호와에게서로다.' },
+  { ref: '마태복음 6:33', text: '그런즉 너희는 먼저 그의 나라와 그의 의를 구하라 그리하면 이 모든 것을 너희에게 더하시리라.' },
+  { ref: '에베소서 2:8-9', text: '너희는 그 은혜에 의하여 믿음으로 말미암아 구원을 받았으니 이것은 너희에게서 난 것이 아니요 하나님의 선물이라 행위에서 난 것이 아니니 이는 누구든지 자랑하지 못하게 함이라.' },
+  { ref: '요한일서 4:7', text: '사랑하는 자들아 우리가 서로 사랑하자 사랑은 하나님께 속한 것이니 사랑하는 자마다 하나님으로부터 나서 하나님을 알고.' },
+  { ref: '시편 37:4', text: '또 여호와를 기뻐하라 그가 네 마음의 소원을 네게 이루어 주시리로다.' },
+  { ref: '히브리서 11:1', text: '믿음은 바라는 것들의 실상이요 보이지 않는 것들의 증거니.' },
+  { ref: '시편 139:14', text: '내가 주께 감사하옴은 나를 지으심이 심히 기묘하심이라 주께서 하시는 일이 기이함을 내 영혼이 잘 아나이다.' },
+  { ref: '잠언 16:3', text: '너의 행사를 여호와께 맡기라 그리하면 네가 경영하는 것이 이루어지리라.' },
+  { ref: '요한복음 15:5', text: '나는 포도나무요 너희는 가지라 그가 내 안에 내가 그 안에 거하면 사람이 열매를 많이 맺나니 나를 떠나서는 너희가 아무 것도 할 수 없음이라.' },
+  { ref: '데살로니가전서 5:16-18', text: '항상 기뻐하라 쉬지 말고 기도하라 범사에 감사하라 이것이 그리스도 예수 안에서 너희를 향하신 하나님의 뜻이니라.' },
+  { ref: '시편 91:1-2', text: '지존자의 은밀한 곳에 거주하며 전능자의 그늘 아래에 사는 자여 나는 여호와를 향하여 말하기를 그는 나의 피난처요 나의 요새요 내가 의뢰하는 하나님이라 하리로다.' },
+  { ref: '마태복음 5:16', text: '이같이 너희 빛이 사람 앞에 비치게 하여 그들로 너희 착한 행실을 보고 하늘에 계신 너희 아버지께 영광을 돌리게 하라.' },
+  { ref: '신명기 6:5', text: '너는 마음을 다하고 뜻을 다하고 힘을 다하여 네 하나님 여호와를 사랑하라.' }
+];
+
+function setDailyVerse() {
+  const start = new Date(new Date().getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((Date.now() - start.getTime()) / 86400000);
+  const v = DAILY_VERSES[dayOfYear % DAILY_VERSES.length];
+  const t = document.getElementById('verseText');
+  const r = document.getElementById('verseRef');
+  if (t) t.textContent = v.text;
+  if (r) r.textContent = v.ref;
 }
-setGreeting();
+setDailyVerse();
 
 // ===== 유틸 =====
 function escapeHtml(v) {

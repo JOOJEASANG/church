@@ -345,6 +345,21 @@
         </div>
 
         <div class="panel">
+          <h2>🏷️ 교회 로고</h2>
+          <p class="sub">앱 헤더에 교회 이름과 함께 표시됩니다 (정사각형 PNG/JPG 권장 · 최대 3MB)</p>
+          <div id="logoPreviewWrap" style="margin: 14px 0; display: none;">
+            <div style="font-size: 12px; font-weight: 800; color: var(--muted); margin-bottom: 8px;">현재 로고</div>
+            <img id="logoPreview" src="" alt="현재 로고"
+                 style="width: 96px; height: 96px; border-radius: 16px; border: 1px solid var(--line); object-fit: cover; background: #f5f0e1;"/>
+            <button class="btn danger" id="logoRemove" type="button" style="margin-top: 10px; display: block;">현재 로고 삭제</button>
+          </div>
+          <label>새 로고 업로드</label>
+          <input class="field" id="logoFile" type="file" accept="image/*"/>
+          <div id="logoProgress" style="margin-top: 10px; font-size: 13px; color: var(--muted);"></div>
+          <button class="btn primary" id="logoUpload" type="button" style="margin-top: 12px;">업로드</button>
+        </div>
+
+        <div class="panel">
           <h2>🖼️ 메인 화면 사진</h2>
           <p class="sub">홈 화면 상단 큰 카드에 표시되는 교회 사진입니다 (최대 10MB · JPG/PNG)</p>
           <div id="heroPreviewWrap" style="margin: 14px 0; display: none;">

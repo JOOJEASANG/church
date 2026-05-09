@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
   <meta name="theme-color" content="#5f6f52" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="남산교회" />
@@ -103,11 +104,13 @@
       color: white; display: grid; place-items: center;
       font-weight: 800; font-size: 14px; letter-spacing: -0.4px;
       box-shadow: 0 4px 14px rgba(79, 98, 68, 0.28), inset 0 1px 0 rgba(255,255,255,0.18);
+      overflow: hidden;
     }
+    .brand-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .brand-mark.has-logo { background: var(--paper); box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid var(--line); }
 
-    .greeting { min-width: 0; }
-    .greeting .hi { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: -0.1px; }
-    .greeting .name { font-size: 16px; font-weight: 700; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+    .greeting { min-width: 0; display: flex; align-items: center; }
+    .greeting .name { font-size: 17.5px; font-weight: 800; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 
     .header-actions { display: flex; gap: 8px; }
     .icon-btn {
@@ -235,6 +238,43 @@
     }
     body.easy .service-row .service-name { font-size: 16.5px; }
     body.easy .service-row .service-time { font-size: 16px; }
+
+    /* ===== 오늘의 말씀 ===== */
+    .verse-card {
+      margin-top: 14px;
+      background: linear-gradient(135deg, #fdfbf5 0%, #f7f1e1 100%);
+      border: 1px solid #e8e0c8;
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+    }
+    .verse-card::before {
+      content: '"';
+      position: absolute;
+      top: -18px; right: 6px;
+      font-size: 110px; font-weight: 900;
+      color: rgba(95, 111, 82, 0.10);
+      font-family: Georgia, serif; line-height: 1;
+      pointer-events: none;
+    }
+    .verse-card .verse-label {
+      font-size: 11.5px; font-weight: 800; letter-spacing: 0.5px;
+      color: var(--primary); text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .verse-card .verse-text {
+      font-size: 15px; font-weight: 600; line-height: 1.65;
+      color: var(--text); letter-spacing: -0.2px;
+      margin: 0 0 10px;
+      position: relative;
+    }
+    .verse-card .verse-ref {
+      font-size: 12.5px; font-weight: 700; color: var(--muted);
+      letter-spacing: -0.1px;
+    }
+    body.easy .verse-card .verse-text { font-size: 17px; }
 
     /* ===== 빠른 액션 (홈화면 위젯 느낌) ===== */
     .quick-actions {
@@ -806,7 +846,7 @@
     body.easy {
       font-size: 17px;
     }
-    body.easy .greeting .name { font-size: 19px; }
+    body.easy .greeting .name { font-size: 20px; }
     body.easy .feed-card h3 { font-size: 19px; }
     body.easy .feed-card p { font-size: 16px; }
     body.easy .video-info h3 { font-size: 24px; }
@@ -898,9 +938,8 @@
     <header class="app-header">
       <div class="header-row">
         <div class="greeting-block">
-          <div class="brand-mark">남산</div>
+          <div class="brand-mark" id="brandMark"><span class="brand-mark-text">남산</span></div>
           <div class="greeting">
-            <div class="hi" id="greetingHi">평안하세요</div>
             <div class="name" id="greetingName" data-church="name">천안남산교회</div>
           </div>
         </div>
@@ -922,7 +961,6 @@
           <img class="hero-img" id="heroImg" src="/img/hero.jpg" alt=""/>
           <div class="hero-overlay"></div>
           <div class="hero-content">
-            <span class="hero-badge" id="heroBadge">이번 주</span>
             <h1 data-church="tagline">함께 예배하고,<br/>함께 섬깁니다</h1>
             <p data-church="subtitle"></p>
           </div>
@@ -936,6 +974,12 @@
           <div class="service-list" id="serviceList">
             <div class="service-empty">예배 시간을 불러오는 중...</div>
           </div>
+        </div>
+
+        <div class="verse-card" id="verseCard">
+          <div class="verse-label">📖 오늘의 말씀</div>
+          <p class="verse-text" id="verseText">여호와는 나의 목자시니 내게 부족함이 없으리로다.</p>
+          <div class="verse-ref" id="verseRef">시편 23:1</div>
         </div>
 
         <div class="quick-actions">
@@ -1146,9 +1190,9 @@
     <!-- 하단 탭바 (데스크탑에서는 좌측 사이드바로 변환) -->
     <nav class="tabbar" role="tablist">
       <div class="sidebar-brand">
-        <div class="brand-mark">남산</div>
+        <div class="brand-mark" id="sidebarBrandMark"><span class="brand-mark-text">남산</span></div>
         <div>
-          <div class="sb-name">천안남산교회</div>
+          <div class="sb-name" data-church="name">천안남산교회</div>
         </div>
       </div>
       <button class="tabbar-item active" data-tab="home" type="button">
