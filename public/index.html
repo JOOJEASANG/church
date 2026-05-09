@@ -452,6 +452,7 @@
     }
     .prayer-head .when { color: var(--muted); margin-left: auto; font-weight: 700; font-size: 12px; }
     .prayer-card .body { margin: 0 0 12px; font-size: 14px; color: #3d3a34; line-height: 1.5; }
+    .prayer-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
     .pray-action {
       display: flex; align-items: center; gap: 8px;
       background: var(--green-soft); color: var(--primary-dark);
@@ -461,6 +462,14 @@
     }
     .pray-action.done { background: var(--primary); color: white; border-color: var(--primary); }
     .pray-action b { font-size: 13px; }
+    .prayer-edit-btn, .prayer-del-btn {
+      padding: 6px 11px; border-radius: 999px;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      border: 1px solid var(--line); background: var(--paper);
+      color: var(--text);
+    }
+    .prayer-edit-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .prayer-del-btn:hover { border-color: var(--danger); color: var(--danger); }
 
     /* ===== 나눔 탭 ===== */
     .chip-row {
@@ -683,6 +692,30 @@
     .list-row h4 { margin: 0 0 4px; font-size: 14.5px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.4; }
     .list-row p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; font-weight: 400; }
     .list-empty { padding: 40px 16px; text-align: center; color: var(--muted); font-weight: 500; font-size: 13px; }
+
+    /* 내 신청 내역 — 행 + 삭제 버튼 */
+    .list-row[data-app-id] { display: flex; gap: 12px; align-items: flex-start; }
+    .list-row[data-app-id] .list-row-main { flex: 1; min-width: 0; }
+    .list-row[data-app-id] .list-row-head {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11.5px; color: var(--muted); font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .list-row[data-app-id] .list-row-head .tag {
+      display: inline-block; padding: 3px 9px; border-radius: 999px;
+      font-weight: 700; font-size: 11px;
+      background: var(--primary-soft); color: var(--primary-dark);
+    }
+    .list-row[data-app-id] .list-row-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+    .list-row[data-app-id] .list-row-body { font-size: 12.5px; color: var(--muted); }
+    .list-row-del {
+      flex-shrink: 0;
+      width: 36px; height: 36px; border-radius: 999px;
+      background: var(--paper); border: 1px solid var(--line);
+      cursor: pointer; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .list-row-del:hover { border-color: var(--danger); background: var(--red-soft); }
 
     label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin: 14px 0 6px 2px; letter-spacing: -0.1px; }
     .field, .select, textarea {

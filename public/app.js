@@ -76,13 +76,43 @@ const state = {
   gallery: [],
   events: [],
   sermonHistory: [],
+  editingPrayerId: null,
   currentMonth: new Date()
 };
 
 // ===== 익명 로그인 =====
-signInAnonymously(auth).catch((e) => {
-  console.error('🚨 익명 로그인 실패 — Firebase Console → Authentication → Sign-in method → 익명 활성화 필요:', e.code, e.message);
-});
+const justLoggedOut = sessionStorage.getItem('justLoggedOut') === '1';
+
+if (!justLoggedOut) {
+  signInAnonymously(auth).catch((e) => {
+    console.error('🚨 익명 로그인 실패 — Firebase Console → Authentication → Sign-in method → 익명 활성화 필요:', e.code, e.message);
+  });
+} else {
+  // 로그아웃 직후 — 자동 재로그인을 막고 명시적 안내 화면 표시
+  showLoggedOutScreen();
+}
+
+function showLoggedOutScreen() {
+  const overlay = document.createElement('div');
+  overlay.id = 'loggedOutOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;';
+  overlay.innerHTML = `
+    <div style="font-size:64px;margin-bottom:18px;">🙏</div>
+    <h2 style="margin:0 0 10px;font-size:22px;font-weight:800;letter-spacing:-0.5px;">로그아웃되었습니다</h2>
+    <p style="color:var(--muted);margin:0 0 28px;font-size:14px;line-height:1.6;max-width:340px;">
+      감사합니다. 익명 세션이 완전히 종료되었습니다.<br/>
+      다시 시작하시려면 아래 버튼을 눌러주세요.
+    </p>
+    <button id="loRestart" type="button" style="background:var(--primary);color:white;border:0;padding:14px 32px;border-radius:999px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:-0.2px;">
+      다시 시작하기
+    </button>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#loRestart').addEventListener('click', () => {
+    sessionStorage.removeItem('justLoggedOut');
+    location.reload();
+  });
+}
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -772,6 +802,7 @@ function renderPrayers() {
     .filter((p) => p.type !== '교역자에게만 전달' || p.createdBy === state.uid)
     .map((p) => {
       const done = !!state.prayedBy[p.id];
+      const mine = p.createdBy === state.uid;
       return `
         <article class="prayer-card" data-id="${p.id}">
           <div class="prayer-head">
@@ -780,14 +811,59 @@ function renderPrayers() {
             <span class="when">${timeAgo(p.timestamp)}</span>
           </div>
           <p class="body">${escapeHtml(p.text || '')}</p>
-          <button class="pray-action ${done ? 'done' : ''}" data-id="${p.id}" type="button">🙏 기도했어요 <b>${p.count || 0}</b></button>
+          <div class="prayer-actions">
+            <button class="pray-action ${done ? 'done' : ''}" data-pray="${p.id}" type="button">🙏 기도했어요 <b>${p.count || 0}</b></button>
+            ${mine ? `
+              <button class="prayer-edit-btn" data-edit-prayer="${p.id}" type="button">✏️ 수정</button>
+              <button class="prayer-del-btn" data-del-prayer="${p.id}" type="button">🗑️ 삭제</button>
+            ` : ''}
+          </div>
         </article>
       `;
     }).join('');
 
-  feed.querySelectorAll('.pray-action').forEach((btn) => {
-    btn.addEventListener('click', () => prayFor(btn.dataset.id));
+  feed.querySelectorAll('[data-pray]').forEach((btn) => {
+    btn.addEventListener('click', () => prayFor(btn.dataset.pray));
   });
+  feed.querySelectorAll('[data-edit-prayer]').forEach((btn) => {
+    btn.addEventListener('click', () => openPrayerEdit(btn.dataset.editPrayer));
+  });
+  feed.querySelectorAll('[data-del-prayer]').forEach((btn) => {
+    btn.addEventListener('click', () => deleteMyPrayer(btn.dataset.delPrayer));
+  });
+}
+
+// 본인 기도제목 수정 — 등록 모달을 재사용
+function openPrayerEdit(id) {
+  const p = (state.prayers || []).find((x) => x.id === id);
+  if (!p || p.createdBy !== state.uid) { toast('수정 권한이 없습니다'); return; }
+  state.editingPrayerId = id;
+  document.getElementById('pName').value = p.name || '';
+  document.getElementById('pType').value = p.type || '공개';
+  document.getElementById('pText').value = p.text || '';
+  // 모달 헤더와 버튼 라벨 변경
+  const titleEl = document.querySelector('#prayerModal .modal-head h3');
+  const subEl = document.querySelector('#prayerModal .modal-head .sub');
+  const submitBtn = document.getElementById('pSubmit');
+  if (titleEl) titleEl.textContent = '기도제목 수정';
+  if (subEl) subEl.textContent = '내가 등록한 기도제목을 수정합니다';
+  if (submitBtn) submitBtn.textContent = '수정하기';
+  openModal('prayerModal');
+}
+
+async function deleteMyPrayer(id) {
+  const p = (state.prayers || []).find((x) => x.id === id);
+  if (!p || p.createdBy !== state.uid) { toast('삭제 권한이 없습니다'); return; }
+  if (!confirm(`기도제목을 삭제하시겠어요?\n\n"${(p.text || '').slice(0, 60)}${(p.text || '').length > 60 ? '...' : ''}"\n\n다른 분들이 누른 아멘 기록도 함께 삭제됩니다.`)) return;
+  try {
+    await remove(ref(db, `prayers/${id}`));
+    await remove(ref(db, `prayedBy/${id}`)).catch(() => {});
+    delete state.prayedBy[id];
+    toast('기도제목이 삭제되었습니다');
+  } catch (e) {
+    console.error('[prayer] 삭제 실패:', e);
+    toast('삭제 실패: ' + (e.code || e.message));
+  }
 }
 
 async function prayFor(prayerId) {
@@ -810,23 +886,54 @@ async function prayFor(prayerId) {
   }
 }
 
+function resetPrayerModal() {
+  state.editingPrayerId = null;
+  document.getElementById('pName').value = '';
+  document.getElementById('pText').value = '';
+  document.getElementById('pType').value = '공개';
+  const titleEl = document.querySelector('#prayerModal .modal-head h3');
+  const subEl = document.querySelector('#prayerModal .modal-head .sub');
+  const submitBtn = document.getElementById('pSubmit');
+  if (titleEl) titleEl.textContent = '기도제목 등록';
+  if (subEl) subEl.textContent = '공개·익명·교역자 전달 중 선택할 수 있습니다';
+  if (submitBtn) submitBtn.textContent = '등록하기';
+}
+
+// 모달이 닫힐 때마다 폼/모드 초기화
+document.querySelector('[data-close="prayerModal"]')?.addEventListener('click', resetPrayerModal);
+document.getElementById('prayerModal')?.addEventListener('click', (e) => {
+  if (e.target.id === 'prayerModal') resetPrayerModal();
+});
+
 document.getElementById('pSubmit')?.addEventListener('click', async () => {
   const name = document.getElementById('pName').value.trim() || '익명';
   const type = document.getElementById('pType').value;
   const text = document.getElementById('pText').value.trim();
   if (!text) { toast('기도제목을 입력해주세요'); return; }
+  const editingId = state.editingPrayerId;
   try {
-    await push(ref(db, 'prayers'), {
-      name: type === '익명 공개' ? '익명' : name,
-      type, text, count: 0,
-      createdBy: state.uid, timestamp: Date.now()
-    });
-    document.getElementById('pName').value = '';
-    document.getElementById('pText').value = '';
-    closeModal('prayerModal');
-    toast(type === '교역자에게만 전달' ? '교역자에게 비공개로 전달되었습니다' : '기도제목이 등록되었습니다');
+    if (editingId) {
+      // 수정: 본인 글만, 일부 필드만 갱신 (count·createdBy·timestamp는 보존)
+      await update(ref(db, `prayers/${editingId}`), {
+        name: type === '익명 공개' ? '익명' : name,
+        type,
+        text
+      });
+      closeModal('prayerModal');
+      resetPrayerModal();
+      toast('기도제목이 수정되었습니다');
+    } else {
+      await push(ref(db, 'prayers'), {
+        name: type === '익명 공개' ? '익명' : name,
+        type, text, count: 0,
+        createdBy: state.uid, timestamp: Date.now()
+      });
+      closeModal('prayerModal');
+      resetPrayerModal();
+      toast(type === '교역자에게만 전달' ? '교역자에게 비공개로 전달되었습니다' : '기도제목이 등록되었습니다');
+    }
   } catch (e) {
-    toast('등록 중 오류가 발생했어요');
+    toast((editingId ? '수정' : '등록') + ' 중 오류가 발생했어요');
     console.error(e);
   }
 });
@@ -994,14 +1101,15 @@ if (localStorage.getItem('notifEnabled') === '1' && Notification.permission === 
 // ===== 그 외 =====
 // ===== 로그아웃 =====
 async function handleLogout() {
-  if (!confirm('로그아웃하시겠어요?\n\n• 익명 세션이 종료됩니다\n• 임시 보관된 "내 신청 내역" 캐시가 삭제됩니다\n• 다음 방문 시 새로운 익명 사용자로 시작됩니다\n\n(서버에 등록된 데이터는 그대로 남습니다)')) return;
+  if (!confirm('로그아웃하시겠어요?\n\n익명 세션이 종료되고 "로그아웃 완료" 화면으로 이동합니다.\n(서버에 등록된 데이터는 그대로 남습니다)')) return;
   try {
+    sessionStorage.setItem('justLoggedOut', '1');
     sessionStorage.removeItem('myAppIds');
-    await signOut(auth);
-    toast('로그아웃되었습니다');
-    setTimeout(() => location.reload(), 800);
+    await signOut(auth).catch(() => {});
+    location.reload();
   } catch (e) {
     console.error('[logout] 실패:', e);
+    sessionStorage.removeItem('justLoggedOut');
     toast('로그아웃 중 오류: ' + (e.code || e.message));
   }
 }
@@ -1172,14 +1280,42 @@ async function openMyApplications() {
     let detail = a.roomTitle || a.type || '';
     if (a.kind === '심방요청' && a.date) detail = `희망일: ${a.date}`;
     if (a.kind === '새가족' && a.address) detail = a.address;
-    return listRowHtml({
-      tag: a.kind || '신청',
-      title: detail,
-      body: `${a.name || ''}${a.phone ? ' · ' + a.phone : ''}`,
-      time: timeAgo(a.timestamp)
-    });
+    return `<div class="list-row" data-app-id="${escapeHtml(a.id)}">
+      <div class="list-row-main">
+        <div class="list-row-head">
+          <span class="tag">${escapeHtml(a.kind || '신청')}</span>
+          <span class="time">${escapeHtml(timeAgo(a.timestamp))}</span>
+        </div>
+        <div class="list-row-title">${escapeHtml(detail)}</div>
+        <div class="list-row-body">${escapeHtml(a.name || '')}${a.phone ? ' · ' + escapeHtml(a.phone) : ''}</div>
+      </div>
+      <button class="list-row-del" data-del-app="${escapeHtml(a.id)}" type="button" title="신청 취소">🗑️</button>
+    </div>`;
   }).join('');
   openListModal('내 신청 내역', rows || '<div class="list-empty">신청 내역을 불러오지 못했어요</div>');
+
+  // 신청 취소(삭제) — 본인 application만 (rules에서 owner 삭제 허용)
+  document.querySelectorAll('#listBody [data-del-app]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.delApp;
+      if (!confirm('이 신청을 취소(삭제)하시겠어요?')) return;
+      try {
+        await remove(ref(db, `applications/${id}`));
+        // 캐시도 정리
+        try {
+          const cur = JSON.parse(sessionStorage.getItem('myAppIds') || '[]');
+          sessionStorage.setItem('myAppIds', JSON.stringify(cur.filter((x) => x !== id)));
+        } catch {}
+        // 화면에서 행 제거
+        btn.closest('.list-row')?.remove();
+        toast('신청이 취소되었습니다');
+      } catch (err) {
+        console.error('[apps] 삭제 실패:', err);
+        toast('삭제 실패: ' + (err.code || err.message));
+      }
+    });
+  });
 }
 
 function recordMyApplication(id) {
