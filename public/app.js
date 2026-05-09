@@ -10,7 +10,8 @@ import {
 import {
   onAuthStateChanged, updateProfile, signOut, deleteUser,
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential
+  sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential,
+  GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 import {
   ref as sRef, uploadBytesResumable, getDownloadURL, deleteObject
@@ -80,7 +81,11 @@ function authError(code) {
     'auth/email-already-in-use': '이미 가입된 이메일입니다.',
     'auth/weak-password': '비밀번호는 6자 이상이어야 합니다.',
     'auth/too-many-requests': '시도가 너무 많습니다. 잠시 후 다시 시도해주세요.',
-    'auth/network-request-failed': '네트워크 연결을 확인해주세요.'
+    'auth/network-request-failed': '네트워크 연결을 확인해주세요.',
+    'auth/popup-blocked': '팝업이 차단되었습니다. 팝업 허용 후 다시 시도하거나 브라우저를 변경해주세요.',
+    'auth/account-exists-with-different-credential': '이미 다른 방법으로 가입된 이메일입니다.',
+    'auth/operation-not-allowed': '이 로그인 방법이 비활성화되어 있습니다. 관리자에게 문의해주세요.',
+    'auth/unauthorized-domain': '현재 도메인이 허용 목록에 없습니다. (Firebase Console 확인 필요)'
   })[code] || '오류가 발생했습니다. 다시 시도해주세요.';
 }
 
@@ -142,6 +147,75 @@ document.getElementById('authPaneRegister')?.addEventListener('submit', async (e
   }
 });
 
+// Google 로그인
+async function ensureGoogleUserProfile(user) {
+  // 첫 로그인이면 /users/{uid}를 기본값으로 생성 (이름은 Google 프로필, 직분은 성도)
+  try {
+    const snap = await get(ref(db, `users/${user.uid}`));
+    if (!snap.exists()) {
+      await set(ref(db, `users/${user.uid}`), {
+        email: user.email || '',
+        displayName: user.displayName || (user.email ? user.email.split('@')[0] : '성도'),
+        phone: user.phoneNumber || '',
+        role: '성도',
+        provider: 'google',
+        createdAt: Date.now(),
+        agreedTosAt: Date.now(),
+        agreedPrivacyAt: Date.now()
+      });
+    }
+  } catch (e) {
+    console.warn('[google-signin] 프로필 생성 실패:', e.code);
+  }
+}
+
+document.getElementById('googleSignInBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('googleSignInBtn');
+  const errEl = document.getElementById('loginErr');
+  errEl.textContent = '';
+  btn.disabled = true;
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    let cred;
+    try {
+      cred = await signInWithPopup(auth, provider);
+    } catch (e) {
+      // 팝업 차단 / iOS PWA 등 → redirect 폴백
+      if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') {
+        await signInWithRedirect(auth, provider);
+        return; // redirect → 페이지 새로 로드 후 getRedirectResult가 처리
+      }
+      throw e;
+    }
+    if (cred?.user) {
+      await ensureGoogleUserProfile(cred.user);
+      // onAuthStateChanged가 화면 전환 처리
+    }
+  } catch (e) {
+    console.error('[google-signin]', e.code, e.message);
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
+      // 사용자 취소는 조용히 무시
+    } else {
+      errEl.textContent = authError(e.code) || ('Google 로그인 실패: ' + (e.code || e.message));
+    }
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// signInWithRedirect 후 페이지 복귀 시 결과 처리
+(async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result?.user) await ensureGoogleUserProfile(result.user);
+  } catch (e) {
+    if (e.code && e.code !== 'auth/no-redirect-result') {
+      console.warn('[google-redirect-result]', e.code);
+    }
+  }
+})();
+
 // 비밀번호 찾기
 document.getElementById('forgotLink')?.addEventListener('click', async () => {
   const email = document.getElementById('loginEmail').value.trim();
@@ -188,9 +262,9 @@ function fillLegalModals() {
 
     <h4>제3조 (회원가입)</h4>
     <ul>
-      <li>이름, 연락처, 이메일, 비밀번호를 입력하여 가입할 수 있습니다.</li>
-      <li>회원은 본 약관과 개인정보 처리방침에 동의해야 가입이 완료됩니다.</li>
-      <li>등록한 이름·연락처는 행사·봉사 등 신청 시 자동으로 사용되어 빠른 신청을 돕습니다.</li>
+      <li>이름·연락처·이메일·비밀번호 입력으로 가입하거나, <b>Google 계정으로 간편 가입</b>할 수 있습니다.</li>
+      <li>Google 가입 시에도 본 약관과 개인정보 처리방침에 동의한 것으로 간주됩니다 (가입 화면 안내문에 명시).</li>
+      <li>Google 가입자도 신청 기능을 사용하려면 "내정보 → 프로필 수정"에서 연락처·직분을 등록해주세요.</li>
       <li>타인의 정보를 도용하거나 허위 정보를 등록할 수 없습니다.</li>
     </ul>
 
@@ -232,7 +306,8 @@ function fillLegalModals() {
 
     <h4>1. 수집하는 개인정보 항목</h4>
     <ul>
-      <li><b>회원가입 시 (필수)</b>: 이름, 연락처(전화번호), 이메일, 비밀번호(암호화 저장)</li>
+      <li><b>이메일 회원가입 시 (필수)</b>: 이름, 연락처(전화번호), 이메일, 비밀번호(암호화 저장)</li>
+      <li><b>Google 간편 가입 시</b>: Google 프로필의 이름·이메일·프로필 사진(있는 경우). 비밀번호는 Google이 관리하므로 교회는 저장하지 않음. 연락처·직분은 첫 사용 시 사용자가 직접 입력.</li>
       <li><b>각 신청 시 (선택)</b>: 주소(새가족 등록 시), 희망일·메모(심방 요청 시), 참석 인원·요청사항(행사·봉사 시)</li>
       <li><b>예배 체크 시</b>: 참석 예배·날짜</li>
       <li><b>갤러리 업로드 시</b>: 사진, 캡션, 업로더 표시명</li>
