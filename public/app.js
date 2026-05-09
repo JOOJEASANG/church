@@ -8,7 +8,9 @@ import {
   ref, onValue, push, update, get, set, remove, serverTimestamp, query, orderByChild
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import {
-  signInAnonymously, onAuthStateChanged, updateProfile, signOut, deleteUser
+  onAuthStateChanged, updateProfile, signOut, deleteUser,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 import {
   ref as sRef, uploadBytesResumable, getDownloadURL, deleteObject
@@ -80,51 +82,261 @@ const state = {
   currentMonth: new Date()
 };
 
-// ===== 익명 로그인 =====
-const justLoggedOut = sessionStorage.getItem('justLoggedOut') === '1';
+// 인증 로직은 onAuthStateChanged에서 처리됨 — 자동 로그인 없음.
+// 사용자가 로그인하기 전엔 #authScreen이 표시됨.
 
-if (!justLoggedOut) {
-  signInAnonymously(auth).catch((e) => {
-    console.error('🚨 익명 로그인 실패 — Firebase Console → Authentication → Sign-in method → 익명 활성화 필요:', e.code, e.message);
-  });
-} else {
-  // 로그아웃 직후 — 자동 재로그인을 막고 명시적 안내 화면 표시
-  showLoggedOutScreen();
+// 페이지 로드 시 약관 모달을 기본값으로 미리 채워둠 (회원가입 화면에서 클릭 가능)
+window.addEventListener('DOMContentLoaded', () => fillLegalModals());
+
+function showAuthScreen() {
+  const el = document.getElementById('authScreen');
+  if (el) el.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function hideAuthScreen() {
+  const el = document.getElementById('authScreen');
+  if (el) el.classList.remove('show');
+  document.body.style.overflow = '';
 }
 
-function showLoggedOutScreen() {
-  const overlay = document.createElement('div');
-  overlay.id = 'loggedOutOverlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;';
-  overlay.innerHTML = `
-    <div style="font-size:64px;margin-bottom:18px;">🙏</div>
-    <h2 style="margin:0 0 10px;font-size:22px;font-weight:800;letter-spacing:-0.5px;">로그아웃되었습니다</h2>
-    <p style="color:var(--muted);margin:0 0 28px;font-size:14px;line-height:1.6;max-width:340px;">
-      감사합니다. 익명 세션이 완전히 종료되었습니다.<br/>
-      다시 시작하시려면 아래 버튼을 눌러주세요.
-    </p>
-    <button id="loRestart" type="button" style="background:var(--primary);color:white;border:0;padding:14px 32px;border-radius:999px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:-0.2px;">
-      다시 시작하기
-    </button>
-  `;
-  document.body.appendChild(overlay);
-  overlay.querySelector('#loRestart').addEventListener('click', () => {
-    sessionStorage.removeItem('justLoggedOut');
-    location.reload();
+// 인증 탭 토글
+document.querySelectorAll('[data-auth-tab]').forEach((b) => {
+  b.addEventListener('click', () => {
+    const tab = b.dataset.authTab;
+    document.querySelectorAll('[data-auth-tab]').forEach((x) => x.classList.toggle('active', x === b));
+    document.getElementById('authPaneLogin').classList.toggle('active', tab === 'login');
+    document.getElementById('authPaneRegister').classList.toggle('active', tab === 'register');
+    document.getElementById('loginErr').textContent = '';
+    document.getElementById('registerErr').textContent = '';
   });
+});
+
+function authError(code) {
+  return ({
+    'auth/invalid-email': '이메일 형식이 올바르지 않습니다.',
+    'auth/user-not-found': '등록되지 않은 계정입니다.',
+    'auth/wrong-password': '비밀번호가 일치하지 않습니다.',
+    'auth/invalid-credential': '이메일 또는 비밀번호가 올바르지 않습니다.',
+    'auth/email-already-in-use': '이미 가입된 이메일입니다.',
+    'auth/weak-password': '비밀번호는 6자 이상이어야 합니다.',
+    'auth/too-many-requests': '시도가 너무 많습니다. 잠시 후 다시 시도해주세요.',
+    'auth/network-request-failed': '네트워크 연결을 확인해주세요.'
+  })[code] || '오류가 발생했습니다. 다시 시도해주세요.';
+}
+
+// 로그인
+document.getElementById('authPaneLogin')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginErr');
+  const btn = document.getElementById('loginBtn');
+  errEl.textContent = '';
+  btn.disabled = true;
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    // onAuthStateChanged가 나머지 처리
+  } catch (err) {
+    console.error('[login]', err.code, err.message);
+    errEl.textContent = authError(err.code);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// 회원가입
+document.getElementById('authPaneRegister')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const passwordConfirm = document.getElementById('regPasswordConfirm').value;
+  const agreeTos = document.getElementById('regAgreeTos').checked;
+  const agreePrivacy = document.getElementById('regAgreePrivacy').checked;
+  const errEl = document.getElementById('registerErr');
+  const btn = document.getElementById('registerBtn');
+  errEl.textContent = '';
+
+  if (!name) { errEl.textContent = '이름을 입력해주세요.'; return; }
+  if (password.length < 6) { errEl.textContent = '비밀번호는 6자 이상이어야 합니다.'; return; }
+  if (password !== passwordConfirm) { errEl.textContent = '비밀번호가 일치하지 않습니다.'; return; }
+  if (!agreeTos || !agreePrivacy) { errEl.textContent = '이용약관과 개인정보 처리방침에 동의해주세요.'; return; }
+
+  btn.disabled = true;
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    await updateProfile(cred.user, { displayName: name });
+    await set(ref(db, `users/${cred.user.uid}`), {
+      email, displayName: name, createdAt: Date.now(),
+      agreedTosAt: Date.now(), agreedPrivacyAt: Date.now()
+    });
+    // onAuthStateChanged가 나머지 처리
+  } catch (err) {
+    console.error('[register]', err.code, err.message);
+    errEl.textContent = authError(err.code);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// 비밀번호 찾기
+document.getElementById('forgotLink')?.addEventListener('click', async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  if (!email) {
+    document.getElementById('loginErr').textContent = '이메일을 먼저 입력한 뒤 "비밀번호 찾기"를 눌러주세요.';
+    return;
+  }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    document.getElementById('loginErr').style.color = 'var(--primary)';
+    document.getElementById('loginErr').textContent = `${email} 으로 비밀번호 재설정 메일을 보냈습니다.`;
+    setTimeout(() => { document.getElementById('loginErr').style.color = ''; }, 5000);
+  } catch (err) {
+    document.getElementById('loginErr').textContent = authError(err.code);
+  }
+});
+
+// 약관/개인정보 모달 — 교회 정보로 채워짐
+function fillLegalModals() {
+  const c = state.church || {};
+  const churchName = c.name || '천안남산교회';
+  const phone = c.phone || '041-000-0000';
+  const email = c.email || 'church@example.com';
+  const address = c.address || '충남 천안시';
+  const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const tosBody = document.getElementById('tosBody');
+  if (tosBody) tosBody.innerHTML = `
+    <p>본 약관은 <b>${escapeHtml(churchName)}</b>(이하 "교회")가 제공하는 모바일 웹 앱 서비스(이하 "서비스")의 이용 조건과 운영 방침을 규정합니다.</p>
+
+    <h4>제1조 (목적)</h4>
+    <p>본 약관은 교회가 제공하는 서비스의 이용과 관련하여 교회와 이용자의 권리·의무 및 책임 사항을 규정함을 목적으로 합니다.</p>
+
+    <h4>제2조 (서비스의 내용)</h4>
+    <ul>
+      <li>예배 안내, 설교 영상, 주보 열람</li>
+      <li>기도제목 등록·참여, 재능나눔방 개설·신청</li>
+      <li>봉사·심방·새가족 등록 신청</li>
+      <li>교회 일정 및 공지사항 안내, 갤러리</li>
+    </ul>
+
+    <h4>제3조 (회원가입)</h4>
+    <ul>
+      <li>이메일, 비밀번호, 이름을 입력하여 가입할 수 있습니다.</li>
+      <li>회원은 본 약관과 개인정보 처리방침에 동의해야 가입이 완료됩니다.</li>
+      <li>타인의 정보를 도용하거나 허위 정보를 등록할 수 없습니다.</li>
+    </ul>
+
+    <h4>제4조 (이용자의 의무)</h4>
+    <ul>
+      <li>타인을 비방·모욕·공격하는 내용을 등록하지 않습니다.</li>
+      <li>저작권을 침해하거나 음란·폭력적 콘텐츠를 등록하지 않습니다.</li>
+      <li>부적절한 게시물은 교회가 사전 통지 없이 삭제할 수 있습니다.</li>
+    </ul>
+
+    <h4>제5조 (서비스 변경 및 중단)</h4>
+    <p>교회는 운영상·기술상 필요한 경우 서비스를 변경하거나 중단할 수 있으며, 사전에 공지합니다.</p>
+
+    <h4>제6조 (탈퇴)</h4>
+    <p>이용자는 언제든지 "내정보 → 탈퇴"를 통해 회원 탈퇴 및 본인 데이터 삭제를 요청할 수 있습니다.</p>
+
+    <h4>제7조 (책임의 한계)</h4>
+    <p>교회는 천재지변, 통신 장애 등 불가항력에 의한 서비스 중단에 대해 책임지지 않습니다.</p>
+
+    <h4>제8조 (분쟁 해결)</h4>
+    <p>본 약관과 관련된 분쟁은 교회 소재지(${escapeHtml(address)}) 관할 법원을 1심 관할 법원으로 합니다.</p>
+
+    <p style="margin-top:14px;color:var(--muted);font-size:12px;">
+      문의: ${escapeHtml(phone)} / ${escapeHtml(email)}<br/>
+      시행일: ${escapeHtml(today)}
+    </p>
+  `;
+
+  const privacyBody = document.getElementById('privacyBody');
+  if (privacyBody) privacyBody.innerHTML = `
+    <p><b>${escapeHtml(churchName)}</b>(이하 "교회")는 「개인정보 보호법」을 준수하며, 이용자의 개인정보 보호 및 권익을 위해 다음과 같이 개인정보 처리방침을 수립·공개합니다.</p>
+
+    <h4>1. 수집하는 개인정보 항목</h4>
+    <ul>
+      <li><b>회원가입 시</b>: 이메일, 비밀번호(암호화 저장), 이름</li>
+      <li><b>신청·요청 시</b>: 이름, 연락처(전화번호), 주소(새가족 등록 시), 희망일(심방 요청 시)</li>
+      <li><b>자동 수집</b>: 접속 시각, 기기 정보, FCM 알림 토큰(알림 동의 시)</li>
+    </ul>
+
+    <h4>2. 수집·이용 목적</h4>
+    <ul>
+      <li>회원 식별 및 본인 확인</li>
+      <li>봉사·심방·새가족 등록 등 신청 처리 및 연락</li>
+      <li>기도제목·재능나눔방 등록 및 참여 관리</li>
+      <li>공지·행사 알림 발송 (동의자에 한함)</li>
+    </ul>
+
+    <h4>3. 보유 및 이용 기간</h4>
+    <p>회원 탈퇴 시 또는 수집·이용 목적 달성 시 즉시 파기합니다. 단, 관계 법령에 따라 보존이 필요한 경우 해당 기간 동안 보관합니다.</p>
+
+    <h4>4. 제3자 제공</h4>
+    <p>교회는 이용자의 개인정보를 외부에 제공하지 않습니다. 단, 법령에 의거하거나 수사기관의 정당한 요청이 있는 경우에는 제공할 수 있습니다.</p>
+
+    <h4>5. 처리 위탁</h4>
+    <ul>
+      <li>Google Firebase (Authentication, Realtime Database, Cloud Storage, FCM) — 미국, 데이터 호스팅 및 인증 서비스</li>
+    </ul>
+
+    <h4>6. 이용자의 권리</h4>
+    <ul>
+      <li>본인 정보의 열람·정정·삭제·처리 정지를 언제든지 요청할 수 있습니다.</li>
+      <li>"내정보" 탭에서 본인이 등록한 기도제목·신청은 직접 수정·삭제할 수 있습니다.</li>
+      <li>"내정보 → 탈퇴"를 통해 모든 개인정보를 영구 삭제할 수 있습니다.</li>
+    </ul>
+
+    <h4>7. 개인정보 보호책임자</h4>
+    <p>
+      ${escapeHtml(churchName)}<br/>
+      주소: ${escapeHtml(address)}<br/>
+      연락처: ${escapeHtml(phone)}<br/>
+      이메일: ${escapeHtml(email)}
+    </p>
+
+    <h4>8. 변경 고지</h4>
+    <p>본 방침은 법령 또는 서비스 변경 시 사전 공지 후 변경될 수 있습니다.</p>
+
+    <p style="margin-top:14px;color:var(--muted);font-size:12px;">시행일: ${escapeHtml(today)}</p>
+  `;
+
+  const acn = document.getElementById('authChurchName');
+  if (acn) acn.textContent = churchName;
 }
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     listenersAttached = false;
     state.uid = null;
+    state.userProfile = null;
+    showAuthScreen();
     return;
   }
+  hideAuthScreen();
   state.uid = user.uid;
+  // 프로필 정보 가져오기 (없어도 동작은 OK)
+  try {
+    const psnap = await get(ref(db, `users/${user.uid}`));
+    state.userProfile = psnap.exists() ? psnap.val() : { email: user.email, displayName: user.displayName || '' };
+  } catch {
+    state.userProfile = { email: user.email, displayName: user.displayName || '' };
+  }
+  applyProfile();
   await seedIfEmpty();
   attachListeners();
   loadMyPrayedFlags();
 });
+
+function applyProfile() {
+  const p = state.userProfile || {};
+  const nameEl = document.querySelector('#profileName');
+  const emailEl = document.querySelector('#profileEmail');
+  if (nameEl) nameEl.textContent = p.displayName || '성도님';
+  if (emailEl) emailEl.textContent = p.email || '';
+}
 
 // ===== 시드 (최초 1회만) =====
 async function seedIfEmpty() {
@@ -334,6 +546,7 @@ function applyChurchInfo() {
   const c = state.church || {};
   document.querySelectorAll('[data-church="name"]').forEach((el) => { el.textContent = c.name || '천안남산교회'; });
   applyLogo();
+  fillLegalModals();
   document.querySelectorAll('[data-church="pastor"]').forEach((el) => { el.textContent = c.pastor || ''; });
   document.querySelectorAll('[data-church="phone"]').forEach((el) => {
     el.textContent = c.phone || '';
@@ -1106,15 +1319,13 @@ if (localStorage.getItem('notifEnabled') === '1' && Notification.permission === 
 // ===== 그 외 =====
 // ===== 로그아웃 =====
 async function handleLogout() {
-  if (!confirm('로그아웃하시겠어요?\n\n익명 세션이 종료되고 "로그아웃 완료" 화면으로 이동합니다.\n(서버에 등록된 데이터는 그대로 남습니다)')) return;
+  if (!confirm('로그아웃하시겠어요?\n\n로그아웃하면 로그인 화면으로 돌아갑니다.\n(서버에 등록된 기도제목·신청 등은 다시 로그인 시 그대로 보입니다)')) return;
   try {
-    sessionStorage.setItem('justLoggedOut', '1');
     sessionStorage.removeItem('myAppIds');
-    await signOut(auth).catch(() => {});
-    location.reload();
+    await signOut(auth);
+    // onAuthStateChanged가 자동으로 #authScreen을 표시
   } catch (e) {
     console.error('[logout] 실패:', e);
-    sessionStorage.removeItem('justLoggedOut');
     toast('로그아웃 중 오류: ' + (e.code || e.message));
   }
 }
@@ -1181,12 +1392,35 @@ async function handleWithdraw() {
   ['myAppIds', 'attendName', 'uploaderName', 'easyMode', 'notifEnabled', 'installDismissed']
     .forEach((k) => { try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch {} });
 
-  // 7) Firebase Auth 익명 계정 삭제
+  // 7) /users/{uid} 프로필 삭제
+  ops.push(remove(ref(db, `users/${uid}`)).catch(() => {}));
+  await Promise.all(ops);
+
+  // 8) Firebase Auth 계정 삭제 (recent login 필요 — 실패 시 재인증 후 재시도)
   try {
     if (auth.currentUser) await deleteUser(auth.currentUser);
   } catch (e) {
-    console.warn('[withdraw] deleteUser 실패, signOut으로 대체:', e.code);
-    try { await signOut(auth); } catch {}
+    if (e.code === 'auth/requires-recent-login') {
+      const password = prompt('보안 확인을 위해 비밀번호를 다시 입력해주세요:');
+      if (password) {
+        try {
+          const cred = EmailAuthProvider.credential(auth.currentUser.email, password);
+          await reauthenticateWithCredential(auth.currentUser, cred);
+          await deleteUser(auth.currentUser);
+        } catch (e2) {
+          console.warn('[withdraw] 재인증 실패:', e2.code);
+          toast('비밀번호가 올바르지 않습니다. 다시 로그인 후 시도해주세요.');
+          await signOut(auth).catch(() => {});
+          return;
+        }
+      } else {
+        await signOut(auth).catch(() => {});
+        return;
+      }
+    } else {
+      console.warn('[withdraw] deleteUser 실패, signOut으로 대체:', e.code);
+      try { await signOut(auth); } catch {}
+    }
   }
 
   toast('탈퇴가 완료되었습니다');
@@ -1196,8 +1430,7 @@ async function handleWithdraw() {
 document.querySelectorAll('[data-action]').forEach((el) => {
   el.addEventListener('click', () => {
     const a = el.dataset.action;
-    if (a === 'login') toast('전화번호 인증은 다음 업데이트에서 추가됩니다');
-    else if (a === 'qr' || a === 'attendance') openCheckinModal();
+    if (a === 'qr' || a === 'attendance') openCheckinModal();
     else if (a === 'install') triggerInstall();
     else if (a === 'visit') openModal('visitModal');
     else if (a === 'newcomer') openModal('newcomerModal');
