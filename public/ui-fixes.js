@@ -71,6 +71,33 @@ function injectUiFixStyles() {
         justify-content: flex-end !important;
         min-height: 52px;
       }
+
+      /* 사이드바 상단 교회명 확대 */
+      html[data-admin-page] .sidebar .brand-title,
+      html[data-admin-page] .sidebar .brand-name,
+      html[data-admin-page] .sidebar .church-name,
+      html[data-admin-page] .sidebar .church-title,
+      html[data-admin-page] .sidebar .sidebar-title,
+      html[data-admin-page] .sidebar .sidebar-brand-title,
+      html[data-admin-page] .sidebar .admin-brand-title,
+      html[data-admin-page] .sidebar [id*="ChurchName"],
+      html[data-admin-page] .sidebar [id*="churchName"],
+      html[data-admin-page] .sidebar [class*="church-name"],
+      html[data-admin-page] .sidebar [class*="brand-title"],
+      html[data-admin-page] .sidebar [class*="brand-name"] {
+        font-size: 18px !important;
+        line-height: 1.25 !important;
+        font-weight: 900 !important;
+        letter-spacing: -0.55px !important;
+      }
+
+      html[data-admin-page] .sidebar h1,
+      html[data-admin-page] .sidebar h2 {
+        font-size: 18px !important;
+        line-height: 1.25 !important;
+        font-weight: 900 !important;
+        letter-spacing: -0.55px !important;
+      }
     }
   `;
   document.head.appendChild(style);
