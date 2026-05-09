@@ -1089,9 +1089,16 @@ async function fetchVerseText(ref) {
   return FALLBACK_VERSES[ref] || '주의 말씀을 묵상합시다.';
 }
 function getTodaysVerseRef() {
-  const start = new Date(new Date().getFullYear(), 0, 0);
-  const dayOfYear = Math.floor((Date.now() - start.getTime()) / 86400000);
-  return VERSE_REFS[dayOfYear % VERSE_REFS.length];
+  // 날짜를 시드로 한 의사 랜덤 — 모든 사용자가 같은 날엔 같은 절을 보지만
+  // 365개 중 어느 절이 뽑힐지는 예측 불가 (순환이 아닌 랜덤 느낌)
+  const d = new Date();
+  const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  // Mulberry32 변형 — 인접한 날짜가 인접한 인덱스를 안 뽑도록 hash 분산
+  let x = (seed ^ 0xdeadbeef) >>> 0;
+  x = Math.imul(x ^ (x >>> 16), 2246822507);
+  x = Math.imul(x ^ (x >>> 13), 3266489909);
+  x = (x ^ (x >>> 16)) >>> 0;
+  return VERSE_REFS[x % VERSE_REFS.length];
 }
 
 // 동기적으로 폴백 텍스트 반환 (즉시 표시용)
