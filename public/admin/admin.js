@@ -31,6 +31,7 @@ const state = {
   apps: [],
   admins: {},
   sermon: null,
+  sermonHistory: [],
   bulletins: [],
   church: {},
   services: [],
@@ -184,6 +185,12 @@ function attachListeners() {
     state.sermon = snap.val() || null;
     fillSermonForm();
   });
+  onValueWithError('sermons/history', (snap) => {
+    state.sermonHistory = [];
+    snap.forEach((c) => { state.sermonHistory.push({ id: c.key, ...c.val() }); });
+    state.sermonHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderSermonHistory();
+  });
   onValueWithError('bulletins', (snap) => {
     state.bulletins = [];
     snap.forEach((c) => { state.bulletins.push({ id: c.key, ...c.val() }); });
@@ -197,7 +204,7 @@ function attachListeners() {
   onValueWithError('config/services', (snap) => {
     state.services = [];
     snap.forEach((c) => { state.services.push({ id: c.key, ...c.val() }); });
-    state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
+    state.services.sort((a, b) => (svFirstDay(a) - svFirstDay(b)) || (a.time || '').localeCompare(b.time || ''));
     console.log('[svc] onValue →', state.services.length, '개:', state.services.map((s) => s.name).join(', '));
     renderServices();
   });
@@ -413,6 +420,60 @@ $('sermonSave').addEventListener('click', async () => {
   await set(ref(db, 'sermons/current'), data);
   alert('이번 주 설교가 저장되었습니다');
 });
+
+// ===== 지난 설교 =====
+function renderSermonHistory() {
+  const list = $('sermonHistoryList');
+  if (!list) return;
+  const arr = state.sermonHistory || [];
+  if (!arr.length) {
+    list.innerHTML = '<div class="empty">보관된 지난 설교가 없습니다 — 새 설교를 저장하면 자동 보관됩니다</div>';
+    return;
+  }
+  list.innerHTML = `<table><thead><tr><th>제목</th><th>본문</th><th>저장일</th><th>영상 ID</th><th></th></tr></thead><tbody>${
+    arr.map((s) => `
+      <tr>
+        <td><b>${escapeHtml(s.title || '제목 없음')}</b><br/><span style="color:var(--muted);font-size:11.5px;">${escapeHtml(s.meta || '')}</span></td>
+        <td style="font-size:12.5px;">${escapeHtml(s.verse || '-')}</td>
+        <td>${fmt(s.timestamp)}</td>
+        <td style="font-family:monospace;font-size:12px;">${escapeHtml(s.videoId || '-')}</td>
+        <td>
+          <button class="btn btn-sm" data-restore-sh="${s.id}">현재로 복원</button>
+          <button class="btn btn-sm danger" data-del-sh="${s.id}">삭제</button>
+        </td>
+      </tr>
+    `).join('')
+  }</tbody></table>`;
+  list.querySelectorAll('[data-restore-sh]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      const s = state.sermonHistory.find((x) => x.id === b.dataset.restoreSh);
+      if (!s) return;
+      if (!confirm(`"${s.title}"을 이번 주 설교로 복원하시겠어요?\n현재 이번 주 설교는 자동으로 지난 설교에 보관됩니다.`)) return;
+      try {
+        const cur = state.sermon;
+        const restored = { ...s };
+        delete restored.id;
+        restored.timestamp = Date.now();
+        if (cur && cur.title) {
+          await push(ref(db, 'sermons/history'), cur);
+        }
+        await set(ref(db, 'sermons/current'), restored);
+        await remove(ref(db, `sermons/history/${b.dataset.restoreSh}`));
+        alert('이번 주 설교로 복원되었습니다');
+      } catch (e) {
+        alert('복원 실패: ' + e.message);
+      }
+    });
+  });
+  list.querySelectorAll('[data-del-sh]').forEach((b) => {
+    b.addEventListener('click', async () => {
+      if (!confirm('이 지난 설교를 영구 삭제하시겠어요?')) return;
+      try {
+        await remove(ref(db, `sermons/history/${b.dataset.delSh}`));
+      } catch (e) { alert('삭제 실패: ' + e.message); }
+    });
+  });
+}
 
 // ===== 승인 대기 =====
 function renderApprove() {
@@ -793,6 +854,31 @@ function flashSaved(btn) {
 // ===== 예배 시간 =====
 const DAY_NAMES = ['일','월','화','수','목','금','토'];
 
+// 새 포맷 days[] 우선, 없으면 옛 day 단일 값으로 fallback
+function svDays(s) {
+  if (Array.isArray(s.days) && s.days.length) {
+    return s.days.map(Number).filter((d) => !isNaN(d));
+  }
+  const d = Number(s.day);
+  return isNaN(d) ? [] : [d];
+}
+function svFirstDay(s) {
+  const arr = svDays(s);
+  return arr.length ? Math.min(...arr) : 0;
+}
+function svFormatDays(s) {
+  const arr = svDays(s);
+  if (!arr.length) return '';
+  if (arr.length === 1) return `${DAY_NAMES[arr[0]]}요일`;
+  const sorted = [...new Set(arr)].sort((a, b) => a - b);
+  let isRange = true;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] !== sorted[i - 1] + 1) { isRange = false; break; }
+  }
+  if (isRange) return `${DAY_NAMES[sorted[0]]}~${DAY_NAMES[sorted[sorted.length - 1]]}`;
+  return sorted.map((d) => DAY_NAMES[d]).join('·');
+}
+
 function renderServices() {
   const list = $('serviceList');
   if (!list) return;
@@ -804,7 +890,7 @@ function renderServices() {
     state.services.map((s) => `
       <tr>
         <td><b>${escapeHtml(s.name)}</b></td>
-        <td>${DAY_NAMES[s.day]}요일 ${escapeHtml(s.time)}</td>
+        <td>${escapeHtml(svFormatDays(s))} ${escapeHtml(s.time)}</td>
         <td>${escapeHtml(s.place || '-')}</td>
         <td>
           <button class="btn btn-sm" data-edit-sv="${s.id}">수정</button>
@@ -829,12 +915,13 @@ function renderServices() {
 function editService(id) {
   const s = state.services.find((x) => x.id === id);
   if (!s) return;
+  // 기존 칩 선택 상태를 임시로 보관
+  const prevDays = getSelectedDays();
+  setSelectedDays(svDays(s));
   openEditModal({
-    title: '예배 시간 수정',
+    title: '예배 시간 수정 (요일은 위 칩에서 선택)',
     fields: [
       { id: 'name', label: '예배명', type: 'text', value: s.name },
-      { id: 'day', label: '요일', type: 'select', value: String(s.day),
-        options: [['0','일요일'],['1','월요일'],['2','화요일'],['3','수요일'],['4','목요일'],['5','금요일'],['6','토요일']] },
       { id: 'time', label: '시작 시간 (예: 11:00)', type: 'text', value: s.time },
       { id: 'place', label: '장소 (선택)', type: 'text', value: s.place || '' }
     ],
@@ -842,9 +929,12 @@ function editService(id) {
       const time = vals.time.trim();
       if (!vals.name.trim()) throw new Error('예배명을 입력하세요');
       if (!time) throw new Error('시작 시간을 입력하세요 (예: 11:00)');
+      const days = getSelectedDays();
+      if (!days.length) throw new Error('요일을 1개 이상 선택하세요');
       await update(ref(db, `config/services/${id}`), {
         name: vals.name.trim(),
-        day: parseInt(vals.day, 10),
+        days,
+        day: days[0],
         time,
         place: vals.place.trim()
       });
@@ -865,65 +955,67 @@ async function reloadServices() {
   const snap = await get(query(ref(db, 'config/services'), orderByChild('createdAt')));
   state.services = [];
   snap.forEach((c) => { state.services.push({ id: c.key, ...c.val() }); });
-  state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
+  state.services.sort((a, b) => (svFirstDay(a) - svFirstDay(b)) || (a.time || '').localeCompare(b.time || ''));
   console.log('[svc] reloaded', state.services.length, 'services:', state.services.map((s) => s.name).join(', '));
   renderServices();
   return state.services.length;
 }
 
+// 요일 칩 토글 + 프리셋
+function getSelectedDays() {
+  return Array.from(document.querySelectorAll('#svDayChips .day-chip.active'))
+    .map((b) => parseInt(b.dataset.day, 10))
+    .filter((n) => !isNaN(n))
+    .sort((a, b) => a - b);
+}
+function setSelectedDays(arr) {
+  const set = new Set((arr || []).map(Number));
+  document.querySelectorAll('#svDayChips .day-chip').forEach((b) => {
+    const d = parseInt(b.dataset.day, 10);
+    b.classList.toggle('active', set.has(d));
+  });
+}
+document.querySelectorAll('#svDayChips .day-chip').forEach((b) => {
+  b.addEventListener('click', () => b.classList.toggle('active'));
+});
+$('svDayPresetWeekday')?.addEventListener('click', () => setSelectedDays([1, 2, 3, 4, 5, 6]));
+$('svDayPresetWeekend')?.addEventListener('click', () => setSelectedDays([0, 6]));
+$('svDayPresetClear')?.addEventListener('click', () => setSelectedDays([]));
+
 $('svAdd')?.addEventListener('click', async () => {
   const name = $('svName').value.trim();
-  const day = parseInt($('svDay').value, 10);
+  const days = getSelectedDays();
   const time = $('svTime').value.trim();
   const place = $('svPlace').value.trim();
   if (!name) { setSvStatus('⚠️ 예배명을 입력하세요', 'var(--danger)'); return; }
+  if (!days.length) { setSvStatus('⚠️ 요일을 1개 이상 선택하세요', 'var(--danger)'); return; }
   if (!time) { setSvStatus('⚠️ 시작 시간을 입력하세요 (예: 11:00)', 'var(--danger)'); return; }
   const btn = $('svAdd');
   btn.disabled = true;
   btn.textContent = '저장 중...';
   setSvStatus('💾 저장 중...');
-  // Pre-flight: verify admin auth state at the moment of write
-  console.log('[svc] === svAdd 클릭 시점 진단 ===');
-  console.log('[svc] auth.currentUser:', auth.currentUser?.email, auth.currentUser?.uid);
-  console.log('[svc] state.isAdmin (클라이언트 플래그):', state.isAdmin);
   try {
-    const adminCheck = await get(ref(db, `admins/${auth.currentUser?.uid}`));
-    console.log('[svc] /admins/{내UID} 존재 여부:', adminCheck.exists(), adminCheck.val());
-    if (!adminCheck.exists()) {
-      setSvStatus(`❌ 관리자 권한 없음 — /admins/${auth.currentUser?.uid} 가 비어있음`, 'var(--danger)');
-      btn.disabled = false; btn.textContent = '예배 시간 추가';
-      return;
-    }
-  } catch (e) {
-    console.error('[svc] 관리자 확인 실패:', e.code, e.message);
-  }
-  try {
-    console.log('[svc] pushing:', { name, day, time, place });
     const ts = Date.now();
-    const newData = { name, day, time, place, createdAt: ts };
+    // days[]는 신규 포맷, day는 첫 번째 요일을 호환용으로 함께 저장
+    const newData = { name, days, day: days[0], time, place, createdAt: ts };
     const newRef = await push(ref(db, 'config/services'), newData);
-    console.log('[svc] pushed key:', newRef.key, '— path:', newRef.toString());
     $('svName').value = ''; $('svTime').value = ''; $('svPlace').value = '';
-    // Immediately reflect new item in UI without waiting for onValue to fire
+    setSelectedDays([]);
     if (!state.services.some((s) => s.id === newRef.key)) {
       state.services.push({ id: newRef.key, ...newData });
-      state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
+      state.services.sort((a, b) => (svFirstDay(a) - svFirstDay(b)) || (a.time || '').localeCompare(b.time || ''));
       renderServices();
     }
     setSvStatus(`✅ "${name}" 저장됨 — 검증 중...`, 'var(--primary)');
     $('serviceList').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    // Verify the data actually persisted to server (catches silent rule rejections)
     setTimeout(async () => {
       try {
         const verify = await get(newRef);
         if (!verify.exists()) {
-          console.error('[svc] ❌ 서버 검증 실패 — 데이터가 서버에 없습니다:', newRef.toString());
-          setSvStatus(`❌ 서버에 저장되지 않음 — 콘솔에서 PERMISSION_DENIED 등의 에러를 확인하세요`, 'var(--danger)');
-          // Roll back local state so UI matches server
+          setSvStatus(`❌ 서버에 저장되지 않음 — 콘솔 확인 필요`, 'var(--danger)');
           state.services = state.services.filter((s) => s.id !== newRef.key);
           renderServices();
         } else {
-          console.log('[svc] ✅ 서버 검증 OK:', verify.val());
           setSvStatus(`✅ "${name}" 저장 완료`, 'var(--primary)');
         }
       } catch (e) {

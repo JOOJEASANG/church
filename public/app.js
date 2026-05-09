@@ -75,6 +75,7 @@ const state = {
   hero: null,
   gallery: [],
   events: [],
+  sermonHistory: [],
   currentMonth: new Date()
 };
 
@@ -184,6 +185,13 @@ function attachListeners() {
     renderSermon(snap.val());
   });
 
+  onValueWithError('sermons/history', (snap) => {
+    state.sermonHistory = [];
+    snap.forEach((c) => { state.sermonHistory.push({ id: c.key, ...c.val() }); });
+    state.sermonHistory.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderSermonHistory();
+  });
+
   onValueWithError('bulletins', (snap) => {
     state.bulletins = [];
     snap.forEach((c) => { state.bulletins.push({ id: c.key, ...c.val() }); });
@@ -197,7 +205,7 @@ function attachListeners() {
   onValue(ref(db, 'config/services'), (snap) => {
     state.services = [];
     snap.forEach((c) => { state.services.push({ id: c.key, ...c.val() }); });
-    state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
+    state.services.sort((a, b) => (serviceFirstDay(a) - serviceFirstDay(b)) || (a.time || '').localeCompare(b.time || ''));
     console.log('[home] config/services →', state.services.length, '개:', state.services.map((s) => s.name).join(', '));
     renderServiceTimes();
   }, (err) => {
@@ -396,6 +404,32 @@ function formatHM(time) {
   return `${ampm} ${h12}:${String(mm).padStart(2, '0')}`;
 }
 
+function formatDays(s) {
+  // 새 포맷: days 배열 / 옛 포맷: day 단일
+  let arr = [];
+  if (Array.isArray(s.days) && s.days.length) {
+    arr = s.days.map(Number).filter((d) => !isNaN(d));
+  } else if (typeof s.day === 'number' || typeof s.day === 'string') {
+    const d = Number(s.day);
+    if (!isNaN(d)) arr = [d];
+  }
+  if (!arr.length) return '';
+  if (arr.length === 1) return `${DAY_NAMES_KO[arr[0]]}요일`;
+  const sorted = [...new Set(arr)].sort((a, b) => a - b);
+  // 연속 구간 검사
+  let isRange = true;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] !== sorted[i - 1] + 1) { isRange = false; break; }
+  }
+  if (isRange) return `${DAY_NAMES_KO[sorted[0]]}~${DAY_NAMES_KO[sorted[sorted.length - 1]]}`;
+  return sorted.map((d) => DAY_NAMES_KO[d]).join('·');
+}
+
+function serviceFirstDay(s) {
+  if (Array.isArray(s.days) && s.days.length) return Math.min(...s.days.map(Number));
+  return Number(s.day) || 0;
+}
+
 function renderServiceTimes() {
   const list = document.getElementById('serviceList');
   if (!list) return;
@@ -404,16 +438,19 @@ function renderServiceTimes() {
     list.innerHTML = '<div class="service-empty">예배 시간이 곧 안내됩니다</div>';
     return;
   }
-  list.innerHTML = services.map((s) => `
-    <div class="service-row">
-      <div>
-        <div class="service-day">${DAY_NAMES_KO[s.day]}요일</div>
-        <div class="service-name">${escapeHtml(s.name)}</div>
-        ${s.place ? `<div class="service-place">${escapeHtml(s.place)}</div>` : ''}
-      </div>
-      <div class="service-time">${formatHM(s.time)}</div>
-    </div>
-  `).join('');
+  list.innerHTML = `<table class="service-table">
+    <thead><tr><th class="col-day">요일</th><th class="col-name">예배명</th><th class="col-time">시간</th></tr></thead>
+    <tbody>${services.map((s) => `
+      <tr>
+        <td class="col-day">${escapeHtml(formatDays(s))}</td>
+        <td>
+          <div class="col-name">${escapeHtml(s.name)}</div>
+          ${s.place ? `<div class="col-place">${escapeHtml(s.place)}</div>` : ''}
+        </td>
+        <td class="col-time">${formatHM(s.time)}</td>
+      </tr>
+    `).join('')}</tbody>
+  </table>`;
 }
 
 // ===== 오늘의 말씀 =====
@@ -545,6 +582,65 @@ function renderSermon(s) {
     if (ph) ph.style.display = 'none';
   }
 }
+
+function renderSermonHistory() {
+  const feed = document.getElementById('sermonHistoryFeed');
+  if (!feed) return;
+  const list = state.sermonHistory || [];
+  if (!list.length) {
+    feed.innerHTML = '<div class="feed-card"><h3>아직 등록된 지난 설교가 없어요</h3><p>매주 새 설교가 등록되면 이전 설교가 자동으로 여기에 보관됩니다.</p></div>';
+    return;
+  }
+  feed.innerHTML = list.map((s) => {
+    const dateStr = s.timestamp ? new Date(s.timestamp).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+    return `<div class="feed-card sermon-history-card" data-sermon-id="${escapeHtml(s.id)}" style="cursor:pointer;">
+      <div style="font-size:11.5px;color:var(--muted);font-weight:600;margin-bottom:4px;">${escapeHtml(s.meta || dateStr)}</div>
+      <h3>${escapeHtml(s.title || '제목 없음')}</h3>
+      ${s.verse ? `<p style="color:var(--primary-dark);font-weight:700;font-size:13px;margin-top:4px;">${escapeHtml(s.verse)}</p>` : ''}
+      ${s.body ? `<p style="margin-top:6px;font-size:13px;color:var(--muted);">${escapeHtml((s.body || '').slice(0, 90))}${s.body.length > 90 ? '…' : ''}</p>` : ''}
+    </div>`;
+  }).join('');
+  feed.querySelectorAll('[data-sermon-id]').forEach((el) => {
+    el.addEventListener('click', () => openSermonViewer(el.dataset.sermonId));
+  });
+}
+
+function openSermonViewer(id) {
+  const s = (state.sermonHistory || []).find((x) => x.id === id);
+  if (!s) return;
+  const titleEl = document.getElementById('sermonViewerTitle');
+  const metaEl = document.getElementById('sermonViewerMeta');
+  const verseEl = document.getElementById('sermonViewerVerse');
+  const bodyEl = document.getElementById('sermonViewerBody');
+  const iframe = document.getElementById('sermonViewerFrame');
+  if (titleEl) titleEl.textContent = s.title || '설교';
+  if (metaEl) metaEl.textContent = s.meta || (s.timestamp ? new Date(s.timestamp).toLocaleDateString('ko-KR') : '');
+  if (verseEl) verseEl.textContent = s.verse || '';
+  if (bodyEl) bodyEl.textContent = s.body || '';
+  if (iframe) {
+    if (s.videoId && /^[a-zA-Z0-9_-]{6,}$/.test(s.videoId)) {
+      const params = new URLSearchParams({ rel: '0', modestbranding: '1' });
+      if (s.start) params.set('start', s.start);
+      if (s.end) params.set('end', s.end);
+      iframe.src = `https://www.youtube.com/embed/${s.videoId}?${params.toString()}`;
+    } else {
+      iframe.src = '';
+    }
+  }
+  openModal('sermonViewerModal');
+}
+
+// 모달 닫을 때 iframe src 비워서 영상 정지
+document.querySelector('[data-close="sermonViewerModal"]')?.addEventListener('click', () => {
+  const iframe = document.getElementById('sermonViewerFrame');
+  if (iframe) iframe.src = '';
+});
+document.getElementById('sermonViewerModal')?.addEventListener('click', (e) => {
+  if (e.target.id === 'sermonViewerModal') {
+    const iframe = document.getElementById('sermonViewerFrame');
+    if (iframe) iframe.src = '';
+  }
+});
 
 // ===== 재능나눔방 =====
 function renderRooms() {
