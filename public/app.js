@@ -33,7 +33,12 @@ const state = {
   gallery: [],
   events: [],
   sermonHistory: [],
+  posts: [],
+  postLikes: {},
+  currentPostId: null,
   editingPrayerId: null,
+  editingPostId: null,
+  pendingPostImage: null,
   currentMonth: new Date()
 };
 
@@ -306,6 +311,7 @@ onAuthStateChanged(auth, async (user) => {
   applyProfile();
   attachListeners();
   loadMyPrayedFlags();
+  loadMyPostLikes();
 });
 
 function applyProfile() {
@@ -471,6 +477,23 @@ function attachListeners() {
     if (state.currentTab === 'calendar') renderCalendar();
     else renderUpcomingEvents();
   });
+
+  onValueWithError('posts', (snap) => {
+    state.posts = [];
+    snap.forEach((c) => { state.posts.push({ id: c.key, ...c.val() }); });
+    state.posts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    renderPosts();
+    // 상세 모달이 열려있으면 해당 글의 좋아요/댓글 수 새로고침
+    if (state.currentPostId) {
+      const p = state.posts.find((x) => x.id === state.currentPostId);
+      if (p) {
+        const lc = document.getElementById('postDetailLikeCount');
+        const cc = document.getElementById('postDetailCommentCount');
+        if (lc) lc.textContent = p.likeCount || 0;
+        if (cc) cc.textContent = p.commentCount || 0;
+      }
+    }
+  });
 }
 
 function renderGallery() {
@@ -575,6 +598,22 @@ async function loadMyPrayedFlags() {
     });
   }
   renderPrayers();
+}
+
+async function loadMyPostLikes() {
+  if (!state.uid) return;
+  try {
+    const snap = await get(ref(db, 'postLikes'));
+    state.postLikes = {};
+    if (snap.exists()) {
+      snap.forEach((p) => {
+        if (p.child(state.uid).exists()) state.postLikes[p.key] = true;
+      });
+    }
+    renderPosts();
+  } catch (e) {
+    console.warn('[posts] postLikes 조회 실패:', e.code);
+  }
 }
 
 // ===== 탭 전환 =====
@@ -802,6 +841,294 @@ function timeAgo(ts) {
   const d = new Date(ts);
   return `${d.getMonth() + 1}월 ${d.getDate()}일`;
 }
+
+// ===== 나눔글 게시판 =====
+function renderPosts() {
+  const feed = document.getElementById('postFeed');
+  if (!feed) return;
+  const posts = state.posts || [];
+  if (!posts.length) {
+    feed.innerHTML = '<div class="feed-card"><h3>아직 등록된 나눔글이 없어요</h3><p>첫 글을 남겨주세요.</p></div>';
+    return;
+  }
+  feed.innerHTML = posts.map((p) => {
+    const liked = !!state.postLikes[p.id];
+    const thumb = safeImageUrl(p.imageUrl);
+    return `
+      <article class="post-card" data-post-id="${escapeHtml(p.id)}">
+        <div class="post-card-head">
+          <span class="pc-author">${escapeHtml(p.authorName || '익명')}</span>
+          <span class="pc-time">${timeAgo(p.timestamp)}</span>
+        </div>
+        <h3>${escapeHtml(p.title || '')}</h3>
+        ${thumb ? `<img class="pc-thumb" src="${escapeHtml(thumb)}" alt="" loading="lazy"/>` : ''}
+        <p class="pc-body">${escapeHtml(p.body || '')}</p>
+        <div class="post-card-foot">
+          <span class="${liked ? 'liked' : ''}">👍 ${p.likeCount || 0}</span>
+          <span>💬 ${p.commentCount || 0}</span>
+        </div>
+      </article>
+    `;
+  }).join('');
+  feed.querySelectorAll('[data-post-id]').forEach((el) => {
+    el.addEventListener('click', () => openPostDetail(el.dataset.postId));
+  });
+}
+
+// 글 작성 모달
+function openPostCompose(editId) {
+  const titleEl = document.querySelector('#postComposeModal .modal-head h3');
+  if (editId) {
+    const p = state.posts.find((x) => x.id === editId);
+    if (!p || p.authorUid !== state.uid) { toast('수정 권한이 없습니다'); return; }
+    state.editingPostId = editId;
+    document.getElementById('postTitleInput').value = p.title || '';
+    document.getElementById('postBodyInput').value = p.body || '';
+    document.getElementById('postSubmitBtn').textContent = '수정하기';
+    if (titleEl) titleEl.textContent = '나눔글 수정';
+  } else {
+    state.editingPostId = null;
+    document.getElementById('postTitleInput').value = '';
+    document.getElementById('postBodyInput').value = '';
+    document.getElementById('postSubmitBtn').textContent = '등록하기';
+    if (titleEl) titleEl.textContent = '새 나눔글';
+  }
+  document.getElementById('postImageInput').value = '';
+  document.getElementById('postImagePreview').style.display = 'none';
+  document.getElementById('postComposeProgress').textContent = '';
+  state.pendingPostImage = null;
+  openModal('postComposeModal');
+}
+
+document.querySelector('[data-modal="postComposeModal"]')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  openPostCompose(null);
+});
+
+document.getElementById('postImageInput')?.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) { state.pendingPostImage = null; document.getElementById('postImagePreview').style.display = 'none'; return; }
+  if (!file.type.startsWith('image/')) { toast('이미지 파일만 가능합니다'); e.target.value = ''; return; }
+  if (file.size > 8 * 1024 * 1024) { toast('파일 크기가 8MB를 초과합니다'); e.target.value = ''; return; }
+  state.pendingPostImage = file;
+  const url = URL.createObjectURL(file);
+  document.getElementById('postImagePreviewImg').src = url;
+  document.getElementById('postImagePreview').style.display = '';
+});
+document.getElementById('postImageRemove')?.addEventListener('click', () => {
+  state.pendingPostImage = null;
+  document.getElementById('postImageInput').value = '';
+  document.getElementById('postImagePreview').style.display = 'none';
+});
+
+document.getElementById('postSubmitBtn')?.addEventListener('click', async () => {
+  const title = document.getElementById('postTitleInput').value.trim();
+  const body = document.getElementById('postBodyInput').value.trim();
+  if (!title) { toast('제목을 입력해주세요'); return; }
+  if (!body) { toast('내용을 입력해주세요'); return; }
+  const btn = document.getElementById('postSubmitBtn');
+  const progress = document.getElementById('postComposeProgress');
+  btn.disabled = true;
+  try {
+    let imageUrl = '';
+    let storagePath = '';
+    if (state.pendingPostImage) {
+      progress.textContent = '사진 업로드 중...';
+      const ext = state.pendingPostImage.name.split('.').pop() || 'jpg';
+      storagePath = `posts/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+      const task = uploadBytesResumable(sRef(storage, storagePath), state.pendingPostImage, { contentType: state.pendingPostImage.type });
+      imageUrl = await new Promise((resolve, reject) => {
+        task.on('state_changed',
+          (s) => { progress.textContent = `사진 업로드 ${Math.round((s.bytesTransferred/s.totalBytes)*100)}%`; },
+          reject,
+          async () => { try { resolve(await getDownloadURL(task.snapshot.ref)); } catch (e) { reject(e); } }
+        );
+      });
+    }
+    progress.textContent = '저장 중...';
+    if (state.editingPostId) {
+      // 수정: title/body/image만 갱신, count·timestamp·authorUid 보존
+      const upd = { title, body, updatedAt: Date.now() };
+      if (imageUrl) {
+        upd.imageUrl = imageUrl;
+        upd.imageStoragePath = storagePath;
+        // 옛 사진 삭제
+        const old = state.posts.find((x) => x.id === state.editingPostId);
+        if (old?.imageStoragePath) {
+          deleteObject(sRef(storage, old.imageStoragePath)).catch(() => {});
+        }
+      }
+      await update(ref(db, `posts/${state.editingPostId}`), upd);
+      toast('나눔글이 수정되었습니다');
+    } else {
+      const newRef = await push(ref(db, 'posts'), {
+        title, body,
+        imageUrl: imageUrl || '',
+        imageStoragePath: storagePath || '',
+        authorUid: state.uid,
+        authorName: state.userProfile?.displayName || '성도',
+        likeCount: 0,
+        commentCount: 0,
+        timestamp: Date.now()
+      });
+      toast('나눔글이 등록되었습니다');
+    }
+    closeModal('postComposeModal');
+  } catch (e) {
+    console.error('[post-submit]', e);
+    progress.textContent = '❌ 실패: ' + (e.code || e.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// 글 상세 모달
+async function openPostDetail(id) {
+  const p = state.posts.find((x) => x.id === id);
+  if (!p) return;
+  state.currentPostId = id;
+  document.getElementById('postDetailTitle').textContent = p.title || '';
+  document.getElementById('postDetailAuthor').textContent = p.authorName || '익명';
+  document.getElementById('postDetailTime').textContent = p.timestamp ? new Date(p.timestamp).toLocaleString('ko-KR') : '';
+  document.getElementById('postDetailBody').textContent = p.body || '';
+  const img = document.getElementById('postDetailImg');
+  const u = safeImageUrl(p.imageUrl);
+  if (u) { img.src = u; img.style.display = ''; } else { img.style.display = 'none'; img.src = ''; }
+  document.getElementById('postDetailLikeCount').textContent = p.likeCount || 0;
+  document.getElementById('postDetailCommentCount').textContent = p.commentCount || 0;
+  // 좋아요 상태
+  const likeBtn = document.getElementById('postDetailLikeBtn');
+  likeBtn.classList.toggle('liked', !!state.postLikes[id]);
+  // 본인 글이면 수정/삭제 노출
+  const mine = p.authorUid === state.uid;
+  document.getElementById('postDetailEditBtn').style.display = mine ? '' : 'none';
+  document.getElementById('postDetailDelBtn').style.display = mine ? '' : 'none';
+  // 댓글 로드
+  loadPostComments(id);
+  openModal('postDetailModal');
+}
+
+async function loadPostComments(postId) {
+  const list = document.getElementById('postCommentsList');
+  if (!list) return;
+  list.innerHTML = '<div style="font-size:12.5px;color:var(--muted);text-align:center;padding:12px;">댓글을 불러오는 중...</div>';
+  try {
+    const snap = await get(ref(db, `postComments/${postId}`));
+    const arr = [];
+    if (snap.exists()) snap.forEach((c) => { arr.push({ id: c.key, ...c.val() }); });
+    arr.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    if (!arr.length) {
+      list.innerHTML = '<div style="font-size:12.5px;color:var(--muted);text-align:center;padding:12px;">첫 댓글을 남겨주세요</div>';
+      return;
+    }
+    list.innerHTML = arr.map((c) => {
+      const mine = c.authorUid === state.uid;
+      return `<div class="comment-item" data-comment-id="${escapeHtml(c.id)}">
+        <div class="comment-meta">
+          <span class="ca-author">${escapeHtml(c.authorName || '익명')}</span>
+          <span class="ca-time">${timeAgo(c.timestamp)}</span>
+          ${mine ? `<button class="ca-del" type="button" data-del-comment="${escapeHtml(c.id)}" title="삭제">🗑️</button>` : ''}
+        </div>
+        <div class="comment-body">${escapeHtml(c.body || '')}</div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('[data-del-comment]').forEach((b) => {
+      b.addEventListener('click', async () => {
+        if (!confirm('이 댓글을 삭제하시겠어요?')) return;
+        try {
+          await remove(ref(db, `postComments/${postId}/${b.dataset.delComment}`));
+          // commentCount 감소
+          const post = state.posts.find((x) => x.id === postId);
+          if (post) {
+            await update(ref(db, `posts/${postId}`), {
+              commentCount: Math.max(0, (post.commentCount || 0) - 1)
+            }).catch(() => {});
+          }
+          loadPostComments(postId);
+        } catch (e) { toast('댓글 삭제 실패: ' + (e.code || e.message)); }
+      });
+    });
+  } catch (e) {
+    list.innerHTML = `<div style="font-size:12.5px;color:var(--danger);padding:12px;">댓글 로드 실패: ${escapeHtml(e.code || e.message)}</div>`;
+  }
+}
+
+document.getElementById('postDetailLikeBtn')?.addEventListener('click', async () => {
+  const id = state.currentPostId;
+  if (!id) return;
+  const post = state.posts.find((x) => x.id === id);
+  if (!post) return;
+  const liked = !!state.postLikes[id];
+  try {
+    if (liked) {
+      // 취소
+      await remove(ref(db, `postLikes/${id}/${state.uid}`));
+      await update(ref(db, `posts/${id}`), { likeCount: Math.max(0, (post.likeCount || 0) - 1) });
+      delete state.postLikes[id];
+    } else {
+      await set(ref(db, `postLikes/${id}/${state.uid}`), true);
+      await update(ref(db, `posts/${id}`), { likeCount: (post.likeCount || 0) + 1 });
+      state.postLikes[id] = true;
+    }
+    document.getElementById('postDetailLikeBtn').classList.toggle('liked', !liked);
+    renderPosts();
+  } catch (e) { toast('실패: ' + (e.code || e.message)); }
+});
+
+document.getElementById('commentSubmit')?.addEventListener('click', async () => {
+  const id = state.currentPostId;
+  if (!id) return;
+  const input = document.getElementById('commentInput');
+  const body = input.value.trim();
+  if (!body) { toast('댓글 내용을 입력해주세요'); return; }
+  const post = state.posts.find((x) => x.id === id);
+  if (!post) return;
+  try {
+    await push(ref(db, `postComments/${id}`), {
+      body,
+      authorUid: state.uid,
+      authorName: state.userProfile?.displayName || '성도',
+      timestamp: Date.now()
+    });
+    await update(ref(db, `posts/${id}`), {
+      commentCount: (post.commentCount || 0) + 1
+    }).catch(() => {});
+    input.value = '';
+    loadPostComments(id);
+  } catch (e) { toast('댓글 등록 실패: ' + (e.code || e.message)); }
+});
+
+document.getElementById('postDetailEditBtn')?.addEventListener('click', () => {
+  const id = state.currentPostId;
+  if (!id) return;
+  closeModal('postDetailModal');
+  setTimeout(() => openPostCompose(id), 250);
+});
+
+document.getElementById('postDetailDelBtn')?.addEventListener('click', async () => {
+  const id = state.currentPostId;
+  const post = state.posts.find((x) => x.id === id);
+  if (!post || post.authorUid !== state.uid) return;
+  if (!confirm('이 나눔글을 삭제하시겠어요?\n\n댓글과 좋아요 기록도 함께 삭제됩니다.')) return;
+  try {
+    if (post.imageStoragePath) {
+      await deleteObject(sRef(storage, post.imageStoragePath)).catch(() => {});
+    }
+    await remove(ref(db, `posts/${id}`));
+    await remove(ref(db, `postLikes/${id}`)).catch(() => {});
+    await remove(ref(db, `postComments/${id}`)).catch(() => {});
+    closeModal('postDetailModal');
+    state.currentPostId = null;
+    toast('나눔글이 삭제되었습니다');
+  } catch (e) { toast('삭제 실패: ' + (e.code || e.message)); }
+});
+
+// 상세 모달이 닫히면 currentPostId 초기화
+document.querySelector('[data-close="postDetailModal"]')?.addEventListener('click', () => { state.currentPostId = null; });
+document.getElementById('postDetailModal')?.addEventListener('click', (e) => {
+  if (e.target.id === 'postDetailModal') state.currentPostId = null;
+});
 
 // ===== 공지 (홈 피드) =====
 function renderAnnouncements() {

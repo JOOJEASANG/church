@@ -95,6 +95,33 @@
       ".indexOn": ["date"]
     },
 
+    "posts": {
+      ".read": "auth != null",
+      ".indexOn": ["timestamp"],
+      "$id": {
+        ".write": "auth != null && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || data.child('authorUid').val() === auth.uid || root.child('admins').child(auth.uid).exists() || (data.exists() && newData.exists() && newData.child('title').val() === data.child('title').val() && newData.child('body').val() === data.child('body').val() && newData.child('authorUid').val() === data.child('authorUid').val() && newData.child('timestamp').val() === data.child('timestamp').val()))"
+      }
+    },
+
+    "postLikes": {
+      ".read": "auth != null",
+      "$postId": {
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
+    },
+
+    "postComments": {
+      ".read": "auth != null",
+      "$postId": {
+        ".indexOn": ["timestamp"],
+        "$commentId": {
+          ".write": "auth != null && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || data.child('authorUid').val() === auth.uid || root.child('admins').child(auth.uid).exists())"
+        }
+      }
+    },
+
     "_seed": {
       ".read": "auth != null",
       "$key": {
