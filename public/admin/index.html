@@ -123,6 +123,13 @@
       border-radius: 999px; padding: 1px 7px; min-width: 18px; text-align: center;
     }
     .nav-item.active .badge { background: white; color: var(--danger); }
+    .nav-section {
+      margin: 16px 0 4px 4px;
+      font-size: 10.5px; font-weight: 800;
+      color: var(--muted); letter-spacing: 0.6px;
+      text-transform: uppercase; opacity: 0.75;
+    }
+    .nav-section:first-child { margin-top: 8px; }
 
     .content { min-width: 0; }
     .panel {
@@ -298,16 +305,22 @@
   <div class="layout">
     <aside class="sidebar">
       <div class="nav-item active" data-pane="dash"><span class="ico">📊</span>대시보드</div>
-      <div class="nav-item" data-pane="church"><span class="ico">⛪</span>교회 정보</div>
+
+      <div class="nav-section">콘텐츠</div>
       <div class="nav-item" data-pane="ann"><span class="ico">📢</span>공지사항</div>
       <div class="nav-item" data-pane="sermon"><span class="ico">📖</span>설교 영상</div>
       <div class="nav-item" data-pane="bulletin"><span class="ico">📄</span>주보</div>
-      <div class="nav-item" data-pane="gallery"><span class="ico">🖼️</span>갤러리</div>
       <div class="nav-item" data-pane="events"><span class="ico">📅</span>교회 일정</div>
+      <div class="nav-item" data-pane="gallery"><span class="ico">🖼️</span>갤러리</div>
+
+      <div class="nav-section">교인 활동</div>
       <div class="nav-item" data-pane="approve"><span class="ico">✅</span>승인 대기 <span class="badge" id="badgeApprove" style="display:none;">0</span></div>
       <div class="nav-item" data-pane="apps"><span class="ico">📋</span>신청 내역</div>
-      <div class="nav-item" data-pane="prayers"><span class="ico">🙏</span>기도제목</div>
       <div class="nav-item" data-pane="rooms"><span class="ico">🤝</span>재능나눔방</div>
+      <div class="nav-item" data-pane="prayers"><span class="ico">🙏</span>기도제목</div>
+
+      <div class="nav-section">설정</div>
+      <div class="nav-item" data-pane="church"><span class="ico">⛪</span>교회 정보</div>
       <div class="nav-item" data-pane="staff"><span class="ico">👤</span>관리자</div>
     </aside>
 

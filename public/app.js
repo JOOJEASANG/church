@@ -323,7 +323,7 @@ function attachListeners() {
     state.rooms = [];
     snap.forEach((c) => { state.rooms.push({ id: c.key, ...c.val() }); });
     state.rooms.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    if (state.currentTab === 'share') renderRooms();
+    if (state.currentTab === 'community') renderRooms();
   });
 
   onValueWithError('prayers', (snap) => {
@@ -500,11 +500,14 @@ async function loadMyPrayedFlags() {
 // ===== 탭 전환 =====
 function switchTab(name) {
   state.currentTab = name;
+  // 옛 라우팅 호환: prayer/share → community
+  if (name === 'prayer' || name === 'share') name = 'community';
+  state.currentTab = name;
   document.querySelectorAll('.tab-pane').forEach((p) => p.classList.remove('active'));
   document.getElementById('tab-' + name)?.classList.add('active');
   document.querySelectorAll('.tabbar-item').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   window.scrollTo({ top: 0, behavior: 'instant' });
-  if (name === 'share') renderRooms();
+  if (name === 'community') renderRooms();
   if (name === 'calendar') renderCalendar();
   const url = new URL(location.href);
   url.searchParams.set('tab', name);
@@ -516,6 +519,15 @@ document.querySelectorAll('.tabbar-item').forEach((btn) => {
 });
 document.querySelectorAll('[data-go]').forEach((el) => {
   el.addEventListener('click', () => switchTab(el.dataset.go));
+});
+
+// 공동체 탭 안 서브탭 (기도제목 / 재능나눔 / 교회 신청)
+document.querySelectorAll('[data-ctab]').forEach((b) => {
+  b.addEventListener('click', () => {
+    const target = b.dataset.ctab;
+    document.querySelectorAll('[data-ctab]').forEach((x) => x.classList.toggle('active', x === b));
+    document.querySelectorAll('[data-cpane]').forEach((p) => p.classList.toggle('active', p.dataset.cpane === target));
+  });
 });
 
 const params = new URLSearchParams(location.search);
