@@ -16,51 +16,6 @@ import {
   ref as sRef, uploadBytesResumable, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
 
-// ----- 시드 데이터 (DB 비어있을 때 1회만) -----
-const SEED_ROOMS = [
-  { title: '기타 기초 배우기', category: '음악', target: '중고등부', teacher: '김OO 집사',
-    schedule: '토요일 오후 2시', place: '교육관 2층', capacity: 5, joined: 3, status: '모집중',
-    desc: '찬양팀을 꿈꾸는 학생들을 위한 기타 기초반입니다.', approved: true },
-  { title: '스마트폰 사용 도움방', category: '어르신 도움', target: '어르신', teacher: '청년부 봉사팀',
-    schedule: '주일 점심 후', place: '친교실', capacity: 10, joined: 6, status: '모집중',
-    desc: '카카오톡, 사진 보내기, 병원 예약 앱 사용을 함께 배웁니다.', approved: true },
-  { title: '영어 숙제 도움방', category: '학습', target: '주일학교', teacher: '이OO 선생님',
-    schedule: '수요일 오후 5시', place: '소그룹실 A', capacity: 6, joined: 5, status: '모집중',
-    desc: '초등부 아이들의 영어 숙제와 기초 단어를 도와줍니다.', approved: true },
-  { title: '영상편집 기초반', category: '디지털', target: '중고등부', teacher: '미디어팀',
-    schedule: '토요일 오전 10시', place: '미디어실', capacity: 8, joined: 8, status: '마감',
-    desc: '휴대폰과 무료 프로그램으로 짧은 영상을 만드는 방법을 배웁니다.', approved: true },
-  { title: '토요 축구교실', category: '운동', target: '중고등부', teacher: '정OO 집사',
-    schedule: '토요일 오후 4시', place: '인근 운동장', capacity: 12, joined: 7, status: '모집중',
-    desc: '운동과 교제를 함께하는 중고등부 축구 모임입니다.', approved: true },
-  { title: '성경 필사 모임', category: '신앙', target: '전교인', teacher: '전도회 연합',
-    schedule: '매주 금요일 오전', place: '본당 로비', capacity: 20, joined: 11, status: '모집중',
-    desc: '천천히 말씀을 쓰며 묵상하는 전교인 모임입니다.', approved: true }
-];
-
-const SEED_PRAYERS = [
-  { name: '김OO 권사', type: '공개', text: '수술 후 회복 중인 가족을 위해 함께 기도해주세요.', count: 12 },
-  { name: '익명', type: '익명 공개', text: '자녀의 진로와 믿음 생활을 위해 기도 부탁드립니다.', count: 8 },
-  { name: '박OO 집사', type: '감사', text: '기도해주신 덕분에 치료 결과가 좋게 나왔습니다. 감사합니다.', count: 19 }
-];
-
-const SEED_ANNOUNCEMENTS = [
-  { tag: 'urgent', title: '이번 주 예배 안내', body: '주일예배 오전 11시, 수요예배 오후 7시 30분에 드립니다.' },
-  { tag: 'event', title: '야외예배 신청', body: '참석 인원과 차량 이용 여부를 함께 신청해주세요. (5월 12일 마감)' },
-  { tag: 'notice', title: '식사봉사 3명 모집', body: '주일 점심 준비와 정리를 도와주실 성도를 기다립니다.' }
-];
-
-const SEED_SERMON = {
-  title: '서로 사랑하라',
-  verse: '요한복음 13장 34절',
-  meta: '2026년 5월 첫째 주 · 담임목사 설교',
-  body: '예수님이 주신 새 계명은 서로 사랑하는 삶입니다. 이번 주에는 가족, 이웃, 교회 안의 한 사람에게 먼저 연락하고 섬기는 실천을 해봅니다.',
-  practice: '한 사람에게 먼저 안부 연락하기',
-  question: '이번 주 내가 사랑으로 섬길 사람은 누구인가요?',
-  videoId: '',
-  start: 0,
-  end: 0
-};
 
 // ----- 상태 -----
 const state = {
@@ -312,6 +267,8 @@ onAuthStateChanged(auth, async (user) => {
     listenersAttached = false;
     state.uid = null;
     state.userProfile = null;
+    // 로그아웃 시 열려있는 모든 모달 닫기 (잘못된 uid로 폼 제출 방지)
+    document.querySelectorAll('.modal-bg.show').forEach((m) => closeModal(m.id));
     showAuthScreen();
     return;
   }
@@ -337,44 +294,6 @@ function applyProfile() {
   if (emailEl) emailEl.textContent = p.email || '';
 }
 
-// ===== 시드 (최초 1회만) =====
-async function seedIfEmpty() {
-  try {
-    const seeded = await get(ref(db, '_seed/v1'));
-    if (seeded.exists()) return;
-
-    const [roomsSnap, prayersSnap, annSnap, sermonSnap] = await Promise.all([
-      get(ref(db, 'rooms')),
-      get(ref(db, 'prayers')),
-      get(ref(db, 'announcements')),
-      get(ref(db, 'sermons/current'))
-    ]);
-
-    const writes = [];
-    if (!roomsSnap.exists()) {
-      SEED_ROOMS.forEach((r, i) => {
-        writes.push(push(ref(db, 'rooms'), { ...r, timestamp: Date.now() - (SEED_ROOMS.length - i) * 1000, createdBy: 'system' }));
-      });
-    }
-    if (!prayersSnap.exists()) {
-      SEED_PRAYERS.forEach((p, i) => {
-        writes.push(push(ref(db, 'prayers'), { ...p, timestamp: Date.now() - (SEED_PRAYERS.length - i) * 1000, createdBy: 'system' }));
-      });
-    }
-    if (!annSnap.exists()) {
-      SEED_ANNOUNCEMENTS.forEach((a, i) => {
-        writes.push(push(ref(db, 'announcements'), { ...a, timestamp: Date.now() - (SEED_ANNOUNCEMENTS.length - i) * 1000 }));
-      });
-    }
-    if (!sermonSnap.exists()) {
-      writes.push(set(ref(db, 'sermons/current'), { ...SEED_SERMON, timestamp: Date.now() }));
-    }
-    await Promise.all(writes);
-    await set(ref(db, '_seed/v1'), Date.now());
-  } catch (e) {
-    console.warn('시드 실패 (보안 규칙 확인 필요):', e.message);
-  }
-}
 
 // ===== 실시간 리스너 =====
 let listenersAttached = false;
@@ -447,7 +366,6 @@ function attachListeners() {
     state.services = [];
     snap.forEach((c) => { state.services.push({ id: c.key, ...c.val() }); });
     state.services.sort((a, b) => (serviceFirstDay(a) - serviceFirstDay(b)) || (a.time || '').localeCompare(b.time || ''));
-    console.log('[home] config/services →', state.services.length, '개:', state.services.map((s) => s.name).join(', '));
     renderServiceTimes();
   }, (err) => {
     console.error('[home] config/services 읽기 실패:', err.code || err.message, err);
@@ -1055,7 +973,8 @@ function openPrayerEdit(id) {
   const p = (state.prayers || []).find((x) => x.id === id);
   if (!p || p.createdBy !== state.uid) { toast('수정 권한이 없습니다'); return; }
   state.editingPrayerId = id;
-  document.getElementById('pName').value = p.name || '';
+  // 익명 공개 글은 이름이 '익명'으로 저장돼있으므로 그대로 prefill, 다른 경우만 실제 이름
+  document.getElementById('pName').value = (p.type === '익명 공개') ? '' : (p.name || '');
   document.getElementById('pType').value = p.type || '공개';
   document.getElementById('pText').value = p.text || '';
   // 모달 헤더와 버튼 라벨 변경
@@ -1085,6 +1004,8 @@ async function deleteMyPrayer(id) {
 
 async function prayFor(prayerId) {
   if (!state.uid) { toast('잠시 후 다시 시도해주세요'); return; }
+  const prayer = (state.prayers || []).find((x) => x.id === prayerId);
+  if (prayer?.createdBy === state.uid) { toast('자신이 올린 기도제목입니다'); return; }
   if (state.prayedBy[prayerId]) { toast('이미 기도에 참여하셨어요'); return; }
 
   try {
@@ -1385,15 +1306,15 @@ async function handleWithdraw() {
   // 5) FCM 토큰
   ops.push(remove(ref(db, `fcmTokens/${uid}`)).catch(() => {}));
 
+  // 6) /users/{uid} 프로필 삭제
+  ops.push(remove(ref(db, `users/${uid}`)).catch(() => {}));
+
+  // 모든 RTDB 삭제를 한 번에 await
   await Promise.all(ops);
 
-  // 6) 로컬 저장소 정리
+  // 7) 로컬 저장소 정리
   ['myAppIds', 'attendName', 'uploaderName', 'easyMode', 'notifEnabled', 'installDismissed']
     .forEach((k) => { try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch {} });
-
-  // 7) /users/{uid} 프로필 삭제
-  ops.push(remove(ref(db, `users/${uid}`)).catch(() => {}));
-  await Promise.all(ops);
 
   // 8) Firebase Auth 계정 삭제 (recent login 필요 — 실패 시 재인증 후 재시도)
   try {
@@ -1629,12 +1550,28 @@ function openAnnouncementsList() {
 
 // ===== 출석 체크인 =====
 function openCheckinModal() {
-  const sel = document.getElementById('ciService');
+  const wrap = document.getElementById('ciServices');
   const services = state.services || [];
-  if (sel) {
-    sel.innerHTML = services.length
-      ? services.map((s) => `<option value="${escapeHtml(s.id)}">${DAY_NAMES_KO[s.day]}요일 ${escapeHtml(s.name)} · ${formatHM(s.time)}</option>`).join('')
-      : '<option value="">예배 정보가 없어요</option>';
+  if (wrap) {
+    if (!services.length) {
+      wrap.innerHTML = '<div style="padding:18px 12px;text-align:center;color:var(--muted);font-size:13px;">예배 정보가 아직 등록되지 않았어요</div>';
+    } else {
+      wrap.innerHTML = services.map((s) => `
+        <label class="checkin-option">
+          <input type="checkbox" value="${escapeHtml(s.id)}"/>
+          <div class="co-info">
+            <div class="co-name">${escapeHtml(s.name)}</div>
+            <div class="co-meta">${escapeHtml(formatDays(s))} · ${escapeHtml(formatHM(s.time))}${s.place ? ' · ' + escapeHtml(s.place) : ''}</div>
+          </div>
+        </label>
+      `).join('');
+      // 체크 시각 효과
+      wrap.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+        cb.addEventListener('change', () => {
+          cb.closest('.checkin-option').classList.toggle('checked', cb.checked);
+        });
+      });
+    }
   }
   const ciName = document.getElementById('ciName');
   if (ciName) ciName.value = localStorage.getItem('attendName') || '';
@@ -1645,26 +1582,39 @@ function openCheckinModal() {
 
 document.getElementById('ciSubmit')?.addEventListener('click', async () => {
   const name = document.getElementById('ciName')?.value.trim();
-  const serviceId = document.getElementById('ciService')?.value;
+  const checked = Array.from(document.querySelectorAll('#ciServices input[type="checkbox"]:checked'))
+    .map((cb) => cb.value);
   const status = document.getElementById('ciStatus');
   if (!name) { if (status) { status.textContent = '이름을 입력해주세요'; status.style.color = '#c44'; } return; }
-  if (!serviceId) { if (status) { status.textContent = '예배를 선택해주세요'; status.style.color = '#c44'; } return; }
+  if (!checked.length) { if (status) { status.textContent = '예배를 1개 이상 선택해주세요'; status.style.color = '#c44'; } return; }
   const today = new Date().toISOString().slice(0, 10);
-  const service = (state.services || []).find((s) => s.id === serviceId);
+  const services = state.services || [];
+  const btn = document.getElementById('ciSubmit');
+  if (btn) { btn.disabled = true; btn.textContent = '체크 중...'; }
+  if (status) { status.textContent = '💾 저장 중...'; status.style.color = ''; }
   try {
-    const newRef = await push(ref(db, 'applications'), {
-      kind: '출석', name,
-      date: today,
-      serviceId,
-      serviceName: service ? `${DAY_NAMES_KO[service.day]}요일 ${service.name}` : '',
-      userUid: state.uid, timestamp: Date.now()
-    });
-    recordMyApplication(newRef.key);
+    // 선택한 예배별로 출석 entry를 따로 push (관리자 통계 집계 편의)
+    const results = await Promise.all(checked.map((serviceId) => {
+      const service = services.find((s) => s.id === serviceId);
+      return push(ref(db, 'applications'), {
+        kind: '출석', name,
+        date: today,
+        serviceId,
+        serviceName: service ? `${formatDays(service)} ${service.name}` : '',
+        userUid: state.uid, timestamp: Date.now()
+      });
+    }));
+    results.forEach((r) => recordMyApplication(r.key));
     localStorage.setItem('attendName', name);
-    if (status) { status.textContent = `✅ ${today} 참석이 기록되었습니다`; status.style.color = 'var(--primary)'; }
-    setTimeout(() => closeModal('checkinModal'), 1200);
+    if (status) {
+      status.textContent = `✅ ${today} ${checked.length}개 예배 참석이 기록되었습니다`;
+      status.style.color = 'var(--primary)';
+    }
+    setTimeout(() => closeModal('checkinModal'), 1500);
   } catch (e) {
-    if (status) { status.textContent = '저장 실패: ' + e.message; status.style.color = '#c44'; }
+    if (status) { status.textContent = '저장 실패: ' + (e.code || e.message); status.style.color = '#c44'; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '체크하기'; }
   }
 });
 

@@ -693,6 +693,36 @@
     .list-row p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; font-weight: 400; }
     .list-empty { padding: 40px 16px; text-align: center; color: var(--muted); font-weight: 500; font-size: 13px; }
 
+    /* 예배 체크 — 다중선택 옵션 */
+    .checkin-options {
+      display: flex; flex-direction: column; gap: 8px;
+      margin-top: 6px;
+    }
+    .checkin-option {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      background: var(--bg);
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .checkin-option:hover { border-color: var(--primary); }
+    .checkin-option input[type="checkbox"] {
+      width: 20px; height: 20px;
+      accent-color: var(--primary);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .checkin-option.checked {
+      background: var(--green-soft);
+      border-color: var(--primary);
+    }
+    .checkin-option .co-info { flex: 1; min-width: 0; }
+    .checkin-option .co-name { font-size: 14px; font-weight: 700; color: var(--text); }
+    .checkin-option .co-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .checkin-option.checked .co-name { color: var(--primary-dark); }
+
     /* 내 신청 내역 — 행 + 삭제 버튼 */
     .list-row[data-app-id] { display: flex; gap: 12px; align-items: flex-start; }
     .list-row[data-app-id] .list-row-main { flex: 1; min-width: 0; }
@@ -1753,11 +1783,11 @@
         <h3>예배 체크</h3>
         <button class="close-btn" data-close="checkinModal" type="button">×</button>
       </div>
-      <p style="font-size:13.5px;color:var(--muted);margin:4px 0 14px;font-weight:500;">참석하신 예배를 선택해주세요. 오늘 참석이 기록됩니다.</p>
+      <p style="font-size:13.5px;color:var(--muted);margin:4px 0 14px;font-weight:500;">참석하신 예배를 <b>여러 개</b> 선택할 수 있어요. 오늘 참석이 기록됩니다.</p>
       <label>이름</label>
       <input class="field" id="ciName" placeholder="예: 홍길동"/>
-      <label>예배 선택</label>
-      <select class="select" id="ciService"></select>
+      <label>예배 선택 (다중 선택 가능)</label>
+      <div id="ciServices" class="checkin-options"></div>
       <button class="submit-btn" type="button" id="ciSubmit">체크하기</button>
       <div id="ciStatus" style="margin-top:10px;font-size:13px;font-weight:600;text-align:center;"></div>
     </div>

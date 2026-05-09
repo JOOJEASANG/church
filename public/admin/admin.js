@@ -153,28 +153,24 @@ function attachListeners() {
     state.rooms = [];
     snap.forEach((c) => { state.rooms.push({ id: c.key, ...c.val() }); });
     state.rooms.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    console.log(`[admin] rooms onValue: snap.numChildren=${snap.numChildren()} state.rooms.length=${state.rooms.length}`);
     renderApprove(); renderRooms(); renderStats();
   });
   onValueWithError('prayers', (snap) => {
     state.prayers = [];
     snap.forEach((c) => { state.prayers.push({ id: c.key, ...c.val() }); });
     state.prayers.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    console.log(`[admin] prayers onValue: snap.numChildren=${snap.numChildren()} state.prayers.length=${state.prayers.length}`);
     renderPrayers(); renderStats(); renderRecent();
   });
   onValueWithError('announcements', (snap) => {
     state.announcements = [];
     snap.forEach((c) => { state.announcements.push({ id: c.key, ...c.val() }); });
     state.announcements.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    console.log(`[admin] announcements onValue: snap.numChildren=${snap.numChildren()} state.announcements.length=${state.announcements.length}`);
     renderAnnouncements(); renderStats();
   });
   onValueWithError('applications', (snap) => {
     state.apps = [];
     snap.forEach((c) => { state.apps.push({ id: c.key, ...c.val() }); });
     state.apps.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    console.log(`[admin] applications onValue: snap.numChildren=${snap.numChildren()} state.apps.length=${state.apps.length}`);
     renderApps(); renderStats(); renderRecent();
   });
   onValueWithError('admins', (snap) => {
@@ -205,7 +201,6 @@ function attachListeners() {
     state.services = [];
     snap.forEach((c) => { state.services.push({ id: c.key, ...c.val() }); });
     state.services.sort((a, b) => (svFirstDay(a) - svFirstDay(b)) || (a.time || '').localeCompare(b.time || ''));
-    console.log('[svc] onValue →', state.services.length, '개:', state.services.map((s) => s.name).join(', '));
     renderServices();
   });
   onValueWithError('config/hero', (snap) => {
@@ -985,13 +980,11 @@ function setSvStatus(msg, color = 'var(--muted)') {
 }
 
 async function reloadServices() {
-  console.log('[svc] reloading from /config/services ...');
   // query() forces a fresh server read even when an onValue listener is active
   const snap = await get(query(ref(db, 'config/services'), orderByChild('createdAt')));
   state.services = [];
   snap.forEach((c) => { state.services.push({ id: c.key, ...c.val() }); });
   state.services.sort((a, b) => (svFirstDay(a) - svFirstDay(b)) || (a.time || '').localeCompare(b.time || ''));
-  console.log('[svc] reloaded', state.services.length, 'services:', state.services.map((s) => s.name).join(', '));
   renderServices();
   return state.services.length;
 }
