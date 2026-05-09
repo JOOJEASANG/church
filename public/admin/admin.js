@@ -838,19 +838,35 @@ if (bulDateInput && !bulDateInput.value) bulDateInput.value = todayStr();
 $('bulUpload').addEventListener('click', async () => {
   const title = $('bulTitle').value.trim();
   const date = $('bulDate').value || todayStr();
-  const file = $('bulFile').files[0];
+  const original = $('bulFile').files[0];
   if (!title) { alert('제목을 입력해주세요'); return; }
-  if (!file) { alert('파일을 선택해주세요'); return; }
-  if (file.size > 20 * 1024 * 1024) { alert('파일 크기는 20MB 이하만 가능합니다'); return; }
+  if (!original) { alert('파일을 선택해주세요'); return; }
+  if (original.size > 20 * 1024 * 1024) { alert('파일 크기는 20MB 이하만 가능합니다'); return; }
 
+  const progress = $('bulProgress');
+  $('bulUpload').disabled = true;
+
+  // 이미지면 자동 리사이즈 (주보는 텍스트 가독성 중요 → 긴 변 2000px / 품질 0.88)
+  let file = original;
+  try {
+    if (original.type.startsWith('image/') && original.type !== 'image/gif') {
+      progress.textContent = '🔄 이미지 최적화 중...';
+      file = await resizeImage(original, { maxDim: 2000, quality: 0.88 });
+      const beforeKB = Math.round(original.size / 1024);
+      const afterKB = Math.round(file.size / 1024);
+      progress.textContent = `✓ 이미지 최적화: ${humanSize(original.size)} → ${humanSize(file.size)} (${beforeKB > afterKB ? -Math.round((1 - afterKB / beforeKB) * 100) + '%' : '유지'})`;
+    }
+  } catch (e) {
+    console.warn('[bulletin] 이미지 리사이즈 실패, 원본으로 업로드:', e.message);
+    file = original;
+  }
+
+  // 리사이즈 결과 확장자 반영
   const ext = file.name.split('.').pop().toLowerCase();
   const safeName = `${date.replaceAll('-', '')}-${Date.now()}.${ext}`;
   const path = `bulletins/${safeName}`;
   const storageRef = sRef(storage, path);
   const task = uploadBytesResumable(storageRef, file, { contentType: file.type });
-
-  const progress = $('bulProgress');
-  $('bulUpload').disabled = true;
 
   task.on('state_changed',
     (snap) => {
