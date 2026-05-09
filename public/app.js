@@ -1755,19 +1755,32 @@ document.getElementById('rSubmit')?.addEventListener('click', async () => {
 });
 
 // ===== 봉사 신청 =====
+// 종류가 '기타'면 직접 입력 필드 표시
+document.getElementById('vKind')?.addEventListener('change', (e) => {
+  const wrap = document.getElementById('vKindOtherWrap');
+  if (wrap) wrap.style.display = e.target.value === '기타' ? '' : 'none';
+});
+
 document.getElementById('vSubmit')?.addEventListener('click', async () => {
   const name = document.getElementById('vName').value.trim();
   if (!name) { toast('이름을 입력해주세요'); return; }
+  let type = document.getElementById('vKind').value;
+  if (type === '기타') {
+    const other = document.getElementById('vKindOther').value.trim();
+    if (!other) { toast('기타 봉사 내용을 입력해주세요'); return; }
+    type = `기타 (${other})`;
+  }
   try {
     const newRef = await push(ref(db, 'applications'), {
       kind: '봉사', name,
       phone: document.getElementById('vPhone').value.trim(),
-      type: document.getElementById('vKind').value,
+      type,
       time: document.getElementById('vTime').value.trim(),
       userUid: state.uid, timestamp: Date.now()
     });
     recordMyApplication(newRef.key);
-    ['vName','vPhone','vTime'].forEach((i) => { const e = document.getElementById(i); if (e) e.value = ''; });
+    ['vName','vPhone','vTime','vKindOther'].forEach((i) => { const e = document.getElementById(i); if (e) e.value = ''; });
+    document.getElementById('vKindOtherWrap').style.display = 'none';
     closeModal('volunteerModal');
     toast('봉사 신청이 접수되었습니다');
   } catch (e) {

@@ -1916,9 +1916,22 @@
       <input class="field" id="vPhone" placeholder="010-0000-0000" data-format="phone"/>
       <label>봉사 종류</label>
       <select class="select" id="vKind">
-        <option>식사봉사</option><option>주차봉사</option><option>차량봉사</option>
-        <option>찬양팀</option><option>미디어</option><option>청소</option>
+        <option>식사봉사</option>
+        <option>주차봉사</option>
+        <option>차량봉사</option>
+        <option>안내봉사</option>
+        <option>새가족 섬김</option>
+        <option>찬양팀</option>
+        <option>미디어</option>
+        <option>음향</option>
+        <option>청소</option>
+        <option>주일학교 교사</option>
+        <option>기타</option>
       </select>
+      <div id="vKindOtherWrap" style="display:none;">
+        <label>기타 봉사 내용</label>
+        <input class="field" id="vKindOther" placeholder="예: 도서관 정리, 화단 가꾸기 등"/>
+      </div>
       <label>가능 시간</label>
       <input class="field" id="vTime" placeholder="예: 주일 오전"/>
       <button class="submit-btn" type="button" id="vSubmit">신청하기</button>
