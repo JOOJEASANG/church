@@ -550,8 +550,17 @@ function openModal(id) {
   document.body.style.overflow = 'hidden';
 }
 function closeModal(id) {
-  document.getElementById(id)?.classList.remove('show');
+  const m = document.getElementById(id);
+  if (!m) return;
+  m.classList.remove('show');
   document.body.style.overflow = '';
+  // 보안: 비밀번호 필드 자동 초기화
+  m.querySelectorAll('input[type="password"]').forEach((i) => { i.value = ''; });
+  // sermon viewer는 iframe 정지
+  if (id === 'sermonViewerModal') {
+    const f = m.querySelector('iframe');
+    if (f) f.src = '';
+  }
 }
 document.querySelectorAll('[data-modal]').forEach((el) => {
   el.addEventListener('click', (e) => { e.preventDefault(); openModal(el.dataset.modal); });

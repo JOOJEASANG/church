@@ -158,7 +158,7 @@
       display: block;
       width: 100%;
       height: auto;
-      min-height: 240px;
+      min-height: 200px;
       object-fit: cover;
       object-position: center;
     }
@@ -834,23 +834,23 @@
       margin-top: 14px;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
+      gap: 4px;
     }
-    @media (min-width: 480px) {
-      .gallery-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
-    }
+    @media (min-width: 480px) { .gallery-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; } }
+    @media (min-width: 720px) { .gallery-grid { grid-template-columns: repeat(5, 1fr); gap: 8px; } }
     .gallery-item {
       position: relative; aspect-ratio: 1 / 1;
-      border-radius: 12px; overflow: hidden;
-      background: var(--bg);
+      border-radius: 10px; overflow: hidden;
+      background: var(--bg-2, #f5f3ec);
       cursor: pointer;
-      transition: transform 0.18s ease;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
     .gallery-item img {
       width: 100%; height: 100%; object-fit: cover; display: block;
-      transition: transform 0.3s ease;
+      transition: transform 0.4s ease;
     }
-    .gallery-item:hover img { transform: scale(1.04); }
+    .gallery-item:hover { box-shadow: 0 6px 18px rgba(40,35,25,0.10); }
+    .gallery-item:hover img { transform: scale(1.06); }
     .gallery-item:active { transform: scale(0.97); }
     .gallery-empty {
       grid-column: 1 / -1;
@@ -924,27 +924,27 @@
     .cal-dow.sat { color: #2c5282; }
     .cal-grid {
       display: grid; grid-template-columns: repeat(7, 1fr);
-      gap: 2px;
+      gap: 1px;
       background: var(--paper);
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: 8px 6px;
+      padding: 10px 8px;
       box-shadow: var(--shadow-xs);
     }
     .cal-cell {
-      min-height: 52px; padding: 5px 2px; border-radius: 8px;
+      min-height: 56px; padding: 6px 2px; border-radius: 10px;
       cursor: pointer; transition: background 0.15s;
-      display: flex; flex-direction: column; align-items: center;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
     }
-    .cal-cell:not(.empty):hover { background: var(--primary-soft); }
+    .cal-cell:not(.empty):hover { background: var(--bg-2, #f5f3ec); }
     .cal-cell.today { background: var(--primary-soft); }
-    .cal-cell.empty { cursor: default; min-height: 52px; }
+    .cal-cell.empty { cursor: default; min-height: 56px; }
     .cal-day {
-      width: 26px; height: 26px; border-radius: 999px;
+      width: 28px; height: 28px; border-radius: 999px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 12.5px; font-weight: 600; color: var(--text);
+      font-size: 13px; font-weight: 600; color: var(--text);
     }
-    .cal-cell.today .cal-day { background: var(--primary); color: white; font-weight: 800; }
+    .cal-cell.today .cal-day { background: var(--primary); color: white; font-weight: 800; box-shadow: 0 2px 6px rgba(79,98,68,0.35); }
     .cal-day.sun { color: #c44; }
     .cal-day.sat { color: #2c5282; }
     .cal-events { display: flex; flex-wrap: wrap; gap: 2px; justify-content: center; margin-top: 3px; }
@@ -1146,7 +1146,7 @@
       .toast { bottom: 24px; }
       .install-banner { left: calc(240px + 16px); right: 16px; max-width: none; bottom: 16px; }
       .quick-actions { grid-template-columns: repeat(3, 1fr); }
-      .hero-img { min-height: 280px; }
+      .hero-img { min-height: 240px; }
       .hero.has-custom-img .hero-img { min-height: 0; }
       .feed { grid-template-columns: 1fr 1fr; }
       .prayer-feed { grid-template-columns: 1fr 1fr; }
