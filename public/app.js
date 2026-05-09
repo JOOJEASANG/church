@@ -160,21 +160,21 @@ function attachListeners() {
   listenersAttached = true;
   onValueWithError('rooms', (snap) => {
     state.rooms = [];
-    snap.forEach((c) => state.rooms.push({ id: c.key, ...c.val() }));
+    snap.forEach((c) => { state.rooms.push({ id: c.key, ...c.val() }); });
     state.rooms.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     if (state.currentTab === 'share') renderRooms();
   });
 
   onValueWithError('prayers', (snap) => {
     state.prayers = [];
-    snap.forEach((c) => state.prayers.push({ id: c.key, ...c.val() }));
+    snap.forEach((c) => { state.prayers.push({ id: c.key, ...c.val() }); });
     state.prayers.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderPrayers();
   });
 
   onValueWithError('announcements', (snap) => {
     state.announcements = [];
-    snap.forEach((c) => state.announcements.push({ id: c.key, ...c.val() }));
+    snap.forEach((c) => { state.announcements.push({ id: c.key, ...c.val() }); });
     state.announcements.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderAnnouncements();
   });
@@ -186,7 +186,7 @@ function attachListeners() {
 
   onValueWithError('bulletins', (snap) => {
     state.bulletins = [];
-    snap.forEach((c) => state.bulletins.push({ id: c.key, ...c.val() }));
+    snap.forEach((c) => { state.bulletins.push({ id: c.key, ...c.val() }); });
     state.bulletins.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderBulletins();
   });
@@ -196,7 +196,7 @@ function attachListeners() {
   });
   onValue(ref(db, 'config/services'), (snap) => {
     state.services = [];
-    snap.forEach((c) => state.services.push({ id: c.key, ...c.val() }));
+    snap.forEach((c) => { state.services.push({ id: c.key, ...c.val() }); });
     state.services.sort((a, b) => (a.day - b.day) || (a.time || '').localeCompare(b.time || ''));
     console.log('[home] config/services →', state.services.length, '개:', state.services.map((s) => s.name).join(', '));
     renderServiceTimes();
@@ -212,14 +212,14 @@ function attachListeners() {
 
   onValueWithError('gallery', (snap) => {
     state.gallery = [];
-    snap.forEach((c) => state.gallery.push({ id: c.key, ...c.val() }));
+    snap.forEach((c) => { state.gallery.push({ id: c.key, ...c.val() }); });
     state.gallery.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     renderGallery();
   });
 
   onValueWithError('events', (snap) => {
     state.events = [];
-    snap.forEach((c) => state.events.push({ id: c.key, ...c.val() }));
+    snap.forEach((c) => { state.events.push({ id: c.key, ...c.val() }); });
     state.events.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     if (state.currentTab === 'calendar') renderCalendar();
     else renderUpcomingEvents();
