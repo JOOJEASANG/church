@@ -1,15 +1,15 @@
 /* =============================================================
  * 재능나눔방 승인 상태 보정
  * - 승인된 방인데 status 문구가 '승인대기'로 남는 문제 보정
- * - 관리자 화면에서는 DB status를 '모집중'으로 정리
- * - 사용자 화면에서는 승인된 방 카드의 표시 문구를 '모집중'으로 보정
+ * - 관리자 화면에서는 approved === true 인 방만 DB status를 '모집중'으로 정리
+ * - 사용자 화면에서는 approved === true 인 방 카드의 표시 문구만 '모집중'으로 보정
  * ============================================================= */
 
 import { db, auth } from '/firebase-init.js';
 import { ref, onValue, update, get } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
-let approvedRooms = [];
+let roomsCache = [];
 let isAdmin = false;
 let normalizeRunning = false;
 let observerStarted = false;
@@ -23,9 +23,8 @@ function normalizeText(v) {
   return String(v || '').replace(/\s+/g, ' ').trim();
 }
 
-function shouldBeOpen(room) {
-  // approved가 false인 경우만 진짜 승인대기. true 또는 값이 없는 기존 데이터는 표시상 모집 가능으로 봄.
-  return room && room.approved !== false;
+function isApprovedRoom(room) {
+  return room && room.approved === true;
 }
 
 function hasPendingStatus(room) {
@@ -48,7 +47,7 @@ async function checkAdmin(user) {
 
 async function normalizeApprovedRoomStatus() {
   if (!isAdminPage() || !isAdmin || normalizeRunning) return;
-  const targets = approvedRooms.filter((room) => room.id && shouldBeOpen(room) && hasPendingStatus(room));
+  const targets = roomsCache.filter((room) => room.id && isApprovedRoom(room) && hasPendingStatus(room));
   if (!targets.length) return;
 
   normalizeRunning = true;
@@ -81,22 +80,18 @@ function replaceOwnTextNodes(el, fromRe, toText) {
 
 function patchVisibleRoomStatuses() {
   if (isAdminPage()) return;
+  const approvedRooms = roomsCache.filter((room) => isApprovedRoom(room));
   if (!approvedRooms.length) return;
-
-  const openRooms = approvedRooms.filter((room) => shouldBeOpen(room));
-  if (!openRooms.length) return;
 
   const pendingRe = /승인\s*대기|대기중|검토중/g;
 
-  openRooms.forEach((room) => {
+  approvedRooms.forEach((room) => {
     const title = normalizeText(room.title);
     if (!title) return;
 
     document.querySelectorAll('article, section, li, .card, .room-card, .talent-card, .post-card, .panel, div').forEach((el) => {
       const text = normalizeText(el.textContent);
       if (!text || !text.includes(title) || !pendingRe.test(text)) return;
-
-      // 너무 큰 컨테이너는 건드리지 않고, 실제 카드에 가까운 작은 영역만 보정
       if (text.length > 1600) return;
 
       replaceOwnTextNodes(el, /승인\s*대기|대기중|검토중/g, '모집중');
@@ -132,7 +127,7 @@ function startRoomsListener() {
   onValue(ref(db, 'rooms'), (snap) => {
     const rooms = [];
     snap.forEach((c) => rooms.push({ id: c.key, ...c.val() }));
-    approvedRooms = rooms;
+    roomsCache = rooms;
     normalizeApprovedRoomStatus();
     schedulePatch();
   }, (err) => console.warn('[room-status-fix] rooms 읽기 실패:', err.code || err.message));
