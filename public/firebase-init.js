@@ -37,6 +37,9 @@ import('/daily-verses-list-fix.js').catch((e) => console.warn('[daily-verses-lis
 // 오늘의 말씀과 오늘의 묵상 동기화
 import('/meditation-sync.js').catch((e) => console.warn('[meditation-sync] 로드 실패:', e?.message || e));
 
+// 재능나눔방 승인 상태 표시 보정
+import('/room-status-fix.js').catch((e) => console.warn('[room-status-fix] 로드 실패:', e?.message || e));
+
 // 교회정보 확장: 네이버지도 링크 + 홈 하단 연락처 카드
 import('/church-contact.js').catch((e) => console.warn('[church-contact] 로드 실패:', e?.message || e));
 
