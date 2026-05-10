@@ -83,7 +83,8 @@ function patchVisibleRoomStatuses() {
   const approvedRooms = roomsCache.filter((room) => isApprovedRoom(room));
   if (!approvedRooms.length) return;
 
-  const pendingRe = /승인\s*대기|대기중|검토중/g;
+  const pendingTestRe = /승인\s*대기|대기중|검토중/;
+  const pendingReplaceRe = /승인\s*대기|대기중|검토중/g;
 
   approvedRooms.forEach((room) => {
     const title = normalizeText(room.title);
@@ -91,12 +92,12 @@ function patchVisibleRoomStatuses() {
 
     document.querySelectorAll('article, section, li, .card, .room-card, .talent-card, .post-card, .panel, div').forEach((el) => {
       const text = normalizeText(el.textContent);
-      if (!text || !text.includes(title) || !pendingRe.test(text)) return;
+      if (!text || !text.includes(title) || !pendingTestRe.test(text)) return;
       if (text.length > 1600) return;
 
-      replaceOwnTextNodes(el, /승인\s*대기|대기중|검토중/g, '모집중');
+      replaceOwnTextNodes(el, pendingReplaceRe, '모집중');
       el.querySelectorAll('*').forEach((child) => {
-        replaceOwnTextNodes(child, /승인\s*대기|대기중|검토중/g, '모집중');
+        replaceOwnTextNodes(child, pendingReplaceRe, '모집중');
       });
     });
   });
