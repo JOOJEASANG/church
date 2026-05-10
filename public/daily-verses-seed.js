@@ -1,11 +1,12 @@
 /* =============================================================
  * 오늘의 말씀 기본 데이터 추가 버튼
  * - 관리자 페이지 > 말씀 관리 > 오늘의 말씀 화면에 버튼 추가
- * - 기존 ref가 있는 말씀은 중복 등록하지 않음
+ * - DB 기준으로 기존 ref를 확인하여 중복 등록 방지
+ * - 추가 후 목록이 바로 안 보일 때를 대비해 백업 렌더링 제공
  * ============================================================= */
 
 import { db, auth } from '/firebase-init.js';
-import { ref, onValue, push } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
+import { ref, onValue, push, get } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
 const STARTER_VERSES = [
@@ -51,8 +52,16 @@ const STARTER_VERSES = [
   { ref: '스바냐 3:17', text: '하나님은 우리 가운데 계시며 사랑으로 기뻐하시고 노래하십니다.', note: '사랑' }
 ];
 
+let latestItems = [];
+let seeding = false;
+
 function isAdminPage() {
   return location.pathname === '/admin' || location.pathname.startsWith('/admin/');
+}
+
+function escapeHtml(v) {
+  return String(v ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#039;');
 }
 
 function setSeedStatus(msg, error = false) {
@@ -62,9 +71,17 @@ function setSeedStatus(msg, error = false) {
   el.style.color = error ? 'var(--danger, #d05656)' : 'var(--primary, #73926d)';
 }
 
+function updateCount() {
+  const count = document.getElementById('dvCount');
+  if (count && latestItems.length) count.textContent = String(latestItems.length);
+}
+
 function ensureSeedButton() {
   if (!isAdminPage()) return;
-  if (document.getElementById('dvSeedBtn')) return;
+  if (document.getElementById('dvSeedBtn')) {
+    updateCount();
+    return;
+  }
 
   const saveBtn = document.getElementById('dvSave');
   if (!saveBtn) return;
@@ -74,11 +91,43 @@ function ensureSeedButton() {
   wrap.style.cssText = 'margin-top:12px;padding-top:12px;border-top:1px solid var(--line,#ebece8);display:flex;gap:8px;align-items:center;flex-wrap:wrap;';
   wrap.innerHTML = `
     <button class="btn" id="dvSeedBtn" type="button">기본 말씀 40개 추가</button>
+    <button class="btn" id="dvSeedRefreshBtn" type="button">목록 새로고침</button>
     <span id="dvSeedStatus" style="font-size:12.5px;font-weight:800;color:var(--muted);"></span>
   `;
   saveBtn.closest('.panel')?.appendChild(wrap);
 
   document.getElementById('dvSeedBtn')?.addEventListener('click', seedStarterVerses);
+  document.getElementById('dvSeedRefreshBtn')?.addEventListener('click', async () => {
+    await loadItemsFromDb();
+    renderBackupList();
+    setSeedStatus(`목록 새로고침 완료: ${latestItems.length}개`);
+  });
+  updateCount();
+}
+
+async function loadItemsFromDb() {
+  const snap = await get(ref(db, 'dailyVerses'));
+  const arr = [];
+  snap.forEach((c) => arr.push({ id: c.key, ...c.val() }));
+  latestItems = arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  updateCount();
+  return latestItems;
+}
+
+function renderBackupList() {
+  const list = document.getElementById('dvList');
+  if (!list) return;
+  if (!latestItems.length) {
+    list.innerHTML = '<div class="empty">아직 등록된 말씀이 없습니다.</div>';
+    return;
+  }
+  list.innerHTML = `<table><thead><tr><th>상태</th><th>구절</th><th>본문</th><th>등록</th></tr></thead><tbody>${latestItems.map((v) => `
+    <tr>
+      <td>${v.active === false ? '<span class="pill">숨김</span>' : '<span class="pill" style="background:var(--primary-soft);color:var(--primary-dark);">사용</span>'}</td>
+      <td><b>${escapeHtml(v.ref || '')}</b>${v.note ? `<br/><span style="color:var(--muted);font-size:11.5px;">${escapeHtml(v.note)}</span>` : ''}</td>
+      <td style="max-width:420px;white-space:pre-wrap;font-size:12.5px;">${escapeHtml(v.text || '')}</td>
+      <td style="font-size:12px;color:var(--muted);">${v.source === 'starter-verses-v1' ? '기본 말씀' : '직접 등록'}</td>
+    </tr>`).join('')}</tbody></table>`;
 }
 
 async function seedStarterVerses() {
@@ -87,22 +136,22 @@ async function seedStarterVerses() {
     setSeedStatus('로그인 후 사용할 수 있습니다.', true);
     return;
   }
+  if (seeding) return;
   if (!confirm('기본 말씀 40개를 오늘의 말씀 목록에 추가할까요?\n이미 같은 성경구절이 있으면 중복 등록하지 않습니다.')) return;
 
   const btn = document.getElementById('dvSeedBtn');
-  const existingRefs = new Set();
-  document.querySelectorAll('[data-dv-edit]').forEach((btn) => {
-    const row = btn.closest('tr');
-    const refText = row?.querySelector('td:nth-child(2) b')?.textContent?.trim();
-    if (refText) existingRefs.add(refText);
-  });
-
-  btn.disabled = true;
-  setSeedStatus('기본 말씀 추가 중...');
-  let added = 0;
-  let skipped = 0;
+  seeding = true;
+  if (btn) btn.disabled = true;
+  setSeedStatus('DB 확인 중...');
 
   try {
+    const currentItems = await loadItemsFromDb();
+    const existingRefs = new Set(currentItems.map((v) => String(v.ref || '').trim()).filter(Boolean));
+
+    setSeedStatus('기본 말씀 추가 중...');
+    let added = 0;
+    let skipped = 0;
+
     for (const verse of STARTER_VERSES) {
       if (existingRefs.has(verse.ref)) {
         skipped++;
@@ -122,18 +171,33 @@ async function seedStarterVerses() {
       existingRefs.add(verse.ref);
       added++;
     }
-    setSeedStatus(`완료: ${added}개 추가, ${skipped}개 중복 제외`);
+
+    await loadItemsFromDb();
+    setTimeout(renderBackupList, 300);
+    setSeedStatus(`완료: ${added}개 추가, ${skipped}개 중복 제외 · 현재 ${latestItems.length}개`);
   } catch (e) {
     console.error('[daily-verses-seed] 기본 말씀 추가 실패:', e);
     setSeedStatus('추가 실패: ' + (e.code || e.message), true);
   } finally {
-    btn.disabled = false;
+    seeding = false;
+    if (btn) btn.disabled = false;
   }
+}
+
+function listenCount() {
+  if (!isAdminPage()) return;
+  onValue(ref(db, 'dailyVerses'), (snap) => {
+    const arr = [];
+    snap.forEach((c) => arr.push({ id: c.key, ...c.val() }));
+    latestItems = arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    updateCount();
+  }, (err) => setSeedStatus('말씀 목록 읽기 실패: ' + (err.code || err.message), true));
 }
 
 function boot() {
   if (!isAdminPage()) return;
   ensureSeedButton();
+  listenCount();
   onAuthStateChanged(auth, () => setTimeout(ensureSeedButton, 500));
   [300, 800, 1600, 3000].forEach((ms) => setTimeout(ensureSeedButton, ms));
 }
