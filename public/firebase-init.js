@@ -34,5 +34,8 @@ import('/meditation-sync.js').catch((e) => console.warn('[meditation-sync] 로�
 // 교회정보 확장: 네이버지도 링크 + 홈 하단 연락처 카드
 import('/church-contact.js').catch((e) => console.warn('[church-contact] 로드 실패:', e?.message || e));
 
+// 관리자 Google 로그인 확장
+import('/admin-google-login.js').catch((e) => console.warn('[admin-google-login] 로드 실패:', e?.message || e));
+
 // 공용 UI 보정: 관리자 메뉴 정리 + 설치 배너 폭 보정
 import('/ui-fixes.js').catch((e) => console.warn('[ui-fixes] 로드 실패:', e?.message || e));
