@@ -43,6 +43,9 @@ import('/room-status-fix.js').catch((e) => console.warn('[room-status-fix] 로�
 // 재능나눔방 방 공지 기능
 import('/talent-room-board.js').catch((e) => console.warn('[talent-room-board] 로드 실패:', e?.message || e));
 
+// 재능나눔방 분야 옵션 보정
+import('/talent-category-fix.js').catch((e) => console.warn('[talent-category-fix] 로드 실패:', e?.message || e));
+
 // 교회정보 확장: 네이버지도 링크 + 홈 하단 연락처 카드
 import('/church-contact.js').catch((e) => console.warn('[church-contact] 로드 실패:', e?.message || e));
 
