@@ -5,6 +5,7 @@
  * - 모바일: 관리자 헤더에 로고 + 교회명 표시, 이메일 숨김, 로그아웃만 표시
  * - 관리자 화면의 "관리자" 브랜드 문구 제거
  * - PC모드 사용자 화면 상단 로고/교회명 중복 표시 정리
+ * - 사용자 페이지 사이드바 상단 교회명 확대
  * - 앱 설치 안내 배너 폭 보정
  * ============================================================= */
 
@@ -98,6 +99,33 @@ function injectUiFixStyles() {
       html:not([data-admin-page]) .app-header {
         padding-top: 14px !important;
         padding-bottom: 8px !important;
+      }
+
+      /* 사용자 페이지 PC 사이드바 상단 교회명 확대 */
+      html:not([data-admin-page]) .app-sidebar .brand-title,
+      html:not([data-admin-page]) .app-sidebar .brand-name,
+      html:not([data-admin-page]) .app-sidebar .church-name,
+      html:not([data-admin-page]) .app-sidebar .church-title,
+      html:not([data-admin-page]) .desktop-sidebar .brand-title,
+      html:not([data-admin-page]) .desktop-sidebar .brand-name,
+      html:not([data-admin-page]) .desktop-sidebar .church-name,
+      html:not([data-admin-page]) .desktop-sidebar .church-title,
+      html:not([data-admin-page]) .desktop-nav .brand-title,
+      html:not([data-admin-page]) .desktop-nav .brand-name,
+      html:not([data-admin-page]) .desktop-nav .church-name,
+      html:not([data-admin-page]) .desktop-nav .church-title,
+      html:not([data-admin-page]) aside .brand-title,
+      html:not([data-admin-page]) aside .brand-name,
+      html:not([data-admin-page]) aside .church-name,
+      html:not([data-admin-page]) aside .church-title,
+      html:not([data-admin-page]) aside [class*="brand-title"],
+      html:not([data-admin-page]) aside [class*="brand-name"],
+      html:not([data-admin-page]) aside [class*="church-name"],
+      html:not([data-admin-page]) aside [class*="church-title"] {
+        font-size: 24px !important;
+        line-height: 1.15 !important;
+        font-weight: 950 !important;
+        letter-spacing: -0.9px !important;
       }
     }
 
