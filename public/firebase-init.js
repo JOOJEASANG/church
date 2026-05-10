@@ -31,6 +31,9 @@ import('/daily-verses.js').catch((e) => console.warn('[daily-verses] 로드 실�
 // 오늘의 말씀 기본 데이터 추가 버튼
 import('/daily-verses-seed.js').catch((e) => console.warn('[daily-verses-seed] 로드 실패:', e?.message || e));
 
+// 오늘의 말씀 관리자 목록 강제 렌더링 보정
+import('/daily-verses-list-fix.js').catch((e) => console.warn('[daily-verses-list-fix] 로드 실패:', e?.message || e));
+
 // 오늘의 말씀과 오늘의 묵상 동기화
 import('/meditation-sync.js').catch((e) => console.warn('[meditation-sync] 로드 실패:', e?.message || e));
 
