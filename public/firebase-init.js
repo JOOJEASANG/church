@@ -46,6 +46,9 @@ import('/talent-room-board.js').catch((e) => console.warn('[talent-room-board] �
 // 재능나눔방 분야 옵션 보정
 import('/talent-category-fix.js').catch((e) => console.warn('[talent-category-fix] 로드 실패:', e?.message || e));
 
+// 관리자 계정 사용자페이지 접속 시 관리자페이지 이동 버튼
+import('/admin-shortcut.js').catch((e) => console.warn('[admin-shortcut] 로드 실패:', e?.message || e));
+
 // 교회정보 확장: 네이버지도 링크 + 홈 하단 연락처 카드
 import('/church-contact.js').catch((e) => console.warn('[church-contact] 로드 실패:', e?.message || e));
 
