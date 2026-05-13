@@ -2,8 +2,11 @@ import { db, auth } from '/firebase-init.js';
 import { ref, onValue, push, remove, get } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
-let me=null,isAdm=false,rooms=[],boards={},active='',timer=null;
 const adminPage=()=>location.pathname.startsWith('/admin');
+if (adminPage()) {
+  document.getElementById('trbModal')?.remove();
+} else {
+let me=null,isAdm=false,rooms=[],boards={},active='',timer=null;
 const norm=v=>String(v||'').replace(/\s+/g,' ').trim();
 const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
 const owner=r=>r.createdBy||r.createdByUid||r.creatorUid||r.authorUid||r.userUid||r.ownerUid||r.hostUid||r.leaderUid||r.uid||'';
@@ -18,9 +21,10 @@ function showForm(){ document.getElementById('trbForm').classList.add('show'); d
 function hideForm(){ let f=document.getElementById('trbForm'); if(f)f.classList.remove('show'); let r=rooms.find(x=>x.id===active); let b=document.getElementById('trbWrite'); if(b)b.style.display=writable(r)?'':'none'; }
 function renderModal(){ if(!active)return; let r=rooms.find(x=>x.id===active), list=document.getElementById('trbList'); if(!r||!list)return; let arr=items(active); let wb=document.getElementById('trbWrite'); if(wb)wb.style.display=writable(r)&&!document.getElementById('trbForm').classList.contains('show')?'':'none'; if(!arr.length){list.innerHTML='<div class="trb-empty">아직 등록된 방 공지가 없습니다.</div>';return} list.innerHTML=arr.map(p=>'<div class="trb-item"><b>'+esc(p.title||'공지')+'</b><div class="trb-body">'+esc(p.body||'')+'</div><div class="trb-meta">'+esc(p.authorName||'개설자')+' · '+(p.timestamp?new Date(p.timestamp).toLocaleString('ko-KR'):'')+'</div>'+(writable(r)?'<button class="btn btn-sm danger" data-trb-del="'+p.id+'">삭제</button>':'')+'</div>').join(''); list.querySelectorAll('[data-trb-del]').forEach(b=>b.onclick=async()=>{if(!confirm('삭제할까요?'))return; try{await remove(ref(db,'roomBoards/'+active+'/'+b.dataset.trbDel));msg('삭제되었습니다')}catch(e){msg('삭제 실패: '+(e.code||e.message))}}); }
 async function save(){ let r=rooms.find(x=>x.id===active); if(!writable(r))return msg('방 개설자 또는 관리자만 작성할 수 있습니다'); let title=document.getElementById('trbFormTitle').value.trim(), body=document.getElementById('trbFormBody').value.trim(); if(!title||!body)return msg('제목과 내용을 입력해주세요'); try{await push(ref(db,'roomBoards/'+active),{title,body,authorUid:me.uid,authorName:me.displayName||me.email||'개설자',timestamp:Date.now()}); hideForm(); msg('등록되었습니다')}catch(e){msg('저장 실패: '+(e.code||e.message))} }
-function buttons(){ if(adminPage())return; rooms.filter(r=>r.id&&r.title&&r.approved!==false).forEach(r=>{let title=norm(r.title), cnt=items(r.id).length; document.querySelectorAll('article,section,li,.card,.room-card,.talent-card,.post-card,.panel').forEach(el=>{if(el.closest('#trbModal')||el.querySelector('[data-trb="'+r.id+'"]'))return; let t=norm(el.textContent); if(!t.includes(title)||t.length>1400)return; let b=document.createElement('button'); b.type='button'; b.className='trb-btn'+(cnt?' on':''); b.dataset.trb=r.id; b.textContent=cnt?'방 공지 '+cnt:'방 공지'; b.onclick=e=>{e.preventDefault();e.stopPropagation();open(r.id)}; el.appendChild(b);});}); }
+function buttons(){ rooms.filter(r=>r.id&&r.title&&r.approved!==false).forEach(r=>{let title=norm(r.title), cnt=items(r.id).length; document.querySelectorAll('article,section,li,.card,.room-card,.talent-card,.post-card,.panel').forEach(el=>{if(el.closest('#trbModal')||el.querySelector('[data-trb="'+r.id+'"]'))return; let t=norm(el.textContent); if(!t.includes(title)||t.length>1400)return; let b=document.createElement('button'); b.type='button'; b.className='trb-btn'+(cnt?' on':''); b.dataset.trb=r.id; b.textContent=cnt?'방 공지 '+cnt:'방 공지'; b.onclick=e=>{e.preventDefault();e.stopPropagation();open(r.id)}; el.appendChild(b);});}); }
 function schedule(){clearTimeout(timer);timer=setTimeout(()=>{buttons();renderModal()},180)}
 onAuthStateChanged(auth,async u=>{me=u; if(u){try{isAdm=(await get(ref(db,'admins/'+u.uid))).exists()}catch{isAdm=false}}else isAdm=false; schedule()});
 onValue(ref(db,'rooms'),s=>{let a=[];s.forEach(c=>a.push({id:c.key,...c.val()}));rooms=a;schedule()});
 onValue(ref(db,'roomBoards'),s=>{boards=s.val()||{};schedule()});
-css(); modal(); if(!adminPage()){ const start=()=>{new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});schedule()}; if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start); else start(); }
+css(); modal(); const start=()=>{new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});schedule()}; if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start); else start();
+}
