@@ -16,9 +16,9 @@ function injectStyles() {
   style.id = 'adminShortcutStyles';
   style.textContent = `
     .admin-icon-shortcut {
-      width: 36px;
-      height: 36px;
-      min-width: 36px;
+      width: 38px;
+      height: 38px;
+      min-width: 38px;
       border: 1px solid var(--line, #ebece8);
       border-radius: 999px;
       background: var(--paper, #fff);
@@ -31,6 +31,12 @@ function injectStyles() {
       box-shadow: var(--shadow-xs, 0 1px 2px rgba(20,22,26,.04));
     }
     .admin-icon-shortcut:active { transform: translateY(1px); }
+    .admin-icon-shortcut.fallback {
+      position: fixed;
+      right: 64px;
+      top: calc(env(safe-area-inset-top, 0px) + 18px);
+      z-index: 999;
+    }
     .admin-home-shortcut {
       background: var(--bg, #f7f7f4) !important;
       color: var(--text, #15171a) !important;
@@ -46,12 +52,12 @@ function injectStyles() {
     html[data-admin-page] .admin,
     html[data-admin-page] .layout,
     html[data-admin-page] .content {
-      padding-bottom: max(34px, env(safe-area-inset-bottom, 0px)) !important;
+      padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)) !important;
     }
     html[data-admin-page] .content::after {
       content: '';
       display: block;
-      height: 42px;
+      height: 8px;
     }
   `;
   document.head.appendChild(style);
@@ -61,7 +67,7 @@ function goAdmin() { location.href = '/admin/'; }
 function goHome() { location.href = '/'; }
 
 function findHeaderActionArea() {
-  return document.querySelector('.app-header .header-row, .app-header .row, header .header-row, header .row, .topbar .row, .header-actions, .app-actions');
+  return document.querySelector('.header-actions, .app-header .header-actions, .app-header .header-row, .app-header .row, header .header-actions, header .header-row, header .row, .app-actions');
 }
 
 function findNotificationButton(area) {
@@ -72,22 +78,31 @@ function findNotificationButton(area) {
 
 function ensureUserAdminIcon() {
   if (isAdminPage()) return;
-  if (document.getElementById('adminShortcutBtn')) return;
-  injectStyles();
-  const btn = document.createElement('button');
-  btn.id = 'adminShortcutBtn';
-  btn.type = 'button';
-  btn.className = 'admin-icon-shortcut';
-  btn.title = '관리자 페이지';
-  btn.setAttribute('aria-label', '관리자 페이지');
-  btn.textContent = '⚙️';
-  btn.addEventListener('click', goAdmin);
+  let btn = document.getElementById('adminShortcutBtn');
+  if (!btn) {
+    injectStyles();
+    btn = document.createElement('button');
+    btn.id = 'adminShortcutBtn';
+    btn.type = 'button';
+    btn.className = 'admin-icon-shortcut';
+    btn.title = '관리자 페이지';
+    btn.setAttribute('aria-label', '관리자 페이지');
+    btn.textContent = '⚙️';
+    btn.addEventListener('click', goAdmin);
+  }
 
   const area = findHeaderActionArea();
   const notif = findNotificationButton(area);
-  if (area && notif) area.insertBefore(btn, notif);
-  else if (area) area.prepend(btn);
-  else document.body.appendChild(btn);
+  if (area && notif && btn.parentElement !== area) {
+    btn.classList.remove('fallback');
+    area.insertBefore(btn, notif);
+  } else if (area && !btn.parentElement) {
+    btn.classList.remove('fallback');
+    area.prepend(btn);
+  } else if (!btn.parentElement) {
+    btn.classList.add('fallback');
+    document.body.appendChild(btn);
+  }
 }
 
 function ensureAdminHomeButton() {
@@ -135,4 +150,4 @@ async function checkAndRender(user) {
 onAuthStateChanged(auth, (user) => checkAndRender(user));
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => checkAndRender(auth.currentUser));
 else checkAndRender(auth.currentUser);
-[500, 1200, 2500, 4000].forEach((ms) => setTimeout(() => checkAndRender(auth.currentUser), ms));
+[500, 1200, 2500, 4000, 6500].forEach((ms) => setTimeout(() => checkAndRender(auth.currentUser), ms));
