@@ -25,6 +25,9 @@ export const storage = getStorage(app);
 
 isSupported().then((ok) => { if (ok) getAnalytics(app); }).catch(() => {});
 
+// PC 모드 전용 디자인 업그레이드
+import('/desktop-polish.js').catch((e) => console.warn('[desktop-polish] 로드 실패:', e?.message || e));
+
 // 공용 확장 기능: 관리자 등록 말씀을 홈 화면 오늘의 말씀에 적용
 import('/daily-verses.js').catch((e) => console.warn('[daily-verses] 로드 실패:', e?.message || e));
 
