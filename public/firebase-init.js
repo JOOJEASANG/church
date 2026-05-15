@@ -23,6 +23,27 @@ export const db = getDatabase(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
+// CORS 오류 방지: 외부 bible-api.com 호출은 더 이상 사용하지 않고 Firebase dailyVerses만 사용합니다.
+try {
+  const originalFetch = window.fetch?.bind(window);
+  if (originalFetch && !window.__namsanBibleApiBlocked) {
+    window.__namsanBibleApiBlocked = true;
+    window.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input?.url || '';
+      if (/https?:\/\/bible-api\.com\//i.test(url)) {
+        console.warn('[daily-verse] bible-api.com 요청 차단: Firebase 등록 말씀을 사용합니다.');
+        return Promise.resolve(new Response(JSON.stringify({ text: '', reference: '' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }));
+      }
+      return originalFetch(input, init);
+    };
+  }
+} catch (e) {
+  console.warn('[daily-verse] 외부 API 차단 초기화 실패:', e?.message || e);
+}
+
 isSupported().then((ok) => { if (ok) getAnalytics(app); }).catch(() => {});
 
 // PC 모드 전용 디자인 업그레이드
@@ -63,3 +84,6 @@ import('/admin-google-login.js').catch((e) => console.warn('[admin-google-login]
 
 // 공용 UI 보정: 관리자 메뉴 정리 + 설치 배너 폭 보정
 import('/ui-fixes.js').catch((e) => console.warn('[ui-fixes] 로드 실패:', e?.message || e));
+
+// 오늘의 말씀 최종 보정: 항상 Firebase dailyVerses 기준으로 덮어쓰기
+import('/daily-verse-final.js').catch((e) => console.warn('[daily-verse-final] 로드 실패:', e?.message || e));
