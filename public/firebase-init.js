@@ -46,47 +46,29 @@ try {
 
 isSupported().then((ok) => { if (ok) getAnalytics(app); }).catch(() => {});
 
-// PC 모드 전용 디자인 업그레이드
-import('/desktop-polish.js').catch((e) => console.warn('[desktop-polish] 로드 실패:', e?.message || e));
+const __isAdminPage = location.pathname === '/admin' || location.pathname.startsWith('/admin/');
 
-// PC 전용 헤더 간소화 + 유튜브 썸네일 보정
-import('/desktop-header-video-fix.js').catch((e) => console.warn('[desktop-header-video-fix] 로드 실패:', e?.message || e));
+// 사용자 전용 모듈 (관리자 페이지에서는 불필요)
+if (!__isAdminPage) {
+  import('/desktop-polish.js').catch((e) => console.warn('[desktop-polish] 로드 실패:', e?.message || e));
+  import('/desktop-header-video-fix.js').catch((e) => console.warn('[desktop-header-video-fix] 로드 실패:', e?.message || e));
+  import('/talent-room-board.js').catch((e) => console.warn('[talent-room-board] 로드 실패:', e?.message || e));
+  import('/talent-category-fix.js').catch((e) => console.warn('[talent-category-fix] 로드 실패:', e?.message || e));
+  import('/room-status-fix.js').catch((e) => console.warn('[room-status-fix] 로드 실패:', e?.message || e));
+}
 
-// 공용 확장 기능: 관리자 등록 말씀을 홈 화면 오늘의 말씀에 적용
-import('/daily-verses.js').catch((e) => console.warn('[daily-verses] 로드 실패:', e?.message || e));
+// 관리자 전용 모듈
+if (__isAdminPage) {
+  import('/daily-verses.js').catch((e) => console.warn('[daily-verses] 로드 실패:', e?.message || e));
+  import('/daily-verses-list-fix.js').catch((e) => console.warn('[daily-verses-list-fix] 로드 실패:', e?.message || e));
+  import('/daily-verses-seed.js').catch((e) => console.warn('[daily-verses-seed] 로드 실패:', e?.message || e));
+  import('/admin-google-login.js').catch((e) => console.warn('[admin-google-login] 로드 실패:', e?.message || e));
+}
 
-// 오늘의 말씀 날짜 변경/재진입 갱신 보정
-import('/daily-verse-refresh.js').catch((e) => console.warn('[daily-verse-refresh] 로드 실패:', e?.message || e));
-
-// 오늘의 말씀 기본 데이터 추가 버튼
-import('/daily-verses-seed.js').catch((e) => console.warn('[daily-verses-seed] 로드 실패:', e?.message || e));
-
-// 오늘의 말씀 관리자 목록 강제 렌더링 보정
-import('/daily-verses-list-fix.js').catch((e) => console.warn('[daily-verses-list-fix] 로드 실패:', e?.message || e));
-
-// 오늘의 말씀과 오늘의 묵상 동기화
-import('/meditation-sync.js').catch((e) => console.warn('[meditation-sync] 로드 실패:', e?.message || e));
-
-// 재능나눔방 승인 상태 표시 보정
-import('/room-status-fix.js').catch((e) => console.warn('[room-status-fix] 로드 실패:', e?.message || e));
-
-// 재능나눔방 방 공지 기능
-import('/talent-room-board.js').catch((e) => console.warn('[talent-room-board] 로드 실패:', e?.message || e));
-
-// 재능나눔방 분야 옵션 보정
-import('/talent-category-fix.js').catch((e) => console.warn('[talent-category-fix] 로드 실패:', e?.message || e));
-
-// 관리자 계정 사용자페이지 접속 시 관리자페이지 이동 버튼
-import('/admin-shortcut.js').catch((e) => console.warn('[admin-shortcut] 로드 실패:', e?.message || e));
-
-// 교회정보 확장: 네이버지도 링크 + 홈 하단 연락처 카드
-import('/church-contact.js').catch((e) => console.warn('[church-contact] 로드 실패:', e?.message || e));
-
-// 관리자 Google 로그인 확장
-import('/admin-google-login.js').catch((e) => console.warn('[admin-google-login] 로드 실패:', e?.message || e));
-
-// 공용 UI 보정: 관리자 메뉴 정리 + 설치 배너 폭 보정
-import('/ui-fixes.js').catch((e) => console.warn('[ui-fixes] 로드 실패:', e?.message || e));
-
-// 오늘의 말씀 최종 보정: 항상 Firebase dailyVerses 기준으로 덮어쓰기
+// 양쪽에서 모두 필요한 공용 모듈
 import('/daily-verse-final.js').catch((e) => console.warn('[daily-verse-final] 로드 실패:', e?.message || e));
+import('/daily-verse-refresh.js').catch((e) => console.warn('[daily-verse-refresh] 로드 실패:', e?.message || e));
+import('/meditation-sync.js').catch((e) => console.warn('[meditation-sync] 로드 실패:', e?.message || e));
+import('/admin-shortcut.js').catch((e) => console.warn('[admin-shortcut] 로드 실패:', e?.message || e));
+import('/church-contact.js').catch((e) => console.warn('[church-contact] 로드 실패:', e?.message || e));
+import('/ui-fixes.js').catch((e) => console.warn('[ui-fixes] 로드 실패:', e?.message || e));

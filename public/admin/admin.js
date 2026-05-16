@@ -73,11 +73,17 @@ $('logoutBtn').addEventListener('click', () => {
 });
 
 // ===== 인증 상태 =====
+function clearAuthPending() {
+  document.documentElement.removeAttribute('data-auth-pending');
+}
+
 onAuthStateChanged(auth, async (user) => {
   state.user = user;
   if (!user) {
     loginPane.style.display = 'grid';
     adminPane.classList.remove('show');
+    clearAuthPending();
+    try { localStorage.removeItem('namsanHadAuth'); } catch (e) {}
     return;
   }
 
@@ -107,11 +113,14 @@ onAuthStateChanged(auth, async (user) => {
     loginPane.style.display = 'none';
     adminPane.classList.add('show');
     $('whoAmI').textContent = user.email || user.uid;
+    clearAuthPending();
+    try { localStorage.setItem('namsanHadAuth', '1'); } catch (e) {}
 
     attachListeners();
   } catch (e) {
     console.error('Admin auth error:', e);
     loginErr.textContent = `오류: ${e.code || e.message} — Firebase 콘솔에서 데이터베이스 규칙을 확인해주세요.`;
+    clearAuthPending();
     await signOut(auth);
   }
 });

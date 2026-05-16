@@ -1,8 +1,8 @@
 /* 관리자 페이지 이동 버튼
  * - 사용자 페이지: 상단 검색 아이콘 오른쪽에 관리자 아이콘 버튼 표시
- * - 프로필/내정보 영역 버튼은 제거
  * - 실제 관리 권한은 /admin/ 페이지의 기존 권한 검사에서 차단
  * - 관리자 페이지: 로그아웃 버튼 왼쪽에 홈페이지 이동 버튼 표시
+ * - MutationObserver는 .app-header / .topbar 한정 (성능 보호)
  */
 import { auth } from '/firebase-init.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
@@ -10,6 +10,9 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.1/f
 const isAdminPage = () => location.pathname === '/admin' || location.pathname.startsWith('/admin/');
 const goAdmin = () => { location.href = '/admin/'; };
 const goHome = () => { location.href = '/'; };
+
+let observerStarted = false;
+let scheduleTimer = null;
 
 function injectStyles() {
   if (document.getElementById('adminShortcutStyles')) return;
@@ -38,7 +41,6 @@ function cleanupOldProfileShortcut() {
 function findHeaderActions() {
   let actions = document.querySelector('.app-header .header-actions, header .header-actions, .header-actions');
   if (actions) return actions;
-
   const row = document.querySelector('.app-header .header-row, header .header-row');
   if (!row) return null;
   actions = document.createElement('div');
@@ -106,19 +108,44 @@ function removeShortcuts() {
 function render(user) {
   injectStyles();
   cleanupOldProfileShortcut();
-  if (isAdminPage()) {
-    ensureAdminHomeButton();
-    return;
-  }
-  if (!user) {
-    removeShortcuts();
-    return;
-  }
+  if (isAdminPage()) { ensureAdminHomeButton(); return; }
+  if (!user) { removeShortcuts(); return; }
   ensureHeaderIcon();
 }
 
+function scheduleRender() {
+  clearTimeout(scheduleTimer);
+  scheduleTimer = setTimeout(() => render(auth.currentUser), 160);
+}
+
+function startObserver() {
+  if (observerStarted) return;
+  observerStarted = true;
+  const headerTarget = document.querySelector('.app-header, header, .topbar');
+  if (headerTarget) {
+    new MutationObserver(scheduleRender).observe(headerTarget, { childList: true, subtree: true });
+  }
+  // 헤더 자체가 늦게 생성되는 케이스 대비 — body의 직접 자식만 감시
+  if (document.body) {
+    new MutationObserver((muts) => {
+      for (const m of muts) {
+        for (const n of m.addedNodes) {
+          if (n.nodeType !== 1) continue;
+          if (n.matches?.('.app-header, header, .topbar') || n.querySelector?.('.app-header, header, .topbar')) {
+            scheduleRender();
+            return;
+          }
+        }
+      }
+    }).observe(document.body, { childList: true });
+  }
+}
+
 onAuthStateChanged(auth, render);
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => render(auth.currentUser));
-else render(auth.currentUser);
-[400,1000,2000,4000,7000,10000].forEach((ms) => setTimeout(() => render(auth.currentUser), ms));
-new MutationObserver(() => render(auth.currentUser)).observe(document.documentElement, { childList:true, subtree:true });
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => { render(auth.currentUser); startObserver(); });
+} else {
+  render(auth.currentUser);
+  startObserver();
+}
+[400, 1200, 3000].forEach((ms) => setTimeout(() => render(auth.currentUser), ms));

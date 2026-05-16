@@ -142,9 +142,10 @@ function injectUiFixStyles() {
       height: 38px;
       border-radius: 11px;
       flex: 0 0 auto;
-      object-fit: cover;
-      background: var(--bg-2, #fafaf7);
+      object-fit: contain;
+      background: #fff;
       box-shadow: 0 2px 8px rgba(20, 22, 26, 0.08);
+      border: 1px solid var(--line, #ebece8);
     }
     html[data-admin-page] .admin-sidebar-brand-title {
       font-size: 20px;
@@ -172,9 +173,10 @@ function injectUiFixStyles() {
       width: 30px;
       height: 30px;
       border-radius: 9px;
-      object-fit: cover;
-      background: var(--bg-2, #fafaf7);
+      object-fit: contain;
+      background: #fff;
       flex: 0 0 auto;
+      border: 1px solid var(--line, #ebece8);
     }
     html[data-admin-page] .admin-mobile-header-brand span {
       overflow: hidden;

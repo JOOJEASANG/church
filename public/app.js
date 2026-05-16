@@ -53,11 +53,15 @@ function showAuthScreen() {
   const el = document.getElementById('authScreen');
   if (el) el.classList.add('show');
   document.body.style.overflow = 'hidden';
+  document.documentElement.removeAttribute('data-auth-pending');
+  try { localStorage.removeItem('namsanHadAuth'); } catch (e) {}
 }
 function hideAuthScreen() {
   const el = document.getElementById('authScreen');
   if (el) el.classList.remove('show');
   document.body.style.overflow = '';
+  document.documentElement.removeAttribute('data-auth-pending');
+  try { localStorage.setItem('namsanHadAuth', '1'); } catch (e) {}
 }
 
 // 인증 탭 토글

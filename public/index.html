@@ -16,11 +16,21 @@
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <title>천안남산교회</title>
   <script>
-    /* FOUC 방지: CSS 로드 전 data-theme 적용 */
+    /* FOUC 방지: CSS 로드 전 data-theme 적용 + 인증 상태 힌트 */
     (function () {
       try {
         var t = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+      try {
+        // 이전 세션 로그인 흔적이 있으면 로그인 화면을 미리 띄우지 않음
+        // (Firebase Auth는 IndexedDB 키로 세션을 보관함)
+        var hadAuth = localStorage.getItem('namsanHadAuth') === '1';
+        document.documentElement.setAttribute('data-auth-pending', '1');
+        // 안전망: 일정 시간 후 자동 해제 (Firebase가 응답 없을 때 영구 빈 화면 방지)
+        setTimeout(function () {
+          document.documentElement.removeAttribute('data-auth-pending');
+        }, hadAuth ? 4000 : 1500);
       } catch (e) {}
     })();
   </script>
@@ -180,14 +190,15 @@
 
     .brand-mark {
       width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-      color: white; display: grid; place-items: center;
+      background: #fff;
+      color: var(--primary-dark); display: grid; place-items: center;
       font-weight: 800; font-size: 14px; letter-spacing: -0.4px;
-      box-shadow: 0 4px 14px rgba(115, 146, 109, 0.32), inset 0 1px 0 rgba(255,255,255,0.20);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid var(--line);
       overflow: hidden;
     }
-    .brand-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .brand-mark.has-logo { background: var(--paper); box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid var(--line); }
+    .brand-mark img { width: 100%; height: 100%; object-fit: contain; display: block; background: #fff; }
+    .brand-mark.has-logo { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid var(--line); }
 
     .greeting { min-width: 0; display: flex; align-items: center; }
     .greeting .name { font-size: 17.5px; font-weight: 800; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
@@ -1380,6 +1391,11 @@
       padding: 24px;
     }
     .auth-screen.show { display: flex; }
+    /* 인증 초기화 중에는 로그인 화면이 깜빡이지 않도록 앱 본문을 잠시 숨김 */
+    html[data-auth-pending="1"] .app,
+    html[data-auth-pending="1"] .desktop-site,
+    html[data-auth-pending="1"] .install-banner { visibility: hidden !important; }
+    html[data-auth-pending="1"] body { background: var(--bg, #f7f5ed) !important; }
     .auth-card {
       width: 100%; max-width: 400px;
       background: var(--paper); border-radius: 18px;

@@ -89,8 +89,8 @@ function injectStyles() {
       .desktop-home-inner{max-width:1180px;margin:0 auto;padding:0 24px;}
       .desktop-home-top{height:78px;display:flex;align-items:center;justify-content:space-between;gap:28px;}
       .desktop-home-brand{display:flex;align-items:center;gap:12px;min-width:210px;font-weight:950;font-size:23px;letter-spacing:-.9px;color:#153522;}
-      .desktop-home-logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#73926d,#315b37);display:grid;place-items:center;color:#fff;font-size:19px;font-weight:950;overflow:hidden;flex:0 0 auto;}
-      .desktop-home-logo img{width:100%;height:100%;object-fit:cover;display:block;}
+      .desktop-home-logo{width:42px;height:42px;border-radius:12px;background:#fff;display:grid;place-items:center;color:#315b37;font-size:19px;font-weight:950;overflow:hidden;flex:0 0 auto;border:1px solid rgba(20,22,26,.06);}
+      .desktop-home-logo img{width:100%;height:100%;object-fit:contain;display:block;background:#fff;}
       .desktop-home-nav{display:flex;align-items:center;justify-content:center;gap:6px;flex:1;}
       .desktop-home-nav button{border:0;background:transparent;border-radius:999px;padding:9px 13px;font-size:14px;font-weight:850;color:#2c302b;cursor:pointer;white-space:nowrap;}
       .desktop-home-nav button:hover,.desktop-home-nav button.active{background:#eff5eb;color:#315b37;}
@@ -115,6 +115,19 @@ function injectStyles() {
       .desktop-section-head h2{margin:0;font-size:25px;font-weight:950;letter-spacing:-.9px;color:#20241f;}
       .desktop-more{border:0;background:transparent;color:#666;font-size:14px;font-weight:850;cursor:pointer;}
       .desktop-home-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:stretch;}
+      .desktop-right-stack{display:flex;flex-direction:column;gap:20px;min-width:0;}
+      .desktop-right-stack > *{margin:0;}
+      .desktop-mini-news{padding:22px;}
+      .desktop-mini-news .desktop-section-head{margin-bottom:12px;}
+      .desktop-mini-news .desktop-section-head h2{font-size:19px;letter-spacing:-.6px;}
+      .desktop-mini-news .mini-news-list{display:flex;flex-direction:column;gap:10px;}
+      .desktop-mini-news .mini-news-item{display:flex;gap:12px;padding:10px 0;border-top:1px solid rgba(20,22,26,.07);align-items:flex-start;}
+      .desktop-mini-news .mini-news-item:first-child{border-top:0;padding-top:0;}
+      .desktop-mini-news .mini-news-thumb{width:60px;height:60px;border-radius:10px;object-fit:cover;background:#f2f2ed;flex:0 0 auto;}
+      .desktop-mini-news .mini-news-body{min-width:0;flex:1;}
+      .desktop-mini-news .mini-news-body h3{margin:0;font-size:14.5px;font-weight:900;color:#222;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+      .desktop-mini-news .mini-news-body p{margin:5px 0 0;font-size:12.5px;color:#777;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+      .desktop-mini-news .mini-news-date{margin-top:5px;font-size:11.5px;color:#8b8f85;font-weight:800;}
       .desktop-card{background:#fff;border:1px solid rgba(20,22,26,.09);border-radius:20px;box-shadow:0 8px 22px rgba(20,22,26,.05);overflow:hidden;}
       .desktop-card-pad{padding:26px;}
       .desktop-service-list{display:grid;gap:0;}.desktop-service-row{display:flex;justify-content:space-between;gap:20px;padding:13px 0;border-top:1px solid rgba(20,22,26,.08);font-size:15px;}.desktop-service-row:first-child{border-top:0}.desktop-service-row b{font-weight:900}.desktop-service-row span{font-weight:850;color:#315b37;text-align:right;}
@@ -174,7 +187,7 @@ function render() {
   if (!root || !mq.matches || !state.user) return;
   const c = church();
   const verse = todayVerse();
-  const anns = state.announcements.slice(0, 3);
+  const anns = state.announcements.slice(0, 4);
   const sermons = [...state.sermons, ...state.sermonHistory].slice(0, 3);
   const rooms = state.rooms.slice(0, 3);
   const services = state.services.slice(0, 8);
@@ -197,9 +210,14 @@ function render() {
     </div>
     <section class="desktop-section" id="desk-service"><div class="desktop-home-grid">
       <div class="desktop-card desktop-card-pad"><div class="desktop-section-head"><h2>예배 안내</h2></div>${serviceHtml(services)}</div>
-      <div class="desktop-card desktop-card-pad desktop-verse" id="desk-verse"><div class="label">📖 오늘의 말씀</div>${verse ? `<div class="text">“ ${esc(verse.text)} ”</div><div class="ref">${esc(verse.ref || '오늘의 말씀')}</div>` : `<div class="desktop-empty">등록된 오늘의 말씀이 없습니다.</div>`}</div>
+      <div class="desktop-right-stack" id="desk-news">
+        <div class="desktop-card desktop-card-pad desktop-verse" id="desk-verse"><div class="label">📖 오늘의 말씀</div>${verse ? `<div class="text">“ ${esc(verse.text)} ”</div><div class="ref">${esc(verse.ref || '오늘의 말씀')}</div>` : `<div class="desktop-empty">등록된 오늘의 말씀이 없습니다.</div>`}</div>
+        <div class="desktop-card desktop-card-pad desktop-mini-news">
+          <div class="desktop-section-head"><h2>교회 소식</h2><button class="desktop-more" data-open-app="home">더보기 ›</button></div>
+          ${miniNewsHtml(anns)}
+        </div>
+      </div>
     </div></section>
-    <section class="desktop-section" id="desk-news"><div class="desktop-section-head"><h2>교회 소식</h2><button class="desktop-more" data-open-app="home">더보기 ›</button></div>${cards(anns,'공지사항')}</section>
     <section class="desktop-section" id="desk-word"><div class="desktop-section-head"><h2>주일 설교 / 말씀 영상</h2><button class="desktop-more" data-open-app="word">더보기 ›</button></div>${sermonHtml(sermons)}</section>
     <section class="desktop-section" id="desk-rooms"><div class="desktop-section-head"><h2>재능나눔</h2><button class="desktop-more" data-open-app="community">더보기 ›</button></div>${cards(rooms,'재능나눔')}</section>
     <section class="desktop-section" id="desk-map"><div class="desktop-section-head"><h2>오시는 길</h2></div><div class="desktop-card desktop-map-grid"><div class="desktop-map">📍</div><div class="desktop-card-pad desktop-contact"><p><b>주소</b>${esc(c.address || '관리자페이지에서 주소를 등록해주세요.')}</p><p><b>전화</b>${esc(c.phone || '관리자페이지에서 전화번호를 등록해주세요.')}</p>${c.email ? `<p><b>이메일</b>${esc(c.email)}</p>` : ''}<button class="desktop-primary" data-map>네이버지도 보기 →</button></div></div></section>
@@ -212,17 +230,64 @@ function serviceHtml(list) {
   if (!list.length) return '<div class="desktop-empty">등록된 예배 시간이 없습니다.</div>';
   return `<div class="desktop-service-list">${list.map(s => `<div class="desktop-service-row"><b>${esc(first(s.name,s.title,s.label,'예배'))}</b><span>${esc(first(s.time,s.when,s.desc,s.description,''))}</span></div>`).join('')}</div>`;
 }
-function imgOf(x) { return first(x.imageUrl,x.imgUrl,x.thumbnail,x.thumb,x.photoUrl,x.coverUrl,x.image,x.url); }
+function ytIdFromUrl(url) {
+  const u = String(url || '');
+  let m = u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{11})/);
+  if (m) return m[1];
+  try { const p = new URL(u); const v = p.searchParams.get('v'); if (v && /^[A-Za-z0-9_-]{11}$/.test(v)) return v; } catch (e) {}
+  return '';
+}
+function imgOf(x) {
+  const direct = first(x.imageUrl, x.imgUrl, x.thumbnail, x.thumb, x.photoUrl, x.coverUrl, x.image);
+  if (direct) return direct;
+  const ytSrc = first(x.youtubeUrl, x.youtube, x.videoUrl, x.video, x.link, x.sermonUrl, x.url);
+  const yid = ytIdFromUrl(ytSrc);
+  return yid ? `https://img.youtube.com/vi/${yid}/hqdefault.jpg` : '';
+}
+function sermonUrlOf(x) { return first(x.youtubeUrl, x.youtube, x.videoUrl, x.video, x.link, x.url, x.sermonUrl); }
 function titleOf(x, fallback) { return first(x.title,x.name,x.subject,x.ref,fallback); }
 function bodyOf(x) { return first(x.body,x.text,x.desc,x.description,x.content,''); }
 function cards(list, emptyLabel) {
   if (!list.length) return `<div class="desktop-empty">등록된 ${esc(emptyLabel)} 데이터가 없습니다.</div>`;
   return `<div class="desktop-card-grid">${list.map(x => `<article class="desktop-card desktop-news-card">${imgOf(x) ? `<img src="${esc(imgOf(x))}" alt="">` : ''}<div class="desktop-news-body"><h3>${esc(titleOf(x, emptyLabel))}</h3>${bodyOf(x) ? `<p>${esc(bodyOf(x)).slice(0,90)}</p>` : ''}<div class="desktop-date">${esc(dateText(first(x.date,x.timestamp,x.createdAt,x.updatedAt)))}</div></div></article>`).join('')}</div>`;
 }
+function miniNewsHtml(list) {
+  if (!list.length) return '<div class="desktop-empty">등록된 공지사항이 없습니다.</div>';
+  return `<div class="mini-news-list">${list.slice(0, 4).map((x) => `
+    <div class="mini-news-item">
+      ${imgOf(x) ? `<img class="mini-news-thumb" src="${esc(imgOf(x))}" alt="">` : ''}
+      <div class="mini-news-body">
+        <h3>${esc(titleOf(x, '공지사항'))}</h3>
+        ${bodyOf(x) ? `<p>${esc(bodyOf(x)).slice(0, 80)}</p>` : ''}
+        <div class="mini-news-date">${esc(dateText(first(x.date, x.timestamp, x.createdAt, x.updatedAt)))}</div>
+      </div>
+    </div>`).join('')}</div>`;
+}
 function sermonHtml(list) {
   if (!list.length) return `<div class="desktop-empty">등록된 설교/말씀 영상이 없습니다.</div>`;
   const [main, ...side] = list;
-  return `<div class="desktop-video-grid"><article class="desktop-video-main">${imgOf(main)?`<img src="${esc(imgOf(main))}" alt="">`:''}<div class="info"><div>${esc(dateText(first(main.date,main.timestamp,main.createdAt)))}</div><h3>${esc(titleOf(main,'말씀 영상'))}</h3></div></article><div class="desktop-video-side">${side.slice(0,2).map(s=>`<article class="desktop-small-video">${imgOf(s)?`<img src="${esc(imgOf(s))}" alt="">`:''}<div>${esc(titleOf(s,'말씀 영상'))}</div></article>`).join('')}</div></div>`;
+  const mainThumb = imgOf(main);
+  const mainUrl = sermonUrlOf(main);
+  const mainCls = `desktop-video-main${mainThumb ? '' : ' no-thumb'}${mainUrl ? ' clickable' : ''}`;
+  const mainAttrs = mainUrl ? ` data-sermon-url="${esc(mainUrl)}" role="button" tabindex="0"` : '';
+  return `<div class="desktop-video-grid">
+    <article class="${mainCls}"${mainAttrs}>
+      ${mainThumb ? `<img src="${esc(mainThumb)}" alt="">` : ''}
+      <div class="info">
+        <div>${esc(dateText(first(main.date, main.timestamp, main.createdAt)))}</div>
+        <h3>${esc(titleOf(main, '말씀 영상'))}</h3>
+      </div>
+    </article>
+    <div class="desktop-video-side">
+      ${side.slice(0, 2).map((s) => {
+        const t = imgOf(s);
+        const u = sermonUrlOf(s);
+        const cls = `desktop-small-video${t ? '' : ' no-thumb'}${u ? ' clickable' : ''}`;
+        const attrs = u ? ` data-sermon-url="${esc(u)}" role="button" tabindex="0"` : '';
+        return `<article class="${cls}"${attrs}>${t ? `<img src="${esc(t)}" alt="">` : ''}<div>${esc(titleOf(s, '말씀 영상'))}</div></article>`;
+      }).join('')}
+    </div>
+  </div>`;
 }
 function bindDesktopClicks(c) {
   document.querySelectorAll('[data-scroll]').forEach(btn => btn.onclick = () => {
@@ -233,6 +298,12 @@ function bindDesktopClicks(c) {
   document.querySelector('[data-desk-logout]')?.addEventListener('click', () => signOut(auth));
   document.querySelector('[data-map]')?.addEventListener('click', () => { if (c.naver) window.open(c.naver, '_blank', 'noopener'); });
   document.querySelectorAll('[data-open-app]').forEach(btn => btn.onclick = () => openAppTab(btn.dataset.openApp));
+  document.querySelectorAll('[data-sermon-url]').forEach((card) => {
+    const open = () => { const u = card.getAttribute('data-sermon-url'); if (u) window.open(u, '_blank', 'noopener'); };
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+  });
 }
 function openAppTab(tab) {
   document.body.classList.remove('desktop-site-ready');

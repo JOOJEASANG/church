@@ -145,6 +145,22 @@
       }
     },
 
+    "dailyVerses": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".indexOn": ["createdAt"]
+    },
+
+    "roomBoards": {
+      ".read": "auth != null",
+      "$roomId": {
+        ".indexOn": ["timestamp"],
+        "$postId": {
+          ".write": "auth != null && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid) || root.child('admins').child(auth.uid).exists() || (root.child('rooms').child($roomId).child('createdBy').val() === auth.uid))"
+        }
+      }
+    },
+
     "_seed": {
       ".read": "auth != null",
       "$key": {

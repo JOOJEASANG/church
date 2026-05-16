@@ -9,6 +9,18 @@
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <script>
+    /* 관리자 페이지 인증 초기화 중 깜빡임 방지 */
+    (function () {
+      try {
+        var hadAuth = localStorage.getItem('namsanHadAuth') === '1';
+        document.documentElement.setAttribute('data-auth-pending', '1');
+        setTimeout(function () {
+          document.documentElement.removeAttribute('data-auth-pending');
+        }, hadAuth ? 4000 : 1500);
+      } catch (e) {}
+    })();
+  </script>
   <style>
     :root {
       --bg: #f7f7f4;
@@ -49,6 +61,9 @@
       min-height: 100vh; display: grid; place-items: center; padding: 24px;
       background: linear-gradient(160deg, #f7f7f4 0%, #ecf0e9 100%);
     }
+    /* 인증 초기화 중에는 로그인 폼이 깜빡이지 않도록 잠시 숨김 */
+    html[data-auth-pending="1"] #loginPane,
+    html[data-auth-pending="1"] #adminPane { visibility: hidden !important; }
     .login-card {
       width: 100%; max-width: 380px;
       background: var(--paper); border: 1px solid var(--line);

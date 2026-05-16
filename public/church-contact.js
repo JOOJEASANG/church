@@ -187,11 +187,10 @@ function bindAdminSave() {
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('button, [role="button"]');
     if (!btn) return;
-    const label = (btn.textContent || btn.id || '').trim();
-    if (btn.id === 'chSave' || /교회정보.*저장|저장/.test(label)) {
-      setTimeout(() => saveNaverMapUrl({ quiet: true }), 250);
-      setTimeout(() => saveNaverMapUrl({ quiet: true }), 900);
-    }
+    // 정확히 교회정보 저장 버튼만 — 너무 광범위한 /저장/ 매칭은 제거
+    if (btn.id !== 'chSave') return;
+    setTimeout(() => saveNaverMapUrl({ quiet: true }), 250);
+    setTimeout(() => saveNaverMapUrl({ quiet: true }), 900);
   }, true);
 }
 
