@@ -49,6 +49,9 @@ isSupported().then((ok) => { if (ok) getAnalytics(app); }).catch(() => {});
 // PC 모드 전용 디자인 업그레이드
 import('/desktop-polish.js').catch((e) => console.warn('[desktop-polish] 로드 실패:', e?.message || e));
 
+// PC 전용 헤더 간소화 + 유튜브 썸네일 보정
+import('/desktop-header-video-fix.js').catch((e) => console.warn('[desktop-header-video-fix] 로드 실패:', e?.message || e));
+
 // 공용 확장 기능: 관리자 등록 말씀을 홈 화면 오늘의 말씀에 적용
 import('/daily-verses.js').catch((e) => console.warn('[daily-verses] 로드 실패:', e?.message || e));
 
