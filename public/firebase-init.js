@@ -48,10 +48,8 @@ isSupported().then((ok) => { if (ok) getAnalytics(app); }).catch(() => {});
 
 const __isAdminPage = location.pathname === '/admin' || location.pathname.startsWith('/admin/');
 
-// 사용자 전용 모듈 (관리자 페이지에서는 불필요)
+// 사용자 전용 모듈
 if (!__isAdminPage) {
-  import('/desktop-polish.js').catch((e) => console.warn('[desktop-polish] 로드 실패:', e?.message || e));
-  import('/desktop-header-video-fix.js').catch((e) => console.warn('[desktop-header-video-fix] 로드 실패:', e?.message || e));
   import('/talent-room-board.js').catch((e) => console.warn('[talent-room-board] 로드 실패:', e?.message || e));
   import('/talent-category-fix.js').catch((e) => console.warn('[talent-category-fix] 로드 실패:', e?.message || e));
   import('/room-status-fix.js').catch((e) => console.warn('[room-status-fix] 로드 실패:', e?.message || e));
@@ -65,10 +63,13 @@ if (__isAdminPage) {
   import('/admin-google-login.js').catch((e) => console.warn('[admin-google-login] 로드 실패:', e?.message || e));
 }
 
-// 양쪽에서 모두 필요한 공용 모듈
+// 오늘의 말씀 표시는 daily-verse-final.js 하나만 담당합니다.
 import('/daily-verse-final.js').catch((e) => console.warn('[daily-verse-final] 로드 실패:', e?.message || e));
-import('/daily-verse-refresh.js').catch((e) => console.warn('[daily-verse-refresh] 로드 실패:', e?.message || e));
+
+// 오늘의 묵상은 todayVerseChanged 이벤트만 받아 동기화합니다.
 import('/meditation-sync.js').catch((e) => console.warn('[meditation-sync] 로드 실패:', e?.message || e));
+
+// 공용 UI/연락처/관리자 이동 버튼
 import('/admin-shortcut.js').catch((e) => console.warn('[admin-shortcut] 로드 실패:', e?.message || e));
 import('/church-contact.js').catch((e) => console.warn('[church-contact] 로드 실패:', e?.message || e));
 import('/ui-fixes.js').catch((e) => console.warn('[ui-fixes] 로드 실패:', e?.message || e));
