@@ -53,6 +53,7 @@ if (!__isAdminPage) {
   import('/talent-room-board.js').catch((e) => console.warn('[talent-room-board] 로드 실패:', e?.message || e));
   import('/talent-category-fix.js').catch((e) => console.warn('[talent-category-fix] 로드 실패:', e?.message || e));
   import('/room-status-fix.js').catch((e) => console.warn('[room-status-fix] 로드 실패:', e?.message || e));
+  import('/pc-install-button.js').catch((e) => console.warn('[pc-install-button] 로드 실패:', e?.message || e));
 }
 
 // 관리자 전용 모듈
