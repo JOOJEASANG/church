@@ -42,7 +42,7 @@
       ".read": "auth != null",
       ".indexOn": ["timestamp"],
       "$roomId": {
-        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || !data.exists() || newData.child('joined').val() === data.child('joined').val() + 1 || newData.child('joined').val() === data.child('joined').val() - 1)"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && (!data.exists() || newData.child('joined').val() === data.child('joined').val() + 1 || newData.child('joined').val() === data.child('joined').val() - 1)))"
       }
     },
 
@@ -50,7 +50,7 @@
       ".read": "auth != null",
       ".indexOn": ["timestamp"],
       "$prayerId": {
-        ".write": "auth != null && (!data.exists() || data.child('createdBy').val() === auth.uid || root.child('admins').child(auth.uid).exists() || (newData.child('count').val() === data.child('count').val() + 1 && newData.child('text').val() === data.child('text').val() && newData.child('createdBy').val() === data.child('createdBy').val() && newData.child('timestamp').val() === data.child('timestamp').val()))"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && (!data.exists() || data.child('createdBy').val() === auth.uid || (newData.child('count').val() === data.child('count').val() + 1 && newData.child('text').val() === data.child('text').val() && newData.child('createdBy').val() === data.child('createdBy').val() && newData.child('timestamp').val() === data.child('timestamp').val()))))"
       }
     },
 
@@ -58,7 +58,7 @@
       ".read": "auth != null",
       "$prayerId": {
         "$uid": {
-          ".write": "auth != null && auth.uid === $uid"
+          ".write": "auth != null && auth.uid === $uid && (root.child('admins').child(auth.uid).exists() || root.child('users').child(auth.uid).child('status').val() === 'approved')"
         }
       }
     },
@@ -68,7 +68,7 @@
       ".indexOn": ["timestamp"],
       "$id": {
         ".read": "auth != null && (root.child('admins').child(auth.uid).exists() || data.child('userUid').val() === auth.uid)",
-        ".write": "auth != null && ((!data.exists() && newData.child('userUid').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('userUid').val() === auth.uid) || root.child('admins').child(auth.uid).exists())"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.child('userUid').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('userUid').val() === auth.uid))))"
       }
     },
 
@@ -83,7 +83,7 @@
       ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).exists())",
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (auth.uid === $uid && ((!data.exists() && newData.child('displayName').isString() && newData.child('phone').isString() && newData.child('role').isString() && newData.child('memberType').isString() && newData.child('status').isString()) || (data.exists() && (data.child('status').exists() && newData.child('status').val() === data.child('status').val() && newData.child('memberType').val() === data.child('memberType').val()) || (data.exists() && !data.child('status').exists() && newData.child('status').isString())))))"
       }
     },
 
@@ -91,7 +91,7 @@
       ".read": true,
       ".indexOn": ["timestamp"],
       "$id": {
-        ".write": "auth != null && (!data.exists() || root.child('admins').child(auth.uid).exists() || data.child('uploaderUid').val() === auth.uid)"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && (!data.exists() || data.child('uploaderUid').val() === auth.uid)))"
       }
     },
 
@@ -106,7 +106,7 @@
       ".indexOn": ["timestamp"],
       "$id": {
         ".read": "auth != null && (root.child('admins').child(auth.uid).exists() || data.child('authorUid').val() === auth.uid)",
-        ".write": "auth != null && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid && !newData.exists()) || root.child('admins').child(auth.uid).exists())"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid && !newData.exists()))))"
       }
     },
 
@@ -122,7 +122,7 @@
       ".read": "auth != null",
       ".indexOn": ["timestamp"],
       "$id": {
-        ".write": "auth != null && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || data.child('authorUid').val() === auth.uid || root.child('admins').child(auth.uid).exists() || (data.exists() && newData.exists() && newData.child('title').val() === data.child('title').val() && newData.child('body').val() === data.child('body').val() && newData.child('authorUid').val() === data.child('authorUid').val() && newData.child('timestamp').val() === data.child('timestamp').val()))"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || data.child('authorUid').val() === auth.uid || (data.exists() && newData.exists() && newData.child('title').val() === data.child('title').val() && newData.child('body').val() === data.child('body').val() && newData.child('authorUid').val() === data.child('authorUid').val() && newData.child('timestamp').val() === data.child('timestamp').val()))))"
       }
     },
 
@@ -130,7 +130,7 @@
       ".read": "auth != null",
       "$postId": {
         "$uid": {
-          ".write": "auth != null && auth.uid === $uid"
+          ".write": "auth != null && auth.uid === $uid && (root.child('admins').child(auth.uid).exists() || root.child('users').child(auth.uid).child('status').val() === 'approved')"
         }
       }
     },
@@ -140,7 +140,7 @@
       "$postId": {
         ".indexOn": ["timestamp"],
         "$commentId": {
-          ".write": "auth != null && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid) || (root.child('admins').child(auth.uid).exists() && !newData.exists()))"
+          ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid))))"
         }
       }
     },
@@ -150,7 +150,7 @@
       "$roomId": {
         ".indexOn": ["timestamp"],
         "$postId": {
-          ".write": "auth != null && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid) || root.child('admins').child(auth.uid).exists() || (root.child('rooms').child($roomId).child('createdBy').val() === auth.uid))"
+          ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid) || root.child('rooms').child($roomId).child('createdBy').val() === auth.uid)))"
         }
       }
     },
