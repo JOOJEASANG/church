@@ -4,10 +4,8 @@
  * - 관리자 페이지: 로그아웃 버튼 왼쪽에 홈페이지 이동 버튼 표시
  * - MutationObserver는 .app-header / .topbar 한정 (성능 보호)
  */
-import { auth } from '/firebase-init.js';
+import { auth, isAdminPage } from '/firebase-init.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
-
-const isAdminPage = () => location.pathname === '/admin' || location.pathname.startsWith('/admin/');
 const goAdmin = () => { location.href = '/admin/'; };
 const goHome = () => { location.href = '/'; };
 

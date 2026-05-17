@@ -136,4 +136,27 @@ mq.addEventListener?.('change', render);
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render);
 else render();
 [400, 1000, 2000, 4000].forEach((ms) => setTimeout(render, ms));
-new MutationObserver(render).observe(document.documentElement, { childList: true, subtree: true });
+
+// 헤더가 나중에 생성될 경우를 대비해 body 직접 자식만 감시
+function startHeaderObserver() {
+  const headerEl = document.querySelector('.app-header, header');
+  if (headerEl) {
+    new MutationObserver(render).observe(headerEl, { childList: true, subtree: true });
+    return;
+  }
+  if (!document.body) return;
+  const obs = new MutationObserver(() => {
+    if (document.querySelector('.app-header, header')) {
+      obs.disconnect();
+      startHeaderObserver();
+      render();
+    }
+  });
+  obs.observe(document.body, { childList: true });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startHeaderObserver);
+} else {
+  startHeaderObserver();
+}

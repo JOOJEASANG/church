@@ -5,7 +5,7 @@
  * - 히어로 큰 문구 줄바꿈 표시 지원
  * ============================================================= */
 
-import { db } from '/firebase-init.js';
+import { db, isAdminPage } from '/firebase-init.js';
 import { ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 
 let churchInfo = {};
@@ -13,10 +13,6 @@ let adminBound = false;
 let naverFieldBound = false;
 let naverSaveTimer = null;
 let lastSavedNaverUrl = '';
-
-function isAdminPage() {
-  return location.pathname === '/admin' || location.pathname.startsWith('/admin/');
-}
 
 function safeUrl(url) {
   if (!url || typeof url !== 'string') return '';

@@ -1,6 +1,10 @@
 // 천안남산교회 PWA - Firebase 공용 초기화
 // 사용자 앱과 관리자 페이지에서 함께 import 합니다.
 
+export function isAdminPage() {
+  return location.pathname === '/admin' || location.pathname.startsWith('/admin/');
+}
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
@@ -67,6 +71,9 @@ if (__isAdminPage) {
 
 // 오늘의 말씀 표시는 daily-verse-final.js 하나만 담당합니다.
 import('/daily-verse-final.js').catch((e) => console.warn('[daily-verse-final] 로드 실패:', e?.message || e));
+
+// 자정 말씀 교체 트리거
+import('/daily-verse-refresh.js').catch((e) => console.warn('[daily-verse-refresh] 로드 실패:', e?.message || e));
 
 // 오늘의 묵상은 todayVerseChanged 이벤트만 받아 동기화합니다.
 import('/meditation-sync.js').catch((e) => console.warn('[meditation-sync] 로드 실패:', e?.message || e));
