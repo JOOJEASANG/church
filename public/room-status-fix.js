@@ -4,7 +4,7 @@
  * - 사용자: 카드 셀렉터 한정으로 DOM 텍스트 보정 (div 전수 순회 제거)
  * ============================================================= */
 
-import { db, auth } from '/firebase-init.js';
+import { db, auth, isAdminPage } from '/firebase-init.js';
 import { ref, onValue, update, get } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
@@ -15,10 +15,6 @@ let isAdmin = false;
 let normalizeRunning = false;
 let observerStarted = false;
 let patchTimer = null;
-
-function isAdminPage() {
-  return location.pathname === '/admin' || location.pathname.startsWith('/admin/');
-}
 function normalizeText(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
 function isApprovedRoom(room) { return room && room.approved === true; }
 function hasPendingStatus(room) {

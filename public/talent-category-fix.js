@@ -1,9 +1,7 @@
 /* 재능나눔방 개설 분야 옵션 보정: 기타 추가
  * - 모달이 열릴 때만 한 번 처리 (document 전수 감시 제거)
  */
-function isAdminPage() {
-  return location.pathname === '/admin' || location.pathname.startsWith('/admin/');
-}
+import { isAdminPage } from '/firebase-init.js';
 
 function hasOption(select, value) {
   return Array.from(select.options || []).some((opt) => opt.value === value || opt.textContent.trim() === value);

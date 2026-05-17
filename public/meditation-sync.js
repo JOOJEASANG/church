@@ -2,7 +2,7 @@
  * - 말씀 표시는 daily-verse-final.js를 신뢰 (window.__namsanTodayVerse)
  * - 자체 Firebase 구독 없음 (중복 제거)
  */
-import { db, auth } from '/firebase-init.js';
+import { db, auth, isAdminPage } from '/firebase-init.js';
 import { ref, push } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 
 let modal = null;
@@ -12,7 +12,6 @@ function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
-function isAdminPage() { return location.pathname === '/admin' || location.pathname.startsWith('/admin/'); }
 
 function notify(msg) {
   if (typeof window.toast === 'function') return window.toast(msg);

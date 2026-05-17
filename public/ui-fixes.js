@@ -9,7 +9,7 @@
  * - 앱 설치 안내 배너 폭 보정
  * ============================================================= */
 
-import { db } from '/firebase-init.js';
+import { db, isAdminPage } from '/firebase-init.js';
 import { ref, onValue } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 
 let churchBrand = {
@@ -17,10 +17,6 @@ let churchBrand = {
   logoUrl: '/icons/icon.svg'
 };
 let churchBrandListening = false;
-
-function isAdminPage() {
-  return location.pathname === '/admin' || location.pathname.startsWith('/admin/');
-}
 
 function safeAssetUrl(url) {
   if (!url || typeof url !== 'string') return '';
