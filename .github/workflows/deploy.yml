@@ -16,10 +16,7 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
-      - name: Install Functions dependencies
-        run: npm install --prefix functions
-
-      - name: Deploy to Firebase (Hosting + Database + Storage + Functions)
-        run: firebase deploy --only hosting,database,storage,functions
+      - name: Deploy to Firebase (Hosting + Database + Storage rules)
+        run: firebase deploy --only hosting,database,storage
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
