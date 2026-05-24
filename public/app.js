@@ -139,7 +139,9 @@ document.getElementById('authPaneRegister')?.addEventListener('submit', async (e
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName: name });
     await set(ref(db, `users/${cred.user.uid}`), {
-      email, displayName: name, phone, role, createdAt: Date.now(),
+      email, displayName: name, phone, role,
+      memberType: '일반', status: 'approved',
+      createdAt: Date.now(),
       agreedTosAt: Date.now(), agreedPrivacyAt: Date.now()
     });
     // onAuthStateChanged가 나머지 처리
@@ -162,6 +164,8 @@ async function ensureGoogleUserProfile(user) {
         displayName: user.displayName || (user.email ? user.email.split('@')[0] : '성도'),
         phone: user.phoneNumber || '',
         role: '성도',
+        memberType: '일반',
+        status: 'approved',
         provider: 'google',
         createdAt: Date.now(),
         agreedTosAt: Date.now(),
@@ -373,7 +377,7 @@ function fillLegalModals() {
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    listenersAttached = false;
+    detachListeners();
     state.uid = null;
     state.userProfile = null;
     // 로그아웃 시 열려있는 모든 모달 닫기 (잘못된 uid로 폼 제출 방지)
@@ -525,6 +529,7 @@ document.getElementById('peSubmit')?.addEventListener('click', async () => {
 
 // ===== 실시간 리스너 =====
 let listenersAttached = false;
+const _listenerUnsubs = [];
 
 // http(s) URL만 허용해 javascript: / data: / vbscript: 등 위험한 스킴 차단
 function safeImageUrl(url) {
@@ -539,9 +544,17 @@ function safeImageUrl(url) {
 }
 
 function onValueWithError(path, handler) {
-  return onValue(ref(db, path), handler, (err) => {
+  const unsub = onValue(ref(db, path), handler, (err) => {
     console.error(`[home] ${path} 읽기 실패:`, err.code || err.message);
   });
+  _listenerUnsubs.push(unsub);
+  return unsub;
+}
+
+function detachListeners() {
+  _listenerUnsubs.forEach((fn) => { try { fn(); } catch {} });
+  _listenerUnsubs.length = 0;
+  listenersAttached = false;
 }
 
 function attachListeners() {
@@ -590,7 +603,7 @@ function attachListeners() {
     state.church = snap.val() || {};
     applyChurchInfo();
   });
-  onValue(ref(db, 'config/services'), (snap) => {
+  _listenerUnsubs.push(onValue(ref(db, 'config/services'), (snap) => {
     state.services = [];
     snap.forEach((c) => { state.services.push({ id: c.key, ...c.val() }); });
     state.services.sort((a, b) => (serviceFirstDay(a) - serviceFirstDay(b)) || (a.time || '').localeCompare(b.time || ''));
@@ -599,7 +612,7 @@ function attachListeners() {
     console.error('[home] config/services 읽기 실패:', err.code || err.message, err);
     const list = document.getElementById('serviceList');
     if (list) list.innerHTML = `<div class="service-empty">⚠️ 예배 시간을 불러오지 못했습니다 (${err.code || '권한 오류'})</div>`;
-  });
+  }));
   onValueWithError('config/hero', (snap) => {
     state.hero = snap.val() || null;
     applyHero();
@@ -3227,7 +3240,7 @@ function openDayEvents(dateStr) {
     tag: e.category || '기타',
     tagClass: calCatClass(e.category),
     title: e.title,
-    body: [e.time ? `🕐 ${e.time}` : '', e.location ? `📍 ${escapeHtml(e.location)}` : '', e.desc || ''].filter(Boolean).join('  ')
+    body: [e.time ? `🕐 ${e.time}` : '', e.location ? `📍 ${e.location}` : '', e.desc || ''].filter(Boolean).join('  ')
   })).join('');
   openListModal(`${parseInt(m)}월 ${parseInt(d)}일 일정`, rows);
 }
