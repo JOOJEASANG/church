@@ -21,6 +21,7 @@ import {
 // ----- 상태 -----
 const state = {
   uid: null,
+  isAdmin: false,
   currentTab: 'home',
   currentCategory: '전체',
   rooms: [],
@@ -387,12 +388,17 @@ onAuthStateChanged(auth, async (user) => {
   }
   hideAuthScreen();
   state.uid = user.uid;
-  // 프로필 정보 가져오기 (없어도 동작은 OK)
+  // 프로필 정보 + 관리자 여부 확인
   try {
-    const psnap = await get(ref(db, `users/${user.uid}`));
+    const [psnap, asnap] = await Promise.all([
+      get(ref(db, `users/${user.uid}`)),
+      get(ref(db, `admins/${user.uid}`))
+    ]);
     state.userProfile = psnap.exists() ? psnap.val() : { email: user.email, displayName: user.displayName || '' };
+    state.isAdmin = asnap.exists();
   } catch {
     state.userProfile = { email: user.email, displayName: user.displayName || '' };
+    state.isAdmin = false;
   }
   applyProfile();
   attachListeners();
@@ -400,10 +406,6 @@ onAuthStateChanged(auth, async (user) => {
   loadMyPostLikes();
 });
 
-const STAFF_ROLES = new Set(['집사', '권사', '장로', '부목사', '목사']);
-function isStaff(profile) {
-  return STAFF_ROLES.has((profile?.role || '').trim());
-}
 
 function applyProfile() {
   const p = state.userProfile || {};
@@ -418,9 +420,9 @@ function applyProfile() {
     rolePill.textContent = p.role || '성도';
     rolePill.style.display = p.displayName ? '' : 'none';
   }
-  // 새가족 등록 카드: 집사 이상 교회관계자만 표시
+  // 새가족 등록 카드: 관리자 계정만 표시
   const newcomerCard = document.getElementById('newcomerCard');
-  if (newcomerCard) newcomerCard.style.display = isStaff(p) ? '' : 'none';
+  if (newcomerCard) newcomerCard.style.display = state.isAdmin ? '' : 'none';
 }
 
 // 다른 사용자에게 표시할 이름 라벨 — "홍길동 집사" 형태
@@ -2805,7 +2807,7 @@ document.querySelectorAll('[data-action]').forEach((el) => {
       openModal('visitModal');
     }
     else if (a === 'newcomer') {
-      if (!isStaff(state.userProfile)) return;
+      if (!state.isAdmin) return;
       ['ncName', 'ncPhone', 'ncAddress'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
       autofillFromProfile({ name: 'ncName', phone: 'ncPhone' });
       openModal('newcomerModal');
