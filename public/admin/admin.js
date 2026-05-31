@@ -1298,7 +1298,7 @@ if (heroFileInput) {
     const f = e.target.files[0];
     if (!f || !f.type.startsWith('image/')) return;
     try {
-      const resized = await resizeImage(f, { maxDim: 2400, quality: 0.88 });
+      const resized = await resizeImage(f, { maxDim: 1280, quality: 0.82, mime: 'image/webp' });
       const dt = new DataTransfer();
       dt.items.add(resized);
       heroFileInput.files = dt.files;
