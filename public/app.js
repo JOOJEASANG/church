@@ -400,6 +400,11 @@ onAuthStateChanged(auth, async (user) => {
   loadMyPostLikes();
 });
 
+const STAFF_ROLES = new Set(['집사', '권사', '장로', '부목사', '목사']);
+function isStaff(profile) {
+  return STAFF_ROLES.has((profile?.role || '').trim());
+}
+
 function applyProfile() {
   const p = state.userProfile || {};
   const nameEl = document.querySelector('#profileName');
@@ -413,6 +418,9 @@ function applyProfile() {
     rolePill.textContent = p.role || '성도';
     rolePill.style.display = p.displayName ? '' : 'none';
   }
+  // 새가족 등록 카드: 집사 이상 교회관계자만 표시
+  const newcomerCard = document.getElementById('newcomerCard');
+  if (newcomerCard) newcomerCard.style.display = isStaff(p) ? '' : 'none';
 }
 
 // 다른 사용자에게 표시할 이름 라벨 — "홍길동 집사" 형태
@@ -2797,6 +2805,7 @@ document.querySelectorAll('[data-action]').forEach((el) => {
       openModal('visitModal');
     }
     else if (a === 'newcomer') {
+      if (!isStaff(state.userProfile)) return;
       ['ncName', 'ncPhone', 'ncAddress'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
       autofillFromProfile({ name: 'ncName', phone: 'ncPhone' });
       openModal('newcomerModal');
