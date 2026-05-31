@@ -420,9 +420,9 @@ function applyProfile() {
     rolePill.textContent = p.role || '성도';
     rolePill.style.display = p.displayName ? '' : 'none';
   }
-  // 새가족 등록 카드: 관리자 계정만 표시
+  // 새가족 등록 카드: 로그인한 모든 사용자에게 표시
   const newcomerCard = document.getElementById('newcomerCard');
-  if (newcomerCard) newcomerCard.style.display = state.isAdmin ? '' : 'none';
+  if (newcomerCard) newcomerCard.style.display = '';
 }
 
 // 다른 사용자에게 표시할 이름 라벨 — "홍길동 집사" 형태
@@ -2807,7 +2807,6 @@ document.querySelectorAll('[data-action]').forEach((el) => {
       openModal('visitModal');
     }
     else if (a === 'newcomer') {
-      if (!state.isAdmin) return;
       ['ncName', 'ncPhone', 'ncAddress'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
       autofillFromProfile({ name: 'ncName', phone: 'ncPhone' });
       openModal('newcomerModal');
