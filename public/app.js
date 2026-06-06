@@ -1334,19 +1334,14 @@ const DAILY_VERSES = [
   { ref: '요한계시록 22:20', text: '이것들을 증언하신 이가 이르시되 내가 진실로 속히 오리라 하시거늘 아멘 주 예수여 오시옵소서.' }
 ];
 
-function getTodaysVerseRef() {
-  // 날짜 기반 의사 랜덤 (Mulberry32) — 모든 사용자가 같은 날엔 같은 절
+function getTodaysVerse() {
+  // daily-verse-final.js가 설정한 오늘의 말씀 사용, 없으면 DAILY_VERSES 폴백
+  if (window.__namsanTodayVerse?.text) return window.__namsanTodayVerse;
   const d = new Date();
   const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-  let x = (seed ^ 0xdeadbeef) >>> 0;
-  x = Math.imul(x ^ (x >>> 16), 2246822507);
+  let x = Math.imul((seed ^ 0xdeadbeef) >>> 0, 2246822507);
   x = Math.imul(x ^ (x >>> 13), 3266489909);
-  x = (x ^ (x >>> 16)) >>> 0;
-  return x % DAILY_VERSES.length;
-}
-
-function getTodaysVerse() {
-  return DAILY_VERSES[getTodaysVerseRef()];
+  return DAILY_VERSES[((x ^ (x >>> 16)) >>> 0) % DAILY_VERSES.length];
 }
 
 function todayKey() {
@@ -1509,39 +1504,6 @@ document.getElementById('postDetailShareBtn')?.addEventListener('click', async (
   });
 });
 
-async function setDailyVerse() {
-  const ref = getTodaysVerseRef();
-  const t = document.getElementById('verseText');
-  const r = document.getElementById('verseRef');
-  // 1) 즉시 폴백 텍스트 표시 (FOUC 방지)
-  if (t) t.textContent = FALLBACK_VERSES[ref] || '말씀을 불러오는 중...';
-  if (r) r.textContent = ref;
-  // 2) 비동기로 API에서 정식 본문 가져와 갱신
-  try {
-    const text = await fetchVerseText(ref);
-    if (t && text) t.textContent = text;
-  } catch {}
-}
-setDailyVerse();
-
-// 자정 자동 갱신 (페이지 열어둔 채 날짜 넘어가도 자동 새로고침)
-function scheduleMidnightVerseRefresh() {
-  const now = new Date();
-  const next = new Date(now);
-  next.setDate(next.getDate() + 1);
-  next.setHours(0, 0, 5, 0); // 자정 5초 후 (시계 미세오차 안전 margin)
-  const delay = Math.max(1000, next.getTime() - now.getTime());
-  setTimeout(() => {
-    setDailyVerse();
-    scheduleMidnightVerseRefresh();
-  }, delay);
-}
-scheduleMidnightVerseRefresh();
-
-// 다른 앱에서 돌아왔을 때 갱신 (날짜 바뀌었을 수 있음)
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') setDailyVerse();
-});
 
 // ===== 유틸 =====
 function escapeHtml(v) {
