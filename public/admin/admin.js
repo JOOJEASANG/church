@@ -93,20 +93,9 @@ onAuthStateChanged(auth, async (user) => {
     const snap = await get(adminRef);
 
     if (!snap.exists()) {
-      // /admins 가 비어있으면 첫 로그인 유저를 자동 등록 (부트스트랩)
-      const allAdmins = await get(ref(db, 'admins'));
-      if (!allAdmins.exists()) {
-        await set(adminRef, {
-          email: user.email,
-          name: user.email.split('@')[0],
-          role: 'super',
-          createdAt: Date.now()
-        });
-      } else {
-        loginErr.textContent = '관리자 권한이 없는 계정입니다.';
-        await signOut(auth);
-        return;
-      }
+      loginErr.textContent = '관리자 권한이 없는 계정입니다. Firebase 콘솔에서 관리자를 등록해주세요.';
+      await signOut(auth);
+      return;
     }
 
     state.isAdmin = true;
@@ -1309,7 +1298,7 @@ if (heroFileInput) {
     const f = e.target.files[0];
     if (!f || !f.type.startsWith('image/')) return;
     try {
-      const resized = await resizeImage(f, { maxDim: 2400, quality: 0.88 });
+      const resized = await resizeImage(f, { maxDim: 1280, quality: 0.82, mime: 'image/webp' });
       const dt = new DataTransfer();
       dt.items.add(resized);
       heroFileInput.files = dt.files;

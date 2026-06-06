@@ -182,7 +182,7 @@ function normalizeSnapshotValue(val) {
 function filteredItems() {
   const q = searchText.trim().toLowerCase();
   if (!q) return items;
-  return items.filter((v) => `${refOf(v)} ${textOf(v)} ${v.note || ''}`.toLowerCase().includes(q));
+  return items.filter((v) => `${refOf(v)} ${textOf(v)} ${v.note || ''} ${v.date || ''}`.toLowerCase().includes(q));
 }
 
 function pageItems() {
@@ -301,6 +301,7 @@ function renderList() {
         </div>
         <div class="dv-card-text">${escapeHtml(textOf(v) || '본문 없음')}</div>
         <div class="dv-card-meta">
+          ${v.date ? `<span style="font-weight:900;color:var(--primary-dark,#315b37);">📅 ${escapeHtml(v.date)}</span>` : '<span style="color:var(--muted-2,#9aa0aa);">날짜 미지정 (순환)</span>'}
           <span>등록/수정: ${escapeHtml(fmt(v.updatedAt || v.createdAt || v.timestamp))}</span>
           ${v.note ? `<span>메모: ${escapeHtml(v.note)}</span>` : ''}
         </div>

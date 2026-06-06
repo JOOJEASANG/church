@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - claude/church-website-app-HNkR5
+      - claude/full-file-review-BCCnR
 
 jobs:
   deploy:

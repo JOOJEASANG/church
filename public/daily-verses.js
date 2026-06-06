@@ -196,13 +196,22 @@ function ensureLayer() {
       <div class="daily-verses-dialog-head">
         <div>
           <h3 id="dvEditorTitle">오늘의 말씀 직접등록</h3>
-          <p>성경구절과 말씀 본문을 입력하면 저장 즉시 목록에 반영됩니다.</p>
+          <p>날짜를 지정하면 그날 해당 말씀이 표시됩니다. 날짜 없이 등록하면 순환 말씀에 포함됩니다.</p>
         </div>
         <button class="daily-verses-close" type="button" id="dvEditorClose" aria-label="닫기">×</button>
       </div>
       <div class="grid-2">
         <div><label>성경 구절</label><input class="field" id="dvRef" placeholder="예: 시편 23:1"/></div>
         <div><label>표시 상태</label><select class="field" id="dvActive"><option value="true">사용함</option><option value="false">숨김</option></select></div>
+      </div>
+      <div class="grid-2" style="margin-top:0;">
+        <div>
+          <label>표시 날짜 <span style="font-weight:500;color:var(--muted,#767a83);">(이 날 표시 · 선택)</span></label>
+          <input class="field" type="date" id="dvDate" />
+        </div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:2px;">
+          <button class="btn btn-sm" type="button" id="dvDateToday" style="white-space:nowrap;">오늘로 설정</button>
+        </div>
       </div>
       <label>말씀 본문</label>
       <textarea class="field" id="dvText" placeholder="예: 여호와는 나의 목자시니 내게 부족함이 없으리로다" style="min-height:130px;"></textarea>
@@ -217,6 +226,14 @@ function ensureLayer() {
   document.body.appendChild(layer);
 
   document.getElementById('dvEditorClose')?.addEventListener('click', closeEditor);
+  document.getElementById('dvDateToday')?.addEventListener('click', () => {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const el = document.getElementById('dvDate');
+    if (el) el.value = `${y}-${m}-${d}`;
+  });
   document.getElementById('dvCancel')?.addEventListener('click', closeEditor);
   layer.addEventListener('click', (e) => {
     if (e.target === layer) closeEditor();
@@ -238,7 +255,7 @@ function setStatus(msg, error = false) {
 }
 
 function clearForm() {
-  ['dvRef', 'dvText', 'dvNote'].forEach((id) => {
+  ['dvRef', 'dvText', 'dvNote', 'dvDate'].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -268,6 +285,8 @@ function openEditor(item = null) {
     if (textInput) textInput.value = item.text || item.verseText || item.content || item.body || '';
     if (noteInput) noteInput.value = item.note || '';
     if (activeInput) activeInput.value = item.active === false ? 'false' : 'true';
+    const dateInput = document.getElementById('dvDate');
+    if (dateInput) dateInput.value = item.date || '';
   }
   const layer = document.getElementById('dailyVerseEditorLayer');
   layer?.classList.add('show');
@@ -290,6 +309,7 @@ function bindSaveButton() {
     const text = document.getElementById('dvText')?.value.trim() || '';
     const note = document.getElementById('dvNote')?.value.trim() || '';
     const active = (document.getElementById('dvActive')?.value || 'true') !== 'false';
+    const dateVal = document.getElementById('dvDate')?.value || '';
     if (!verseRef) { setStatus('성경 구절을 입력해주세요.', true); return; }
     if (!text) { setStatus('말씀 본문을 입력해주세요.', true); return; }
     saveBtn.disabled = true;
@@ -300,6 +320,7 @@ function bindSaveButton() {
         text,
         note,
         active,
+        date: dateVal || null,
         updatedAt: Date.now(),
         updatedBy: auth.currentUser?.uid || ''
       };

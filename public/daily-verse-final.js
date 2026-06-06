@@ -1,8 +1,7 @@
 /* 오늘의 말씀 단일 적용 모듈
  * - Firebase dailyVerses 데이터만 사용
- * - 모바일/PC DOM 모두 지원
- * - 날짜별 랜덤 셔플 방식
- * - 말씀이 2개 이상이면 전날과 같은 말씀이 나오지 않도록 보정
+ * - 날짜 지정 말씀 우선 표시 (date 필드 == 오늘)
+ * - 날짜 미지정 말씀은 오늘 날짜를 seed로 매일 다르게 표시
  */
 import { db, auth } from '/firebase-init.js';
 import { ref, onValue } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
@@ -24,15 +23,7 @@ function dateKey(offset = 0) {
   const d = todayStart(offset);
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-function monthKey(offset = 0) {
-  const d = todayStart(offset);
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-}
-function dayOfMonth(offset = 0) {
-  return todayStart(offset).getDate();
-}
-function hash(v) {
-  const s = String(v || '');
+function hash(s) {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);
@@ -47,7 +38,8 @@ function normalize(raw) {
   const refText = first(raw.ref, raw.reference, raw.verseRef, raw.bookChapterVerse, raw.address, raw.title);
   const bodyText = first(raw.text, raw.verseText, raw.content, raw.body, raw.message, raw.word);
   const active = raw.active !== false && raw.enabled !== false && raw.use !== false && raw.hidden !== true;
-  return { ...raw, ref: refText, text: bodyText, active };
+  const date = (typeof raw.date === 'string' && raw.date.match(/^\d{4}-\d{2}-\d{2}$/)) ? raw.date : '';
+  return { ...raw, ref: refText, text: bodyText, active, date };
 }
 function activeList() {
   return items
@@ -55,34 +47,47 @@ function activeList() {
     .filter(v => v && v.text && v.active)
     .sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')));
 }
-function shuffledForDate(list, offset = 0) {
-  const m = monthKey(offset);
-  return [...list].sort((a, b) => {
-    const ha = hash(`${m}|${a.id || ''}|${a.ref || ''}|${a.text || ''}`);
-    const hb = hash(`${m}|${b.id || ''}|${b.ref || ''}|${b.text || ''}`);
-    return ha - hb || String(a.id || '').localeCompare(String(b.id || ''));
+
+/* 오늘 날짜를 seed로 pool을 섞어 반환 — 날짜가 바뀌면 순서가 바뀜 */
+function shuffleByDay(pool, dayStr) {
+  return [...pool].sort((a, b) => {
+    const ha = hash(`${dayStr}|${a.id || ''}|${a.text || ''}`);
+    const hb = hash(`${dayStr}|${b.id || ''}|${b.text || ''}`);
+    return ha - hb;
   });
 }
-function pickForOffset(offset = 0) {
-  const list = activeList();
-  if (!list.length) return null;
-  const shuffled = shuffledForDate(list, offset);
-  return shuffled[(dayOfMonth(offset) - 1) % shuffled.length];
-}
+
 function pick() {
   const list = activeList();
   if (!list.length) return null;
-  let today = pickForOffset(0);
-  if (list.length > 1) {
-    const yesterday = pickForOffset(-1);
-    if (yesterday && today && (yesterday.id || yesterday.text) === (today.id || today.text)) {
-      const shuffled = shuffledForDate(list, 0);
-      const idx = shuffled.findIndex(v => (v.id || v.text) === (today.id || today.text));
-      today = shuffled[(idx + 1) % shuffled.length];
+
+  const today = dateKey();
+
+  // 1순위: 오늘 날짜가 지정된 말씀 (가장 최근 등록된 것)
+  const todayVerses = list
+    .filter(v => v.date === today)
+    .sort((a, b) => (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0));
+  if (todayVerses.length) return todayVerses[0];
+
+  // 2순위: 날짜 미지정 말씀을 오늘 날짜 seed로 매일 다르게 선택
+  const undated = list.filter(v => !v.date);
+  const pool = undated.length ? undated : list;
+  if (pool.length === 1) return pool[0];
+
+  // 오늘 날짜(YYYY-MM-DD) 전체를 seed로 shuffle → index 0이 오늘의 말씀
+  const todayShuffled = shuffleByDay(pool, today);
+
+  // 어제와 같은 말씀이면 두 번째 말씀으로 대체 (연속 중복 방지)
+  if (pool.length > 1) {
+    const yesterdayShuffled = shuffleByDay(pool, dateKey(-1));
+    if (yesterdayShuffled[0]?.id === todayShuffled[0]?.id) {
+      return todayShuffled[1];
     }
   }
-  return today;
+
+  return todayShuffled[0];
 }
+
 function textEls() {
   return Array.from(document.querySelectorAll('#verseText, .verse-card .verse-text, #dailyVerseText, [data-daily-verse-text]'));
 }
@@ -176,7 +181,6 @@ function unbindTimers() {
   clearTimeout(retryTimer);
 }
 
-// dailyVerses는 공개 말씀 데이터이므로 즉시 읽고, 권한/로그인 타이밍 문제 시 자동 재시도합니다.
 bindDailyVerses();
 onAuthStateChanged(auth, () => {
   if (!dailyUnsub) bindDailyVerses();
