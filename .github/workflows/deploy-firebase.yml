@@ -38,6 +38,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -47,7 +49,20 @@ jobs:
       - name: Apply Bible data migration
         run: node scripts/remove-legacy-daily-verses.mjs
 
+      - name: Detect Functions changes
+        id: functions_changed
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet HEAD^ HEAD -- functions; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install Functions dependencies
+        if: steps.functions_changed.outputs.changed == 'true'
         run: npm --prefix functions install --ignore-scripts
 
       - name: Configure Firebase credentials
@@ -79,7 +94,7 @@ jobs:
             --force \
             "${AUTH_ARGS[@]}"
 
-      - name: Deploy Functions, Database, Storage and Hosting
+      - name: Deploy Database, Storage and Hosting
         shell: bash
         run: |
           AUTH_ARGS=()
@@ -88,7 +103,21 @@ jobs:
           fi
           npx --yes firebase-tools deploy \
             --project church-399cb \
-            --only functions,database,storage,hosting \
+            --only database,storage,hosting \
+            --non-interactive \
+            "${AUTH_ARGS[@]}"
+
+      - name: Deploy Functions when changed
+        if: steps.functions_changed.outputs.changed == 'true'
+        shell: bash
+        run: |
+          AUTH_ARGS=()
+          if [ "${{ steps.firebase_auth.outputs.auth }}" = "token" ]; then
+            AUTH_ARGS=(--token "$FIREBASE_TOKEN_VALUE")
+          fi
+          npx --yes firebase-tools deploy \
+            --project church-399cb \
+            --only functions \
             --non-interactive \
             "${AUTH_ARGS[@]}"
 
