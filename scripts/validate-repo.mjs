@@ -56,6 +56,8 @@ const storageRules = read('storage.rules');
 const functions = read('functions/index.js');
 const firebaseInit = read('public/firebase-init.js');
 const sw = read('public/sw.js');
+let parsedRules = null;
+try { parsedRules = JSON.parse(dbRules).rules; } catch {}
 
 const assertions = [
   [app.includes("orderByChild('type'), equalTo(type)"), '기도제목 공개 범위 쿼리가 없습니다.'],
@@ -64,13 +66,25 @@ const assertions = [
   [app.includes('customMetadata: { ownerUid: state.uid }'), '게시물 이미지 소유자 메타데이터가 없습니다.'],
   [app.includes('serviceWorkerRegistration: registration'), 'FCM이 PWA 서비스워커 등록을 재사용하지 않습니다.'],
   [app.includes("status: 'pending'"), '신규 회원 기본 승인 대기 상태가 없습니다.'],
+  [app.includes("orderByChild('userUid'), equalTo(state.uid)"), '본인 신청 내역 보안 쿼리가 없습니다.'],
+  [app.includes("targetType: 'room'"), '재능나눔 서버 신청 호출이 없습니다.'],
+  [app.includes("targetType: kind === 'post' ? 'post' : 'announcement'"), '행사·모임 서버 신청 호출이 없습니다.'],
+  [!app.includes('async function handleWithdraw()'), '구형 클라이언트 회원 탈퇴 코드가 남아 있습니다.'],
+  [!app.includes('deleteUser,'), '구형 클라이언트 탈퇴용 Auth import가 남아 있습니다.'],
   [dbRules.includes("query.orderByChild === 'type'"), '비공개 기도제목 쿼리 보안 규칙이 없습니다.'],
   [dbRules.includes('bootstrapAdminUid'), '최초 관리자 UID 제한이 없습니다.'],
+  [parsedRules?.admins?.['.read'] !== 'auth != null', '일반 로그인 사용자가 관리자 전체 목록을 읽을 수 있습니다.'],
+  [parsedRules?.admins?.$uid?.['.read']?.includes('auth.uid === $uid'), '관리자 본인 확인용 단일 경로 읽기 규칙이 없습니다.'],
+  [parsedRules?.applications?.['.read']?.includes("query.orderByChild === 'userUid'"), '본인 신청 쿼리 읽기 규칙이 없습니다.'],
+  [parsedRules?.applications?.$id?.['.write']?.includes("newData.child('kind').val() !== '행사'"), '정원 신청의 직접 클라이언트 쓰기가 차단되지 않았습니다.'],
   [storageRules.includes('request.auth.token.admin == true'), 'Storage 관리자 custom claim 검사가 없습니다.'],
   [storageRules.includes('request.resource.metadata.ownerUid'), 'Storage 업로드 소유자 검사가 없습니다.'],
   [functions.includes('FCM_BATCH_SIZE = 500'), 'FCM 토큰 배치 처리가 없습니다.'],
   [functions.includes('exports.deleteMyAccount'), '서버 측 회원 탈퇴 함수가 없습니다.'],
   [functions.includes('exports.syncAccessClaims'), '접근 권한 claim 동기화 함수가 없습니다.'],
+  [functions.includes('exports.submitCapacityApplication'), '정원 신청 서버 트랜잭션 함수가 없습니다.'],
+  [functions.includes("abortReason = 'already-exists'"), '중복 신청 서버 검사가 없습니다.'],
+  [functions.includes('db.ref().transaction'), '정원 신청 원자적 트랜잭션이 없습니다.'],
   [!firebaseInit.includes('window.fetch ='), '전역 fetch 덮어쓰기가 남아 있습니다.'],
   [sw.includes('url.origin === self.location.origin'), '알림 이동 URL의 동일 출처 검사가 없습니다.'],
   [fs.existsSync(path.join(root, 'public/offline.html')), '오프라인 안내 페이지가 없습니다.'],
