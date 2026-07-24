@@ -4,7 +4,8 @@
   "private": true,
   "description": "천안남산교회 Firebase PWA",
   "scripts": {
-    "patch:client": "node scripts/apply-client-hardening.mjs",
+    "patch:client": "node scripts/apply-client-hardening.mjs && node scripts/apply-client-hardening-v2.mjs",
+    "patch:repo": "npm run patch:client && node scripts/apply-rules-hardening.mjs && node scripts/apply-functions-hardening.mjs",
     "check": "node scripts/validate-repo.mjs && npm --prefix functions run lint"
   },
   "engines": {
