@@ -8,9 +8,9 @@ import {
   ref, onValue, push, update, get, set, remove, serverTimestamp, query, orderByChild, equalTo, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import {
-  onAuthStateChanged, updateProfile, signOut, deleteUser,
+  onAuthStateChanged, updateProfile, signOut,
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential,
+  sendPasswordResetEmail,
   GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 import {
@@ -42,6 +42,21 @@ const state = {
   pendingPostImages: [],
   currentMonth: new Date()
 };
+
+let submitCapacityApplicationCallable = null;
+
+async function submitCapacityApplication(payload) {
+  if (!submitCapacityApplicationCallable) {
+    const [{ app }, { getFunctions, httpsCallable }] = await Promise.all([
+      import('/firebase-init.js'),
+      import('https://www.gstatic.com/firebasejs/12.12.1/firebase-functions.js')
+    ]);
+    const functions = getFunctions(app, 'asia-northeast3');
+    submitCapacityApplicationCallable = httpsCallable(functions, 'submitCapacityApplication');
+  }
+  const result = await submitCapacityApplicationCallable(payload);
+  return result.data || {};
+}
 
 // 인증 로직은 onAuthStateChanged에서 처리됨 — 자동 로그인 없음.
 // 사용자가 로그인하기 전엔 #authScreen이 표시됨.
@@ -2059,15 +2074,11 @@ document.getElementById('eaSubmit')?.addEventListener('click', async () => {
     }
   }
   try {
-    const data = {
-      kind: kind === 'post' ? '모임' : '행사',
-      name, phone, count, note,
-      eventTitle: target.title || '',
-      userUid: state.uid, timestamp: Date.now()
-    };
-    if (kind === 'post') data.postId = id; else data.announcementId = id;
-    const newRef = await push(ref(db, 'applications'), data);
-    recordMyApplication(newRef.key);
+    const result = await submitCapacityApplication({
+      targetType: kind === 'post' ? 'post' : 'announcement',
+      targetId: id, name, phone, count, note
+    });
+    recordMyApplication(result.applicationId);
     // 행사 신청 인원은 Cloud Function이 applications를 기준으로 재계산합니다.
     closeModal('eventApplyModal');
     toast(`✅ "${target.title}" 신청이 접수되었습니다`);
@@ -2288,11 +2299,10 @@ document.getElementById('raSubmit')?.addEventListener('click', async () => {
   const room = state.rooms.find((r) => r.id === roomId);
   if (!room) return;
   try {
-    const newRef = await push(ref(db, 'applications'), {
-      kind: '재능나눔', roomId, roomTitle: room.title, name, phone,
-      userUid: state.uid, timestamp: Date.now()
+    const result = await submitCapacityApplication({
+      targetType: 'room', targetId: roomId, name, phone, count: 1
     });
-    recordMyApplication(newRef.key);
+    recordMyApplication(result.applicationId);
     // 재능나눔 신청 인원은 Cloud Function이 applications를 기준으로 재계산합니다.
     ['raName', 'raPhone'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
     closeModal('roomApplyModal');
@@ -2668,125 +2678,7 @@ async function handleLogout() {
   }
 }
 
-// ===== 탈퇴 (내 모든 데이터 영구 삭제) =====
-async function handleWithdraw() {
-  if (!state.uid) { toast('로그인 정보가 없어요'); return; }
-
-  const confirmMsg = [
-    '⚠️ 정말 탈퇴하시겠어요?',
-    '',
-    '다음 데이터가 모두 영구 삭제됩니다:',
-    '• 내가 등록한 기도제목',
-    '• 내가 신청한 모든 신청 (행사·소모임·재능나눔·심방·새가족·봉사)',
-    '• 내가 작성한 커뮤니티 글 + 댓글·좋아요 기록',
-    '• 내가 작성한 묵상 노트 (개인 비공개)',
-    '• 내가 보낸 의견·건의',
-    '• 내가 참여(아멘)한 기도 기록',
-    '• 프로필·알림 토큰',
-    '• 회원 계정 자체',
-    '',
-    '이 작업은 되돌릴 수 없습니다.'
-  ].join('\n');
-  if (!confirm(confirmMsg)) return;
-
-  const phrase = prompt('삭제를 진행하려면 아래 단어를 정확히 입력해주세요:\n\n삭제');
-  if (phrase !== '삭제') { toast('탈퇴가 취소되었습니다'); return; }
-
-  toast('데이터를 삭제 중입니다…');
-  const uid = state.uid;
-  const ops = [];
-
-  // 1) 내가 등록한 기도제목 + 그 기도의 prayedBy 컬렉션 전체
-  (state.prayers || []).filter((p) => p.createdBy === uid).forEach((p) => {
-    ops.push(remove(ref(db, `prayers/${p.id}`)).catch(() => {}));
-    ops.push(remove(ref(db, `prayedBy/${p.id}`)).catch(() => {}));
-  });
-
-  // 2) 내가 제출한 신청 (sessionStorage에 저장된 ID 기반)
-  try {
-    const myAppIds = JSON.parse(sessionStorage.getItem('myAppIds') || '[]');
-    myAppIds.forEach((id) => {
-      ops.push(remove(ref(db, `applications/${id}`)).catch(() => {}));
-    });
-  } catch {}
-
-  // (갤러리 기능은 제거됨 — 옛 데이터는 보존됨)
-
-  // 4) 내가 참여(아멘)한 기록
-  Object.keys(state.prayedBy || {}).forEach((prayerId) => {
-    ops.push(remove(ref(db, `prayedBy/${prayerId}/${uid}`)).catch(() => {}));
-  });
-
-  // 5) FCM 토큰
-  ops.push(remove(ref(db, `fcmTokens/${uid}`)).catch(() => {}));
-
-  // 6) /users/{uid} 프로필 삭제
-  ops.push(remove(ref(db, `users/${uid}`)).catch(() => {}));
-
-  // 6-1) 묵상 노트 (본인만 read/write 가능한 컬렉션)
-  ops.push(remove(ref(db, `userNotes/${uid}`)).catch(() => {}));
-
-  // 7) 내가 작성한 커뮤니티 글 + 그 글의 좋아요/댓글 컬렉션 전체 + 첨부 사진(다중)
-  (state.posts || []).filter((p) => p.authorUid === uid).forEach((p) => {
-    ops.push(remove(ref(db, `posts/${p.id}`)).catch(() => {}));
-    ops.push(remove(ref(db, `postLikes/${p.id}`)).catch(() => {}));
-    ops.push(remove(ref(db, `postComments/${p.id}`)).catch(() => {}));
-    const paths = p.imageStoragePaths || (p.imageStoragePath ? [p.imageStoragePath] : []);
-    paths.forEach((path) => {
-      ops.push(deleteObject(sRef(storage, path)).catch(() => {}));
-    });
-  });
-
-  // 8) 다른 사람 글에 내가 누른 좋아요 기록 정리
-  Object.keys(state.postLikes || {}).forEach((postId) => {
-    ops.push(remove(ref(db, `postLikes/${postId}/${uid}`)).catch(() => {}));
-  });
-
-  // 9) 의견·건의 (sessionStorage에 기록된 본인 ID만 — /feedback 부모는 admin 전용 read)
-  try {
-    const fbIds = JSON.parse(sessionStorage.getItem('myFeedbackIds') || '[]');
-    fbIds.forEach((fid) => {
-      ops.push(remove(ref(db, `feedback/${fid}`)).catch(() => {}));
-    });
-  } catch {}
-
-  // 모든 RTDB 삭제를 한 번에 await
-  await Promise.all(ops);
-
-  // 7) 로컬 저장소 정리
-  ['myAppIds', 'myFeedbackIds', 'attendName', 'uploaderName', 'easyMode', 'notifEnabled', 'installDismissed']
-    .forEach((k) => { try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch {} });
-
-  // 8) Firebase Auth 계정 삭제 (recent login 필요 — 실패 시 재인증 후 재시도)
-  try {
-    if (auth.currentUser) await deleteUser(auth.currentUser);
-  } catch (e) {
-    if (e.code === 'auth/requires-recent-login') {
-      const password = prompt('보안 확인을 위해 비밀번호를 다시 입력해주세요:');
-      if (password) {
-        try {
-          const cred = EmailAuthProvider.credential(auth.currentUser.email, password);
-          await reauthenticateWithCredential(auth.currentUser, cred);
-          await deleteUser(auth.currentUser);
-        } catch (e2) {
-          console.warn('[withdraw] 재인증 실패:', e2.code);
-          toast('비밀번호가 올바르지 않습니다. 다시 로그인 후 시도해주세요.');
-          await signOut(auth).catch(() => {});
-          return;
-        }
-      } else {
-        await signOut(auth).catch(() => {});
-        return;
-      }
-    } else {
-      console.warn('[withdraw] deleteUser 실패, signOut으로 대체:', e.code);
-      try { await signOut(auth); } catch {}
-    }
-  }
-
-  toast('탈퇴가 완료되었습니다');
-  setTimeout(() => location.reload(), 1500);
-}
+// 회원 탈퇴는 member-status.js의 deleteMyAccount Callable에서만 처리합니다.
 
 document.querySelectorAll('[data-action]').forEach((el) => {
   el.addEventListener('click', () => {
@@ -2807,7 +2699,7 @@ document.querySelectorAll('[data-action]').forEach((el) => {
     else if (a === 'myPrayers') openMyPrayers();
     else if (a === 'myApplications') openMyApplications();
     else if (a === 'logout') handleLogout();
-    else if (a === 'withdraw') handleWithdraw();
+    else if (a === 'withdraw') { /* member-status.js가 캡처 단계에서 처리 */ }
     else if (a === 'devotion') openDevotionForToday();
     else if (a === 'shareVerse') shareTodaysVerse();
     else if (a === 'myNotes') openMyNotes();
@@ -2868,26 +2760,20 @@ function openMyPrayers() {
 
 // ===== 내 신청 내역 =====
 async function openMyApplications() {
-  // applications는 보안 규칙상 본인 것만 읽을 수 있어 직접 query 불가 → 본인 항목만 필터링 어려움.
-  // 대신 사용자 자신이 만든 rooms 신청, 봉사·심방·새가족 신청을 anonymous uid로 필터.
-  // 보안 규칙: data.child('userUid').val() === auth.uid 인 항목만 읽기 허용.
-  // 따라서 each 항목별 get은 비효율 — applications 컬렉션 전체를 한 번에 받지 못함.
-  // 대안: localStorage 캐시로 본인이 신청한 ID 보관.
-  const ids = JSON.parse(sessionStorage.getItem('myAppIds') || '[]');
-  if (!ids.length) {
-    openListModal('내 신청 내역', '<div class="list-empty">아직 신청한 내역이 없어요</div>');
+  const items = [];
+  try {
+    const ownQuery = query(ref(db, 'applications'), orderByChild('userUid'), equalTo(state.uid));
+    const snap = await get(ownQuery);
+    snap.forEach((child) => items.push({ id: child.key, ...child.val() }));
+  } catch (error) {
+    console.error('[apps] 내 신청 조회 실패:', error);
+    openListModal('내 신청 내역', '<div class="list-empty">신청 내역을 불러오지 못했어요</div>');
     return;
   }
-  const items = [];
-  for (const id of ids) {
-    try {
-      const snap = await get(ref(db, `applications/${id}`));
-      if (snap.exists()) items.push({ id, ...snap.val() });
-    } catch {}
-  }
+
   items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   const rows = items.map((a) => {
-    let detail = a.roomTitle || a.type || '';
+    let detail = a.roomTitle || a.eventTitle || a.type || '';
     if (a.kind === '심방요청' && a.date) detail = `희망일: ${a.date}`;
     if (a.kind === '새가족' && a.address) detail = a.address;
     return `<div class="list-row" data-app-id="${escapeHtml(a.id)}">
@@ -2902,27 +2788,20 @@ async function openMyApplications() {
       <button class="list-row-del" data-del-app="${escapeHtml(a.id)}" type="button" title="신청 취소">🗑️</button>
     </div>`;
   }).join('');
-  openListModal('내 신청 내역', rows || '<div class="list-empty">신청 내역을 불러오지 못했어요</div>');
+  openListModal('내 신청 내역', rows || '<div class="list-empty">아직 신청한 내역이 없어요</div>');
 
-  // 신청 취소(삭제) — 본인 application만 (rules에서 owner 삭제 허용)
   document.querySelectorAll('#listBody [data-del-app]').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
+    btn.addEventListener('click', async (event) => {
+      event.stopPropagation();
       const id = btn.dataset.delApp;
       if (!confirm('이 신청을 취소(삭제)하시겠어요?')) return;
       try {
         await remove(ref(db, `applications/${id}`));
-        // 캐시도 정리
-        try {
-          const cur = JSON.parse(sessionStorage.getItem('myAppIds') || '[]');
-          sessionStorage.setItem('myAppIds', JSON.stringify(cur.filter((x) => x !== id)));
-        } catch {}
-        // 화면에서 행 제거
         btn.closest('.list-row')?.remove();
         toast('신청이 취소되었습니다');
-      } catch (err) {
-        console.error('[apps] 삭제 실패:', err);
-        toast('삭제 실패: ' + (err.code || err.message));
+      } catch (error) {
+        console.error('[apps] 삭제 실패:', error);
+        toast('삭제 실패: ' + (error.code || error.message));
       }
     });
   });
