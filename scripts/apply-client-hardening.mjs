@@ -22,7 +22,8 @@ function replaceOnce(search, replacement, label, marker = replacement) {
 
 function replaceRegex(regex, replacement, label, marker) {
   if (marker && source.includes(marker)) return;
-  const matches = [...source.matchAll(regex)];
+  const globalRegex = regex.global ? regex : new RegExp(regex.source, `${regex.flags}g`);
+  const matches = [...source.matchAll(globalRegex)];
   if (matches.length !== 1) {
     warnings.push(`[${label}] 예상 1개, 실제 ${matches.length}개입니다.`);
     return;
@@ -32,7 +33,8 @@ function replaceRegex(regex, replacement, label, marker) {
 }
 
 function removeRegex(regex, label) {
-  const matches = [...source.matchAll(regex)];
+  const globalRegex = regex.global ? regex : new RegExp(regex.source, `${regex.flags}g`);
+  const matches = [...source.matchAll(globalRegex)];
   if (matches.length === 0) return;
   if (matches.length !== 1) {
     warnings.push(`[${label}] 예상 최대 1개, 실제 ${matches.length}개입니다.`);
