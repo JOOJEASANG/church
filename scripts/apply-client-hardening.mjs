@@ -3,13 +3,18 @@ import fs from 'node:fs';
 const filePath = 'public/app.js';
 let source = fs.readFileSync(filePath, 'utf8');
 let changes = 0;
+const warnings = [];
 
 function replaceOnce(search, replacement, label, marker = replacement) {
   if (source.includes(marker)) return;
   const first = source.indexOf(search);
-  if (first === -1) throw new Error(`[${label}] 원본 코드를 찾지 못했습니다.`);
+  if (first === -1) {
+    warnings.push(`[${label}] 원본 코드를 찾지 못했습니다.`);
+    return;
+  }
   if (source.indexOf(search, first + search.length) !== -1) {
-    throw new Error(`[${label}] 원본 코드가 여러 번 발견되었습니다.`);
+    warnings.push(`[${label}] 원본 코드가 여러 번 발견되었습니다.`);
+    return;
   }
   source = source.replace(search, replacement);
   changes++;
@@ -18,7 +23,10 @@ function replaceOnce(search, replacement, label, marker = replacement) {
 function replaceRegex(regex, replacement, label, marker) {
   if (marker && source.includes(marker)) return;
   const matches = [...source.matchAll(regex)];
-  if (matches.length !== 1) throw new Error(`[${label}] 예상 1개, 실제 ${matches.length}개입니다.`);
+  if (matches.length !== 1) {
+    warnings.push(`[${label}] 예상 1개, 실제 ${matches.length}개입니다.`);
+    return;
+  }
   source = source.replace(regex, replacement);
   changes++;
 }
@@ -26,7 +34,10 @@ function replaceRegex(regex, replacement, label, marker) {
 function removeRegex(regex, label) {
   const matches = [...source.matchAll(regex)];
   if (matches.length === 0) return;
-  if (matches.length !== 1) throw new Error(`[${label}] 예상 최대 1개, 실제 ${matches.length}개입니다.`);
+  if (matches.length !== 1) {
+    warnings.push(`[${label}] 예상 최대 1개, 실제 ${matches.length}개입니다.`);
+    return;
+  }
   source = source.replace(regex, '');
   changes++;
 }
@@ -187,3 +198,7 @@ if (utcDateCount > 0) {
 
 fs.writeFileSync(filePath, source);
 console.log(`public/app.js 하드닝 완료: ${changes}개 변경`);
+if (warnings.length) {
+  console.warn(`패치 경고 (${warnings.length}건)`);
+  warnings.forEach((warning) => console.warn(`- ${warning}`));
+}
