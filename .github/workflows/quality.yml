@@ -33,12 +33,6 @@ jobs:
       - name: Apply idempotent client hardening
         run: npm run patch:client
 
-      - name: Install Functions dependencies
-        run: npm --prefix functions install --ignore-scripts
-
-      - name: Validate repository
-        run: npm run check
-
       - name: Commit generated client changes
         if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
         shell: bash
@@ -52,3 +46,9 @@ jobs:
           git add public/app.js
           git commit -m "fix: apply client hardening [generated]"
           git push
+
+      - name: Install Functions dependencies
+        run: npm --prefix functions install --ignore-scripts
+
+      - name: Validate repository
+        run: npm run check
