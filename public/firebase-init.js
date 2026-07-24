@@ -34,9 +34,6 @@ function loadModule(path, label) {
 }
 
 if (isAdminPage) {
-  loadModule('/daily-verses.js', 'daily-verses');
-  loadModule('/daily-verses-list-fix.js', 'daily-verses-list-fix');
-  loadModule('/daily-verses-seed.js', 'daily-verses-seed');
   loadModule('/admin-google-login.js', 'admin-google-login');
   loadModule('/admin/admin-claims.js', 'admin-claims');
   loadModule('/admin/member-approval.js', 'member-approval');
@@ -47,9 +44,9 @@ if (isAdminPage) {
   loadModule('/pc-install-button.js', 'pc-install-button');
   loadModule('/pc-brand-size-fix.js', 'pc-brand-size-fix');
   loadModule('/member-status.js', 'member-status');
+  loadModule('/bible-daily-qt.js', 'bible-daily-qt');
 }
 
-loadModule('/daily-verse-final.js', 'daily-verse-final');
 loadModule('/meditation-sync.js', 'meditation-sync');
 loadModule('/admin-shortcut.js', 'admin-shortcut');
 loadModule('/church-contact.js', 'church-contact');
