@@ -53,7 +53,7 @@ jobs:
         run: npm --prefix functions install --ignore-scripts
 
       - name: Configure Firebase credentials
-        id: firebase-auth
+        id: firebase_auth
         shell: bash
         run: |
           if [ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
@@ -70,13 +70,13 @@ jobs:
           fi
 
       - name: Remove legacy dailyVerses data
-        id: remove-daily-verses
-        if: steps.install.outcome == 'success' && steps.firebase-auth.outputs.auth != 'missing'
+        id: remove_daily_verses
+        if: steps.install.outcome == 'success' && steps.firebase_auth.outputs.auth != 'missing'
         continue-on-error: true
         shell: bash
         run: |
           AUTH_ARGS=()
-          if [ "${{ steps.firebase-auth.outputs.auth }}" = "token" ]; then
+          if [ "${{ steps.firebase_auth.outputs.auth }}" = "token" ]; then
             AUTH_ARGS=(--token "$FIREBASE_TOKEN_VALUE")
           fi
           npx --yes firebase-tools database:remove /dailyVerses \
@@ -85,13 +85,13 @@ jobs:
             "${AUTH_ARGS[@]}"
 
       - name: Deploy Functions, Database, Storage and Hosting
-        id: firebase-deploy
-        if: steps.install.outcome == 'success' && steps.firebase-auth.outputs.auth != 'missing' && steps.remove-daily-verses.outcome == 'success'
+        id: firebase_deploy
+        if: steps.install.outcome == 'success' && steps.firebase_auth.outputs.auth != 'missing' && steps.remove_daily_verses.outcome == 'success'
         continue-on-error: true
         shell: bash
         run: |
           AUTH_ARGS=()
-          if [ "${{ steps.firebase-auth.outputs.auth }}" = "token" ]; then
+          if [ "${{ steps.firebase_auth.outputs.auth }}" = "token" ]; then
             AUTH_ARGS=(--token "$FIREBASE_TOKEN_VALUE")
           fi
           npx --yes firebase-tools deploy \
@@ -105,9 +105,9 @@ jobs:
         uses: actions/github-script@v7
         env:
           INSTALL_OUTCOME: ${{ steps.install.outcome }}
-          AUTH_MODE: ${{ steps.firebase-auth.outputs.auth }}
-          CLEANUP_OUTCOME: ${{ steps.remove-daily-verses.outcome }}
-          DEPLOY_OUTCOME: ${{ steps.firebase-deploy.outcome }}
+          AUTH_MODE: ${{ steps.firebase_auth.outputs.auth }}
+          CLEANUP_OUTCOME: ${{ steps.remove_daily_verses.outcome }}
+          DEPLOY_OUTCOME: ${{ steps.firebase_deploy.outcome }}
         with:
           script: |
             const success = process.env.INSTALL_OUTCOME === 'success'
@@ -127,5 +127,5 @@ jobs:
             });
 
       - name: Fail workflow when deployment failed
-        if: always() && (steps.install.outcome != 'success' || steps.firebase-auth.outputs.auth == 'missing' || steps.remove-daily-verses.outcome != 'success' || steps.firebase-deploy.outcome != 'success')
+        if: always() && (steps.install.outcome != 'success' || steps.firebase_auth.outputs.auth == 'missing' || steps.remove_daily_verses.outcome != 'success' || steps.firebase_deploy.outcome != 'success')
         run: exit 1
