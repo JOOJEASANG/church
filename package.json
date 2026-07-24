@@ -1,12 +1,12 @@
 {
   "name": "namsan-church-pwa",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "천안남산교회 Firebase PWA",
   "scripts": {
     "patch:client": "node scripts/apply-client-hardening.mjs && node scripts/apply-client-hardening-v2.mjs && node scripts/fix-daily-verse-rotation.mjs",
-    "patch:repo": "npm run patch:client && node scripts/apply-rules-hardening.mjs && node scripts/apply-functions-hardening.mjs",
-    "check": "node scripts/validate-repo.mjs && node scripts/validate-daily-verse.mjs && npm --prefix functions run lint"
+    "patch:repo": "npm run patch:client && node scripts/apply-rules-hardening.mjs && node scripts/apply-functions-hardening.mjs && node scripts/remove-legacy-daily-verses.mjs",
+    "check": "node scripts/validate-repo.mjs && node scripts/validate-daily-verse.mjs && node scripts/validate-krv-daily-qt.mjs && npm --prefix functions run lint"
   },
   "engines": {
     "node": ">=20"
