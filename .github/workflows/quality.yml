@@ -1,0 +1,63 @@
+name: Repository quality
+
+on:
+  push:
+    branches:
+      - "claude/church-website-app-HNkR5"
+      - "agent/full-repository-hardening"
+  pull_request:
+    branches:
+      - "claude/church-website-app-HNkR5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repository-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Java for Firebase emulators
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Apply idempotent repository hardening
+        run: npm run patch:repo
+
+      - name: Install Functions dependencies
+        run: npm --prefix functions install --ignore-scripts
+
+      - name: Validate repository
+        run: npm run check
+
+      - name: Compile Firebase Database and Storage rules
+        run: npx --yes firebase-tools emulators:exec --only database,storage --project church-399cb "node -e \"console.log('Firebase rules compiled')\""
+
+      - name: Commit generated hardening changes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/agent/full-repository-hardening' && github.actor != 'github-actions[bot]'
+        shell: bash
+        run: |
+          if git diff --quiet -- public/app.js database.rules.json functions/index.js; then
+            echo "No generated hardening changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/app.js database.rules.json functions/index.js
+          git commit -m "fix: apply repository hardening [generated]"
+          git push

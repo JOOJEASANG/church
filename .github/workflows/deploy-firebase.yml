@@ -1,0 +1,64 @@
+name: Deploy Firebase production
+
+on:
+  push:
+    branches:
+      - "claude/church-website-app-HNkR5"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CHURCH_399CB }}
+      FIREBASE_TOKEN_VALUE: ${{ secrets.FIREBASE_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Functions dependencies
+        run: npm --prefix functions install --ignore-scripts
+
+      - name: Configure Firebase credentials
+        id: firebase-auth
+        shell: bash
+        run: |
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            CREDENTIALS_FILE="$RUNNER_TEMP/firebase-service-account.json"
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$CREDENTIALS_FILE"
+            chmod 600 "$CREDENTIALS_FILE"
+            echo "GOOGLE_APPLICATION_CREDENTIALS=$CREDENTIALS_FILE" >> "$GITHUB_ENV"
+            echo "auth=service-account" >> "$GITHUB_OUTPUT"
+          elif [ -n "$FIREBASE_TOKEN_VALUE" ]; then
+            echo "auth=token" >> "$GITHUB_OUTPUT"
+          else
+            echo "Firebase 배포 인증 Secret이 없습니다." >&2
+            echo "FIREBASE_SERVICE_ACCOUNT_CHURCH_399CB 또는 FIREBASE_TOKEN을 등록해주세요." >&2
+            exit 1
+          fi
+
+      - name: Deploy Functions, Database, Storage and Hosting
+        shell: bash
+        run: |
+          AUTH_ARGS=()
+          if [ "${{ steps.firebase-auth.outputs.auth }}" = "token" ]; then
+            AUTH_ARGS=(--token "$FIREBASE_TOKEN_VALUE")
+          fi
+          npx --yes firebase-tools deploy \
+            --project church-399cb \
+            --only functions,database,storage,hosting \
+            --non-interactive \
+            "${AUTH_ARGS[@]}"
