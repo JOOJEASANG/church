@@ -6,7 +6,7 @@
   "scripts": {
     "patch:client": "node scripts/apply-client-hardening.mjs && node scripts/apply-client-hardening-v2.mjs && node scripts/fix-daily-verse-rotation.mjs",
     "patch:repo": "npm run patch:client && node scripts/apply-rules-hardening.mjs && node scripts/apply-functions-hardening.mjs",
-    "check": "node scripts/validate-repo.mjs && npm --prefix functions run lint"
+    "check": "node scripts/validate-repo.mjs && node scripts/validate-daily-verse.mjs && npm --prefix functions run lint"
   },
   "engines": {
     "node": ">=20"
