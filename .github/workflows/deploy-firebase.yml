@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: firebase-production
@@ -21,6 +22,20 @@ jobs:
       FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CHURCH_399CB }}
       FIREBASE_TOKEN_VALUE: ${{ secrets.FIREBASE_TOKEN }}
     steps:
+      - name: Mark deployment pending
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: 'pending',
+              context: 'firebase/deploy',
+              description: 'Firebase production deployment is running',
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -30,6 +45,8 @@ jobs:
           node-version: 20
 
       - name: Install Functions dependencies
+        id: install
+        continue-on-error: true
         run: npm --prefix functions install --ignore-scripts
 
       - name: Configure Firebase credentials
@@ -45,12 +62,14 @@ jobs:
           elif [ -n "$FIREBASE_TOKEN_VALUE" ]; then
             echo "auth=token" >> "$GITHUB_OUTPUT"
           else
+            echo "auth=missing" >> "$GITHUB_OUTPUT"
             echo "Firebase 배포 인증 Secret이 없습니다." >&2
-            echo "FIREBASE_SERVICE_ACCOUNT_CHURCH_399CB 또는 FIREBASE_TOKEN을 등록해주세요." >&2
-            exit 1
           fi
 
       - name: Deploy Functions, Database, Storage and Hosting
+        id: firebase-deploy
+        if: steps.install.outcome == 'success' && steps.firebase-auth.outputs.auth != 'missing'
+        continue-on-error: true
         shell: bash
         run: |
           AUTH_ARGS=()
@@ -62,3 +81,31 @@ jobs:
             --only functions,database,storage,hosting \
             --non-interactive \
             "${AUTH_ARGS[@]}"
+
+      - name: Publish deployment result
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          AUTH_MODE: ${{ steps.firebase-auth.outputs.auth }}
+          DEPLOY_OUTCOME: ${{ steps.firebase-deploy.outcome }}
+        with:
+          script: |
+            const success = process.env.INSTALL_OUTCOME === 'success'
+              && process.env.AUTH_MODE !== 'missing'
+              && process.env.DEPLOY_OUTCOME === 'success';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: success ? 'success' : 'failure',
+              context: 'firebase/deploy',
+              description: success
+                ? 'Firebase production deployment completed'
+                : 'Firebase deployment failed; open the Actions log',
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });
+
+      - name: Fail workflow when deployment failed
+        if: always() && (steps.install.outcome != 'success' || steps.firebase-auth.outputs.auth == 'missing' || steps.firebase-deploy.outcome != 'success')
+        run: exit 1
