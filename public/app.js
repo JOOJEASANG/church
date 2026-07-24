@@ -5,7 +5,7 @@
 import { db, auth, storage } from '/firebase-init.js';
 import { resizeImage, humanSize } from '/img-utils.js';
 import {
-  ref, onValue, push, update, get, set, remove, serverTimestamp, query, orderByChild, runTransaction
+  ref, onValue, push, update, get, set, remove, serverTimestamp, query, orderByChild, equalTo, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js";
 import {
   onAuthStateChanged, updateProfile, signOut, deleteUser,
@@ -139,7 +139,8 @@ document.getElementById('authPaneRegister')?.addEventListener('submit', async (e
     const cred = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(cred.user, { displayName: name });
     await set(ref(db, `users/${cred.user.uid}`), {
-      email, displayName: name, phone, role, createdAt: Date.now(),
+      email, displayName: name, phone, role,
+      memberType: 'member', status: 'pending', createdAt: Date.now(),
       agreedTosAt: Date.now(), agreedPrivacyAt: Date.now()
     });
     // onAuthStateChanged가 나머지 처리
@@ -162,6 +163,8 @@ async function ensureGoogleUserProfile(user) {
         displayName: user.displayName || (user.email ? user.email.split('@')[0] : '성도'),
         phone: user.phoneNumber || '',
         role: '성도',
+        memberType: 'member',
+        status: 'pending',
         provider: 'google',
         createdAt: Date.now(),
         agreedTosAt: Date.now(),
@@ -343,7 +346,7 @@ function fillLegalModals() {
       <li>본인 프로필(이름·연락처)을 "내정보 → 프로필 수정"에서 언제든지 열람·정정할 수 있습니다.</li>
       <li>본인이 등록한 기도제목·신청·갤러리 사진은 직접 수정·삭제할 수 있습니다.</li>
       <li>"내정보 → 탈퇴"를 통해 모든 개인정보(프로필·기도제목·신청·아멘 기록·알림 토큰·갤러리 등)를 영구 삭제할 수 있습니다.</li>
-      <li>탈퇴는 비밀번호 재확인 후 진행되며, 되돌릴 수 없습니다.</li>
+      <li>탈퇴는 확인 문구 입력 후 서버에서 본인 데이터와 인증 계정을 함께 삭제하며, 되돌릴 수 없습니다.</li>
     </ul>
 
     <h4>7. 안전성 확보 조치</h4>
@@ -373,7 +376,7 @@ function fillLegalModals() {
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    listenersAttached = false;
+    detachListeners();
     state.uid = null;
     state.userProfile = null;
     // 로그아웃 시 열려있는 모든 모달 닫기 (잘못된 uid로 폼 제출 방지)
@@ -525,6 +528,17 @@ document.getElementById('peSubmit')?.addEventListener('click', async () => {
 
 // ===== 실시간 리스너 =====
 let listenersAttached = false;
+const activeUnsubscribers = [];
+const prayerBuckets = new Map();
+
+function detachListeners() {
+  while (activeUnsubscribers.length) {
+    const unsubscribe = activeUnsubscribers.pop();
+    try { unsubscribe?.(); } catch {}
+  }
+  prayerBuckets.clear();
+  listenersAttached = false;
+}
 
 // http(s) URL만 허용해 javascript: / data: / vbscript: 등 위험한 스킴 차단
 function safeImageUrl(url) {
@@ -539,9 +553,37 @@ function safeImageUrl(url) {
 }
 
 function onValueWithError(path, handler) {
-  return onValue(ref(db, path), handler, (err) => {
+  const unsubscribe = onValue(ref(db, path), handler, (err) => {
     console.error(`[home] ${path} 읽기 실패:`, err.code || err.message);
   });
+  activeUnsubscribers.push(unsubscribe);
+  return unsubscribe;
+}
+
+function updatePrayerBucket(key, snapshot) {
+  const bucket = new Map();
+  snapshot.forEach((child) => bucket.set(child.key, { id: child.key, ...child.val() }));
+  prayerBuckets.set(key, bucket);
+  const merged = new Map();
+  prayerBuckets.forEach((items) => items.forEach((value, id) => merged.set(id, value)));
+  state.prayers = [...merged.values()].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  renderPrayers();
+}
+
+function attachPrayerListeners() {
+  ['공개', '익명 공개', '감사'].forEach((type) => {
+    const prayerQuery = query(ref(db, 'prayers'), orderByChild('type'), equalTo(type));
+    const unsubscribe = onValue(prayerQuery,
+      (snapshot) => updatePrayerBucket(`type:${type}`, snapshot),
+      (error) => console.error(`[home] 공개 기도제목(${type}) 읽기 실패:`, error.code || error.message));
+    activeUnsubscribers.push(unsubscribe);
+  });
+
+  const mineQuery = query(ref(db, 'prayers'), orderByChild('createdBy'), equalTo(state.uid));
+  const unsubscribeMine = onValue(mineQuery,
+    (snapshot) => updatePrayerBucket('mine', snapshot),
+    (error) => console.error('[home] 내 기도제목 읽기 실패:', error.code || error.message));
+  activeUnsubscribers.push(unsubscribeMine);
 }
 
 function attachListeners() {
@@ -554,12 +596,7 @@ function attachListeners() {
     if (state.currentTab === 'community') renderRooms();
   });
 
-  onValueWithError('prayers', (snap) => {
-    state.prayers = [];
-    snap.forEach((c) => { state.prayers.push({ id: c.key, ...c.val() }); });
-    state.prayers.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    renderPrayers();
-  });
+  attachPrayerListeners();
 
   onValueWithError('announcements', (snap) => {
     state.announcements = [];
@@ -590,7 +627,7 @@ function attachListeners() {
     state.church = snap.val() || {};
     applyChurchInfo();
   });
-  onValue(ref(db, 'config/services'), (snap) => {
+  activeUnsubscribers.push(onValue(ref(db, 'config/services'), (snap) => {
     state.services = [];
     snap.forEach((c) => { state.services.push({ id: c.key, ...c.val() }); });
     state.services.sort((a, b) => (serviceFirstDay(a) - serviceFirstDay(b)) || (a.time || '').localeCompare(b.time || ''));
@@ -599,7 +636,7 @@ function attachListeners() {
     console.error('[home] config/services 읽기 실패:', err.code || err.message, err);
     const list = document.getElementById('serviceList');
     if (list) list.innerHTML = `<div class="service-empty">⚠️ 예배 시간을 불러오지 못했습니다 (${err.code || '권한 오류'})</div>`;
-  });
+  }));
   onValueWithError('config/hero', (snap) => {
     state.hero = snap.val() || null;
     applyHero();
@@ -1702,8 +1739,8 @@ document.getElementById('postSubmitBtn')?.addEventListener('click', async () => 
           }
         } catch { f = orig; }
         const ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
-        const path = `posts/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${i}.${ext}`;
-        const task = uploadBytesResumable(sRef(storage, path), f, { contentType: f.type });
+        const path = `posts/${state.uid}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${i}.${ext}`;
+        const task = uploadBytesResumable(sRef(storage, path), f, { contentType: f.type, customMetadata: { ownerUid: state.uid } });
         const url = await new Promise((resolve, reject) => {
           task.on('state_changed', null, reject,
             async () => { try { resolve(await getDownloadURL(task.snapshot.ref)); } catch (e) { reject(e); } }
@@ -1854,13 +1891,6 @@ async function loadPostComments(postId) {
         if (!confirm('이 댓글을 삭제하시겠어요?')) return;
         try {
           await remove(ref(db, `postComments/${postId}/${b.dataset.delComment}`));
-          // commentCount 감소
-          const post = state.posts.find((x) => x.id === postId);
-          if (post) {
-            await update(ref(db, `posts/${postId}`), {
-              commentCount: Math.max(0, (post.commentCount || 0) - 1)
-            }).catch(() => {});
-          }
           loadPostComments(postId);
         } catch (e) { toast('댓글 삭제 실패: ' + (e.code || e.message)); }
       });
@@ -1873,23 +1903,25 @@ async function loadPostComments(postId) {
 document.getElementById('postDetailLikeBtn')?.addEventListener('click', async () => {
   const id = state.currentPostId;
   if (!id) return;
-  const post = state.posts.find((x) => x.id === id);
+  const post = state.posts.find((item) => item.id === id);
   if (!post) return;
-  const liked = !!state.postLikes[id];
+  const liked = Boolean(state.postLikes[id]);
   try {
     if (liked) {
-      // 취소
       await remove(ref(db, `postLikes/${id}/${state.uid}`));
-      await update(ref(db, `posts/${id}`), { likeCount: Math.max(0, (post.likeCount || 0) - 1) });
       delete state.postLikes[id];
+      post.likeCount = Math.max(0, (post.likeCount || 0) - 1);
     } else {
-      await set(ref(db, `postLikes/${id}/${state.uid}`), true);
-      await update(ref(db, `posts/${id}`), { likeCount: (post.likeCount || 0) + 1 });
+      const result = await runTransaction(ref(db, `postLikes/${id}/${state.uid}`),
+        (current) => current ? undefined : true);
+      if (!result.committed) { toast('이미 좋아요를 눌렀습니다'); return; }
       state.postLikes[id] = true;
+      post.likeCount = (post.likeCount || 0) + 1;
     }
     document.getElementById('postDetailLikeBtn').classList.toggle('liked', !liked);
+    document.getElementById('postDetailLikeCount').textContent = post.likeCount || 0;
     renderPosts();
-  } catch (e) { toast('실패: ' + (e.code || e.message)); }
+  } catch (error) { toast('실패: ' + (error.code || error.message)); }
 });
 
 document.getElementById('commentSubmit')?.addEventListener('click', async () => {
@@ -1908,9 +1940,6 @@ document.getElementById('commentSubmit')?.addEventListener('click', async () => 
       authorRole: state.userProfile?.role || '성도',
       timestamp: Date.now()
     });
-    await update(ref(db, `posts/${id}`), {
-      commentCount: (post.commentCount || 0) + 1
-    }).catch(() => {});
     input.value = '';
     loadPostComments(id);
   } catch (e) { toast('댓글 등록 실패: ' + (e.code || e.message)); }
@@ -1995,8 +2024,7 @@ function openEventApplyModal(targetId, kind = 'announcement') {
   document.getElementById('eaTitle').textContent = target.title || '신청';
   document.getElementById('eaSub').textContent = [
     target.deadline ? `마감 ${target.deadline}` : '',
-    // capacity는 announcements에만 사용 (posts는 무제한)
-    kind === 'announcement' && target.capacity ? `정원 ${target.capacity}명` : ''
+    target.capacity ? `정원 ${target.capacity}명` : ''
   ].filter(Boolean).join(' · ');
   document.getElementById('eaCount').value = '1';
   document.getElementById('eaNote').value = '';
@@ -2022,8 +2050,8 @@ document.getElementById('eaSubmit')?.addEventListener('click', async () => {
   const note = document.getElementById('eaNote').value.trim();
   if (!name) { toast('이름을 입력해주세요'); return; }
   if (!phone) { toast('연락처를 입력해주세요'); return; }
-  // 정원 초과 체크 (post: 정원 필수)
-  if (kind === 'post' && target.capacity) {
+  // 공지와 커뮤니티 모임 모두 현재 집계값으로 정원을 확인합니다.
+  if (target.capacity) {
     const cnt = target.signupCount || 0;
     if (cnt + count > target.capacity) {
       toast(`정원이 ${target.capacity}명입니다 (현재 ${cnt}명 신청). 인원을 줄여주세요.`);
@@ -2040,17 +2068,7 @@ document.getElementById('eaSubmit')?.addEventListener('click', async () => {
     if (kind === 'post') data.postId = id; else data.announcementId = id;
     const newRef = await push(ref(db, 'applications'), data);
     recordMyApplication(newRef.key);
-    // post 신청이면 signupCount 원자적 증가 (race-safe transaction)
-    if (kind === 'post') {
-      try {
-        await runTransaction(ref(db, `posts/${id}/signupCount`), (cur) => {
-          const next = (cur || 0) + count;
-          // 정원 초과 시 트랜잭션 중단 (서버 측 최종 검증)
-          if (target.capacity && next > target.capacity) return;
-          return next;
-        });
-      } catch (e) { console.warn('[signup-count]', e.code); }
-    }
+    // 행사 신청 인원은 Cloud Function이 applications를 기준으로 재계산합니다.
     closeModal('eventApplyModal');
     toast(`✅ "${target.title}" 신청이 접수되었습니다`);
   } catch (e) {
@@ -2275,9 +2293,7 @@ document.getElementById('raSubmit')?.addEventListener('click', async () => {
       userUid: state.uid, timestamp: Date.now()
     });
     recordMyApplication(newRef.key);
-    if (room.joined < room.capacity) {
-      await update(ref(db, `rooms/${roomId}`), { joined: room.joined + 1 });
-    }
+    // 재능나눔 신청 인원은 Cloud Function이 applications를 기준으로 재계산합니다.
     ['raName', 'raPhone'].forEach((id) => { const e = document.getElementById(id); if (e) e.value = ''; });
     closeModal('roomApplyModal');
     toast(`${room.title} 신청이 접수되었습니다`);
@@ -2366,23 +2382,21 @@ async function deleteMyPrayer(id) {
 
 async function prayFor(prayerId) {
   if (!state.uid) { toast('잠시 후 다시 시도해주세요'); return; }
-  const prayer = (state.prayers || []).find((x) => x.id === prayerId);
+  const prayer = (state.prayers || []).find((item) => item.id === prayerId);
   if (prayer?.createdBy === state.uid) { toast('자신이 올린 기도제목입니다'); return; }
   if (state.prayedBy[prayerId]) { toast('이미 기도에 참여하셨어요'); return; }
 
   try {
-    const prayerRef = ref(db, `prayers/${prayerId}`);
-    const snap = await get(prayerRef);
-    if (!snap.exists()) return;
-    const cur = snap.val();
-    await update(prayerRef, { count: (cur.count || 0) + 1 });
-    await set(ref(db, `prayedBy/${prayerId}/${state.uid}`), true);
+    const markerRef = ref(db, `prayedBy/${prayerId}/${state.uid}`);
+    const result = await runTransaction(markerRef, (current) => current ? undefined : true);
+    if (!result.committed) { toast('이미 기도에 참여하셨어요'); return; }
     state.prayedBy[prayerId] = true;
+    if (prayer) prayer.count = (prayer.count || 0) + 1;
     toast('기도 참여가 기록되었습니다');
     renderPrayers();
-  } catch (e) {
+  } catch (error) {
     toast('처리 중 오류가 발생했어요');
-    console.error(e);
+    console.error(error);
   }
 }
 
@@ -2623,7 +2637,8 @@ async function registerFcmToken() {
     const messaging = getMessaging(app);
     const VAPID_KEY = 'BGQzzUOtUMyWSULqJ3aK1AyZBi3epr1FcsAsLQsfjWuADsxzTHInCa2wABypxgsx8Bz9tuxStbDgXKdfB3zpqgs';
     if (!VAPID_KEY) { console.info('FCM: VAPID 키 미설정'); return; }
-    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
+    const registration = await navigator.serviceWorker.ready;
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
     if (token) {
       await set(ref(db, `fcmTokens/${state.uid}/${token}`), { ts: Date.now() });
     }
@@ -3076,7 +3091,7 @@ document.getElementById('ciSubmit')?.addEventListener('click', async () => {
   const status = document.getElementById('ciStatus');
   if (!name) { if (status) { status.textContent = '이름을 입력해주세요'; status.style.color = '#c44'; } return; }
   if (!checked.length) { if (status) { status.textContent = '예배를 1개 이상 선택해주세요'; status.style.color = '#c44'; } return; }
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey(new Date());
   const services = state.services || [];
   const btn = document.getElementById('ciSubmit');
   if (btn) { btn.disabled = true; btn.textContent = '체크 중...'; }
@@ -3116,7 +3131,7 @@ function openInfoModal() {
       ? services.map((s) => `
           <div class="info-service-row">
             <div class="info-service-name">${escapeHtml(s.name)}</div>
-            <div class="info-service-time">${DAY_NAMES_KO[s.day]}요일 ${escapeHtml(s.time)}${s.place ? ` · ${escapeHtml(s.place)}` : ''}</div>
+            <div class="info-service-time">${escapeHtml(formatDays(s))} ${escapeHtml(s.time)}${s.place ? ` · ${escapeHtml(s.place)}` : ''}</div>
           </div>`).join('')
       : `<div class="info-empty">예배 시간 정보가 아직 등록되지 않았어요</div>`;
   }
@@ -3168,6 +3183,10 @@ window.addEventListener('appinstalled', () => {
 });
 
 // ===== 교회 캘린더 =====
+function localDateKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 const MONTHS_KO = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 
 function renderCalendar() {
@@ -3239,7 +3258,7 @@ function calCatClass(cat) {
 function renderUpcomingEvents() {
   const list = document.getElementById('upcomingEvents');
   if (!list) return;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateKey(new Date());
   const upcoming = (state.events || [])
     .filter((e) => (e.date || '') >= todayStr)
     .slice(0, 8);
