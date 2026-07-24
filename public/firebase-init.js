@@ -46,6 +46,7 @@ if (isAdminPage) {
   loadModule('/member-status.js', 'member-status');
   loadModule('/bible-daily-qt.js', 'bible-daily-qt');
   loadModule('/home-news-feed.js', 'home-news-feed');
+  loadModule('/volunteer-form-fix.js', 'volunteer-form-fix');
 }
 
 loadModule('/meditation-sync.js', 'meditation-sync');
