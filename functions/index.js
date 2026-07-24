@@ -321,6 +321,28 @@ async function collectUidMarkers(updates, path, uid) {
   });
 }
 
+function compactUpdates(updates) {
+  const result = {};
+  const paths = Object.keys(updates).sort((a, b) => {
+    const depth = a.split('/').length - b.split('/').length;
+    return depth || a.localeCompare(b);
+  });
+
+  for (const path of paths) {
+    const parts = path.split('/');
+    let shadowed = false;
+    for (let i = 1; i < parts.length; i += 1) {
+      const ancestor = parts.slice(0, i).join('/');
+      if (result[ancestor] === null) {
+        shadowed = true;
+        break;
+      }
+    }
+    if (!shadowed) result[path] = updates[path];
+  }
+  return result;
+}
+
 exports.deleteMyAccount = onCall({ timeoutSeconds: 120, memory: '512MiB' }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', '로그인이 필요합니다.');
@@ -370,7 +392,7 @@ exports.deleteMyAccount = onCall({ timeoutSeconds: 120, memory: '512MiB' }, asyn
   updates[`users/${uid}`] = null;
 
   try {
-    await db.ref().update(updates);
+    await db.ref().update(compactUpdates(updates));
     await deleteStoragePaths(uniqueStrings(storagePaths));
     await getAuth().deleteUser(uid);
     logger.info('회원 탈퇴 완료', { uid });
@@ -381,6 +403,7 @@ exports.deleteMyAccount = onCall({ timeoutSeconds: 120, memory: '512MiB' }, asyn
   }
 });
 
+// 새 공지 등록 → 푸시
 exports.onNewAnnouncement = onValueCreated(
   { ref: '/announcements/{key}', instance: INSTANCE },
   async (event) => {
@@ -396,6 +419,7 @@ exports.onNewAnnouncement = onValueCreated(
   }
 );
 
+// 새 주보 등록 → 푸시
 exports.onNewBulletin = onValueCreated(
   { ref: '/bulletins/{key}', instance: INSTANCE },
   async (event) => {
@@ -410,6 +434,7 @@ exports.onNewBulletin = onValueCreated(
   }
 );
 
+// 이번 주 설교 변경 → 푸시
 exports.onSermonUpdated = onValueWritten(
   { ref: '/sermons/current', instance: INSTANCE },
   async (event) => {
