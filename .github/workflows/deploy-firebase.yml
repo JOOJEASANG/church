@@ -44,6 +44,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Apply Bible data migration
+        run: node scripts/remove-legacy-daily-verses.mjs
+
       - name: Install Functions dependencies
         id: install
         continue-on-error: true
@@ -66,9 +69,24 @@ jobs:
             echo "Firebase 배포 인증 Secret이 없습니다." >&2
           fi
 
+      - name: Remove legacy dailyVerses data
+        id: remove-daily-verses
+        if: steps.install.outcome == 'success' && steps.firebase-auth.outputs.auth != 'missing'
+        continue-on-error: true
+        shell: bash
+        run: |
+          AUTH_ARGS=()
+          if [ "${{ steps.firebase-auth.outputs.auth }}" = "token" ]; then
+            AUTH_ARGS=(--token "$FIREBASE_TOKEN_VALUE")
+          fi
+          npx --yes firebase-tools database:remove /dailyVerses \
+            --project church-399cb \
+            --force \
+            "${AUTH_ARGS[@]}"
+
       - name: Deploy Functions, Database, Storage and Hosting
         id: firebase-deploy
-        if: steps.install.outcome == 'success' && steps.firebase-auth.outputs.auth != 'missing'
+        if: steps.install.outcome == 'success' && steps.firebase-auth.outputs.auth != 'missing' && steps.remove-daily-verses.outcome == 'success'
         continue-on-error: true
         shell: bash
         run: |
@@ -88,11 +106,13 @@ jobs:
         env:
           INSTALL_OUTCOME: ${{ steps.install.outcome }}
           AUTH_MODE: ${{ steps.firebase-auth.outputs.auth }}
+          CLEANUP_OUTCOME: ${{ steps.remove-daily-verses.outcome }}
           DEPLOY_OUTCOME: ${{ steps.firebase-deploy.outcome }}
         with:
           script: |
             const success = process.env.INSTALL_OUTCOME === 'success'
               && process.env.AUTH_MODE !== 'missing'
+              && process.env.CLEANUP_OUTCOME === 'success'
               && process.env.DEPLOY_OUTCOME === 'success';
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
@@ -107,5 +127,5 @@ jobs:
             });
 
       - name: Fail workflow when deployment failed
-        if: always() && (steps.install.outcome != 'success' || steps.firebase-auth.outputs.auth == 'missing' || steps.firebase-deploy.outcome != 'success')
+        if: always() && (steps.install.outcome != 'success' || steps.firebase-auth.outputs.auth == 'missing' || steps.remove-daily-verses.outcome != 'success' || steps.firebase-deploy.outcome != 'success')
         run: exit 1
