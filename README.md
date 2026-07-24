@@ -2,117 +2,131 @@
 
 > 세대가 함께 쓰는 교회 앱 — 말씀, 기도, 나눔
 
-## 구조
+## 주요 기능
 
-```
+- 사용자 앱: 교회 소식, 설교·주보, 기도제목, 재능나눔, 행사·봉사·심방·새가족 신청, 캘린더, 커뮤니티, 푸시 알림
+- 관리자 앱(`/admin`): 공지·설교·주보·일정·신청·기도·재능나눔·교회 정보·회원 승인·관리자 관리
+- 회원 승인: 신규 가입자는 `pending`으로 등록되며 관리자가 승인한 뒤 쓰기·신청·업로드 기능을 사용할 수 있습니다.
+- PWA: 설치, 서비스워커 업데이트, 오프라인 안내, FCM 백그라운드 알림
+
+## 프로젝트 구조
+
+```text
 public/
-├── index.html              사용자 앱 (5개 탭 PWA)
-├── app.js                  사용자 앱 로직 (Firebase RTDB)
-├── manifest.json           PWA 매니페스트
-├── sw.js                   서비스 워커 (오프라인 캐싱)
-├── firebase-init.js        Firebase 초기화 (공용)
-├── firebase-messaging-sw.js  FCM 백그라운드 알림
-├── icons/
-└── admin/                  관리자 페이지
+├── index.html
+├── app.js
+├── firebase-init.js
+├── member-status.js
+├── sw.js
+├── firebase-messaging-sw.js
+├── offline.html
+└── admin/
     ├── index.html
-    └── admin.js
+    ├── admin.js
+    ├── admin-claims.js
+    └── member-approval.js
 
-firebase.json               Hosting + DB rules 연결
-.firebaserc                 Firebase 프로젝트 (church-399cb)
-database.rules.json         RTDB 보안 규칙
+functions/
+├── index.js
+└── package.json
+
+scripts/
+├── apply-client-hardening.mjs
+└── validate-repo.mjs
+
+database.rules.json
+storage.rules
+firebase.json
 ```
 
-## 사용자 앱 — 5개 탭
+## 최초 관리자 등록
 
-| 탭 | 기능 |
-|---|---|
-| 🏠 홈 | 인사, 다음 주일 카운트다운, 빠른 액션, 공지 피드 |
-| 📖 말씀 | 유튜브 설교 (시작/종료 구간 자동 재생), 묵상 |
-| 🙏 기도 | 공개·익명·비공개 기도제목, "기도했어요" 카운터 |
-| 🤝 나눔 | 재능나눔방 카테고리 필터·신청, 봉사·심방·새가족 |
-| 👤 내정보 | 큰글씨 모드, 알림, 홈화면 설치 |
+최초 관리자 자동 등록은 임의의 첫 로그인 사용자가 관리자 권한을 얻지 못하도록 UID로 제한됩니다.
 
-## 관리자 페이지 (`/admin`)
+1. Firebase Console → Authentication에서 관리자 계정을 생성합니다.
+2. 생성된 계정의 UID를 확인합니다.
+3. Realtime Database 콘솔에서 `/config/security/bootstrapAdminUid`에 해당 UID를 문자열로 등록합니다.
+4. 그 계정으로 `/admin`에 로그인하면 `/admins/{uid}`가 최고관리자로 생성됩니다.
+5. 최초 등록 후 `bootstrapAdminUid` 값은 삭제할 수 있습니다.
+6. 이후 관리자 추가·제거는 최고관리자만 수행할 수 있습니다.
 
-이메일/비밀번호 로그인 → 대시보드 / 공지 / 설교 / 승인 / 신청내역 / 기도 / 재능나눔방 / 관리자 관리.
+기존 관리자 계정은 로그인 시 Cloud Function을 통해 Storage용 `admin` custom claim을 동기화합니다.
 
-### 최초 관리자 등록
+## 회원 승인 운영
 
-1. **Firebase 콘솔 → Authentication → 로그인 방법** → 이메일/비밀번호 활성화
-2. 관리자 3인 계정 생성 (이메일 + 비밀번호)
-3. `/admin` 페이지에서 첫 관리자 로그인 → `/admins/{uid}` 자동 생성 (DB 규칙으로 부트스트랩 허용)
-4. 이후 추가 관리자는 관리자 페이지의 "관리자" 탭에서 UID 직접 등록
+1. 신규 가입 계정은 `/users/{uid}/status = pending`으로 생성됩니다.
+2. 관리자 페이지의 **회원 승인** 메뉴에서 승인·대기·정지 상태를 변경합니다.
+3. 승인 시 `memberApproved` custom claim이 동기화됩니다.
+4. 이전 버전에서 생성되어 `status`가 없는 계정은 관리자 페이지의 **미설정 기존 계정 일괄 승인** 기능으로 명시적으로 승인할 수 있습니다.
 
-## Firebase Realtime Database 구조
+`교역자에게만 전달` 기도제목은 관리자와 작성자만 읽을 수 있으며, 일반 사용자는 공개 유형만 제한 쿼리로 불러옵니다.
 
+## Cloud Functions
+
+다음 기능이 서버에서 처리됩니다.
+
+- 공지·주보·설교 FCM 푸시 발송 및 만료 토큰 정리
+- 관리자·회원 승인 custom claims 동기화
+- 좋아요·댓글·기도 참여·신청 인원 집계값 보정
+- 게시물·갤러리·주보 DB 삭제 시 연결된 Storage 파일 정리
+- 본인 데이터와 Firebase Authentication 계정을 함께 삭제하는 안전한 회원 탈퇴
+
+## 로컬 검증
+
+Node.js 20 이상에서 실행합니다.
+
+```bash
+npm run patch:client
+npm run check
 ```
-/admins/{uid}                  관리자 화이트리스트
-/announcements/{key}           공지사항 (홈 피드)
-/sermons/current               이번 주 설교 (videoId, start, end 초)
-/sermons/history/{key}         지난 설교
-/rooms/{key}                   재능나눔방 (approved 플래그)
-/prayers/{key}                 기도제목 (count)
-/prayedBy/{prayerKey}/{uid}    중복 기도 방지
-/applications/{key}            봉사·재능나눔방 신청 (관리자만 읽기)
-/fcmTokens/{uid}/{token}       FCM 토큰
-/_seed/v1                      시드 완료 플래그
-```
 
-## FCM 푸시 (옵션)
-
-1. **Firebase 콘솔 → 프로젝트 설정 → Cloud Messaging → 웹 푸시 인증서**에서 VAPID 공개키 발급
-2. `public/app.js` 안 `VAPID_KEY` 상수에 입력
-3. 사용자가 "내 정보 → 알림 받기"를 켜면 FCM 토큰이 `/fcmTokens/{uid}` 에 저장
-4. 푸시 발송: Firebase Functions 또는 외부 서버에서 Admin SDK로 토큰들에게 전송
+GitHub Actions도 동일한 패치와 검증을 실행합니다. `apply-client-hardening.mjs`는 중복 실행해도 같은 결과가 나오도록 작성되어 있습니다.
 
 ## 배포
 
 ```bash
 npm install -g firebase-tools
 firebase login
+npm --prefix functions install
+npm run patch:client
+npm run check
 firebase deploy
 ```
 
+Functions, Realtime Database Rules, Storage Rules, Hosting을 함께 배포해야 회원 승인과 Storage 권한이 일치합니다.
+
 배포 URL: `https://church-399cb.web.app`
 
-## 주보 업로드 + 자동 푸시
+## FCM 설정
 
-- 관리자 페이지 → "📄 주보" 메뉴에서 PDF/이미지 업로드 (최대 20MB)
-- 업로드 즉시 RTDB `/bulletins` 등록 → Cloud Functions가 자동으로 모든 사용자 토큰에 FCM 푸시 발송
-- 사용자 앱 "📖 말씀" 탭 하단에 최신 주보 카드로 노출
+1. Firebase Console → 프로젝트 설정 → Cloud Messaging → 웹 푸시 인증서에서 VAPID 공개키를 확인합니다.
+2. `public/app.js`의 `VAPID_KEY`와 일치하는지 확인합니다.
+3. 앱은 `/sw.js` 등록을 FCM에도 재사용하여 PWA 서비스워커와 메시징 서비스워커가 충돌하지 않도록 합니다.
 
-## Cloud Functions 배포
+## 데이터 구조
 
-처음 한 번:
-```bash
-cd functions
-npm install
-cd ..
-firebase deploy --only functions
+```text
+/admins/{uid}                    관리자 화이트리스트
+/users/{uid}                     프로필·회원 승인 상태
+/announcements/{key}             공지사항
+/sermons/current                 이번 주 설교
+/sermons/history/{key}           지난 설교
+/bulletins/{key}                 주보
+/events/{key}                    교회 일정
+/rooms/{key}                     재능나눔방
+/prayers/{key}                   기도제목
+/prayedBy/{prayerKey}/{uid}      기도 참여 중복 방지
+/posts/{key}                     커뮤니티 게시물
+/postLikes/{postKey}/{uid}       좋아요 중복 방지
+/postComments/{postKey}/{key}    댓글
+/applications/{key}              각종 신청
+/fcmTokens/{uid}/{token}         FCM 토큰
+/userNotes/{uid}/{date}          개인 묵상 노트
 ```
 
-자동 푸시 트리거:
-- `/announcements/{key}` 신규 → 모든 토큰에 공지 푸시
-- `/bulletins/{key}` 신규 → 모든 토큰에 "새 주보" 푸시
-- `/sermons/current` 변경 → 모든 토큰에 "이번 주 말씀" 푸시
-- 만료된 토큰은 자동 삭제
+## 보안 운영 주의사항
 
-## 교회 외관 사진 적용
-
-대화에서 보여주신 천안남산교회 사진을 다음 위치에 저장하면 자동으로 홈 히어로 배경에 적용됩니다.
-
-```
-public/img/hero.jpg
-```
-
-저장 후 `index.html` 의 CSS 한 줄만 변경:
-```css
-background-image: url('/img/hero.jpg');  /* 기존 hero.svg 에서 변경 */
-```
-
-## 다음 단계 (선택)
-
-- [ ] 카카오톡 로그인
-- [ ] 휴대폰 번호 인증
-- [ ] QR 출석체크
-- [ ] 헌금 안내
+- Firebase Console 계정과 GitHub 저장소 권한은 최소 인원에게만 부여합니다.
+- 관리자 권한을 제거한 사용자는 다시 로그인하거나 토큰을 갱신해야 변경된 권한이 즉시 반영됩니다.
+- 보안 규칙만 단독 배포하지 말고 Functions와 Hosting 변경도 함께 배포합니다.
+- 운영 전 Firebase Emulator Suite에서 회원 가입·승인·글쓰기·비공개 기도·파일 업로드·탈퇴 흐름을 점검하는 것을 권장합니다.
