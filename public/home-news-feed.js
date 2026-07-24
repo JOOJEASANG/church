@@ -24,6 +24,10 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+function emptyMessageHtml() {
+  return '<div class="feed-card"><h3>아직 등록된 소식이 없어요</h3><p>공지나 교회일정이 등록되면 여기에 표시됩니다.</p></div>';
+}
+
 function seoulTodayKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Seoul',
@@ -83,13 +87,33 @@ function isEmptyPlaceholder(card) {
 }
 
 function openEventDate(date) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
   const calendarButton = document.querySelector('[data-tab="calendar"]');
   calendarButton?.click();
-  window.setTimeout(() => {
+  if (!match) return;
+
+  const targetYear = Number(match[1]);
+  const targetMonth = Number(match[2]);
+  const moveToDate = (attempt = 0) => {
+    if (attempt > 36) return;
+    const label = document.getElementById('calMonthLabel')?.textContent || '';
+    const labelMatch = /(\d{4})년\s*(\d{1,2})월/.exec(label);
+    if (!labelMatch) {
+      window.setTimeout(() => moveToDate(attempt + 1), 50);
+      return;
+    }
+    const shownYear = Number(labelMatch[1]);
+    const shownMonth = Number(labelMatch[2]);
+    const delta = (targetYear - shownYear) * 12 + (targetMonth - shownMonth);
+    if (delta !== 0) {
+      document.getElementById(delta > 0 ? 'calNext' : 'calPrev')?.click();
+      window.setTimeout(() => moveToDate(attempt + 1), 40);
+      return;
+    }
     const selectorDate = window.CSS?.escape ? window.CSS.escape(date) : date.replaceAll('"', '\\"');
-    const cell = document.querySelector(`.cal-cell[data-date="${selectorDate}"]`);
-    cell?.click();
-  }, 120);
+    document.querySelector(`.cal-cell[data-date="${selectorDate}"]`)?.click();
+  };
+  window.setTimeout(() => moveToDate(), 100);
 }
 
 function bindEventCardActions(feed) {
@@ -121,7 +145,8 @@ function renderHomeEvents() {
   const alreadyCorrect = feed.dataset.homeEventSignature === signature
     && currentCards.length === events.length
     && currentIds === desiredIds
-    && !(events.length && localState.announcements.length === 0 && emptyPlaceholder);
+    && !(events.length && localState.announcements.length === 0 && emptyPlaceholder)
+    && !(!events.length && localState.announcements.length === 0 && !emptyPlaceholder);
   if (alreadyCorrect) {
     bindEventCardActions(feed);
     return;
@@ -133,6 +158,8 @@ function renderHomeEvents() {
   if (events.length) {
     feed.insertAdjacentHTML('beforeend', events.map(eventCardHtml).join(''));
     bindEventCardActions(feed);
+  } else if (localState.announcements.length === 0 && !Array.from(feed.children).some(isEmptyPlaceholder)) {
+    feed.innerHTML = emptyMessageHtml();
   }
   feed.dataset.homeEventSignature = signature;
 }
