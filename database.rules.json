@@ -116,14 +116,6 @@
         "timestamp"
       ]
     },
-    "dailyVerses": {
-      ".read": true,
-      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
-      ".indexOn": [
-        "order",
-        "createdAt"
-      ]
-    },
     "rooms": {
       ".read": "auth != null",
       ".indexOn": [
