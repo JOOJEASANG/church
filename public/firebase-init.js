@@ -45,6 +45,7 @@ if (isAdminPage) {
   loadModule('/pc-brand-size-fix.js', 'pc-brand-size-fix');
   loadModule('/member-status.js', 'member-status');
   loadModule('/bible-daily-qt.js', 'bible-daily-qt');
+  loadModule('/home-news-feed.js', 'home-news-feed');
 }
 
 loadModule('/meditation-sync.js', 'meditation-sync');
