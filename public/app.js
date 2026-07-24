@@ -1363,24 +1363,36 @@ const DAILY_VERSES = [
   { ref: '요한계시록 22:20', text: '이것들을 증언하신 이가 이르시되 내가 진실로 속히 오리라 하시거늘 아멘 주 예수여 오시옵소서.' }
 ];
 
-function getTodaysVerseRef() {
-  // 날짜 기반 의사 랜덤 (Mulberry32) — 모든 사용자가 같은 날엔 같은 절
-  const d = new Date();
-  const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-  let x = (seed ^ 0xdeadbeef) >>> 0;
-  x = Math.imul(x ^ (x >>> 16), 2246822507);
-  x = Math.imul(x ^ (x >>> 13), 3266489909);
-  x = (x ^ (x >>> 16)) >>> 0;
-  return x % DAILY_VERSES.length;
+function getSeoulDateParts(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day)
+  };
 }
 
-function getTodaysVerse() {
-  return DAILY_VERSES[getTodaysVerseRef()];
+function getTodaysVerseRef(date = new Date()) {
+  // 한국 날짜가 하루 증가할 때 인덱스도 반드시 1씩 증가합니다.
+  // 해시 충돌 때문에 연속된 날짜에 같은 말씀이 나오는 문제를 방지합니다.
+  const { year, month, day } = getSeoulDateParts(date);
+  const dayNumber = Math.floor(Date.UTC(year, month - 1, day) / 86400000);
+  return ((dayNumber % DAILY_VERSES.length) + DAILY_VERSES.length) % DAILY_VERSES.length;
 }
 
-function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+function getTodaysVerse(date = new Date()) {
+  return DAILY_VERSES[getTodaysVerseRef(date)] || DAILY_VERSES[0];
+}
+
+function todayKey(date = new Date()) {
+  const { year, month, day } = getSeoulDateParts(date);
+  return `${year}${String(month).padStart(2, '0')}${String(day).padStart(2, '0')}`;
 }
 
 // ===== 묵상 노트 =====
@@ -1538,39 +1550,31 @@ document.getElementById('postDetailShareBtn')?.addEventListener('click', async (
   });
 });
 
-async function setDailyVerse() {
-  const ref = getTodaysVerseRef();
-  const t = document.getElementById('verseText');
-  const r = document.getElementById('verseRef');
-  // 1) 즉시 폴백 텍스트 표시 (FOUC 방지)
-  if (t) t.textContent = FALLBACK_VERSES[ref] || '말씀을 불러오는 중...';
-  if (r) r.textContent = ref;
-  // 2) 비동기로 API에서 정식 본문 가져와 갱신
-  try {
-    const text = await fetchVerseText(ref);
-    if (t && text) t.textContent = text;
-  } catch {}
+let renderedDailyVerseKey = '';
+
+function setDailyVerse() {
+  const verse = getTodaysVerse();
+  const key = todayKey();
+  const textEl = document.getElementById('verseText');
+  const refEl = document.getElementById('verseRef');
+  if (textEl) textEl.textContent = verse.text;
+  if (refEl) refEl.textContent = verse.ref;
+  renderedDailyVerseKey = key;
 }
+
+function refreshDailyVerseIfDateChanged() {
+  if (renderedDailyVerseKey !== todayKey()) setDailyVerse();
+}
+
 setDailyVerse();
 
-// 자정 자동 갱신 (페이지 열어둔 채 날짜 넘어가도 자동 새로고침)
-function scheduleMidnightVerseRefresh() {
-  const now = new Date();
-  const next = new Date(now);
-  next.setDate(next.getDate() + 1);
-  next.setHours(0, 0, 5, 0); // 자정 5초 후 (시계 미세오차 안전 margin)
-  const delay = Math.max(1000, next.getTime() - now.getTime());
-  setTimeout(() => {
-    setDailyVerse();
-    scheduleMidnightVerseRefresh();
-  }, delay);
-}
-scheduleMidnightVerseRefresh();
+// 한국 날짜 변경을 1분 이내에 감지합니다. 기기 시간대와 무관하게 서울 날짜를 사용합니다.
+setInterval(refreshDailyVerseIfDateChanged, 60 * 1000);
 
-// 다른 앱에서 돌아왔을 때 갱신 (날짜 바뀌었을 수 있음)
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') setDailyVerse();
+  if (document.visibilityState === 'visible') refreshDailyVerseIfDateChanged();
 });
+window.addEventListener('pageshow', refreshDailyVerseIfDateChanged);
 
 // ===== 유틸 =====
 function escapeHtml(v) {
