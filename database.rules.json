@@ -6,7 +6,38 @@
     "admins": {
       ".read": "auth != null",
       "$uid": {
-        ".write": "auth != null && auth.uid === $uid && (root.child('admins').child(auth.uid).exists() || !root.child('admins').exists())"
+        ".write": "auth != null && ((root.child('admins').child(auth.uid).child('role').val() === 'super') || (!root.child('admins').exists() && auth.uid === $uid && root.child('config').child('security').child('bootstrapAdminUid').val() === auth.uid))",
+        ".validate": "!newData.exists() || (newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 80 && newData.child('role').isString() && (newData.child('role').val() === 'super' || newData.child('role').val() === 'content' || newData.child('role').val() === 'media'))",
+        "name": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 80)" },
+        "email": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 254)" },
+        "role": { ".validate": "!newData.exists() || (newData.isString() && (newData.val() === 'super' || newData.val() === 'content' || newData.val() === 'media'))" },
+        "createdAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "addedAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "addedBy": { ".validate": "!newData.exists() || newData.isString()" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "users": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".indexOn": ["status", "createdAt"],
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).exists())",
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (auth.uid === $uid && ((!data.exists() && newData.exists() && newData.child('displayName').isString() && newData.child('phone').isString() && newData.child('role').isString() && (!newData.child('status').exists() || newData.child('status').val() === 'pending') && (!newData.child('memberType').exists() || newData.child('memberType').val() === 'member')) || (data.exists() && newData.exists() && newData.child('status').val() === data.child('status').val() && newData.child('memberType').val() === data.child('memberType').val()) || (data.exists() && !newData.exists()))))",
+        "email": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 254)" },
+        "displayName": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length <= 80)" },
+        "phone": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 40)" },
+        "role": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 40)" },
+        "memberType": { ".validate": "!newData.exists() || (newData.isString() && (newData.val() === 'member' || newData.val() === 'newcomer' || newData.val() === 'staff'))" },
+        "status": { ".validate": "!newData.exists() || (newData.isString() && (newData.val() === 'pending' || newData.val() === 'approved' || newData.val() === 'suspended'))" },
+        "provider": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 40)" },
+        "createdAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "updatedAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "approvedAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "approvedBy": { ".validate": "!newData.exists() || newData.isString()" },
+        "agreedTosAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "agreedPrivacyAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "$other": { ".validate": false }
       }
     },
 
@@ -15,16 +46,10 @@
       ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
     },
 
-    "dailyVerses": {
-      ".read": true,
-      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
-      ".indexOn": ["createdAt", "updatedAt"]
-    },
-
     "announcements": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
-      ".indexOn": ["timestamp"]
+      ".indexOn": ["timestamp", "deadline"]
     },
 
     "sermons": {
@@ -35,22 +60,61 @@
     "bulletins": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
-      ".indexOn": ["timestamp"]
+      ".indexOn": ["timestamp", "date"]
+    },
+
+    "events": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".indexOn": ["date", "timestamp"]
+    },
+
+    "dailyVerses": {
+      ".read": true,
+      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".indexOn": ["order", "createdAt"]
     },
 
     "rooms": {
       ".read": "auth != null",
-      ".indexOn": ["timestamp"],
+      ".indexOn": ["timestamp", "category", "approved", "createdBy"],
       "$roomId": {
-        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && (!data.exists() || newData.child('joined').val() === data.child('joined').val() + 1 || newData.child('joined').val() === data.child('joined').val() - 1)))"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.exists() && newData.child('createdBy').val() === auth.uid && newData.child('approved').val() === false && newData.child('status').val() === '승인대기' && newData.child('joined').val() === 0 && !newData.child('approvedAt').exists()) || (data.exists() && !newData.exists() && data.child('createdBy').val() === auth.uid && data.child('approved').val() === false) || (data.exists() && newData.exists() && data.child('createdBy').val() === auth.uid && data.child('approved').val() === false && newData.child('createdBy').val() === data.child('createdBy').val() && newData.child('approved').val() === false && newData.child('status').val() === '승인대기' && newData.child('joined').val() === data.child('joined').val() && newData.child('approvedAt').val() === data.child('approvedAt').val()) || (data.exists() && newData.exists() && ((newData.child('joined').val() === data.child('joined').val() + 1) || (newData.child('joined').val() === data.child('joined').val() - 1)) && newData.child('title').val() === data.child('title').val() && newData.child('category').val() === data.child('category').val() && newData.child('target').val() === data.child('target').val() && newData.child('teacher').val() === data.child('teacher').val() && newData.child('schedule').val() === data.child('schedule').val() && newData.child('place').val() === data.child('place').val() && newData.child('capacity').val() === data.child('capacity').val() && newData.child('status').val() === data.child('status').val() && newData.child('desc').val() === data.child('desc').val() && newData.child('approved').val() === data.child('approved').val() && newData.child('createdBy').val() === data.child('createdBy').val() && newData.child('timestamp').val() === data.child('timestamp').val() && newData.child('approvedAt').val() === data.child('approvedAt').val()))))",
+        ".validate": "!newData.exists() || (newData.hasChildren(['title', 'category', 'target', 'capacity', 'joined', 'status', 'approved', 'timestamp']) && newData.child('joined').val() <= newData.child('capacity').val())",
+        "title": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120" },
+        "category": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40" },
+        "target": { ".validate": "newData.isString() && newData.val().length <= 80" },
+        "teacher": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 80)" },
+        "schedule": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 120)" },
+        "place": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 160)" },
+        "capacity": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 500" },
+        "joined": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "status": { ".validate": "newData.isString() && (newData.val() === '승인대기' || newData.val() === '모집중' || newData.val() === '마감')" },
+        "desc": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 3000)" },
+        "approved": { ".validate": "newData.isBoolean()" },
+        "createdBy": { ".validate": "!newData.exists() || newData.isString()" },
+        "timestamp": { ".validate": "newData.isNumber()" },
+        "approvedAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "updatedAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "$other": { ".validate": false }
       }
     },
 
     "prayers": {
-      ".read": "auth != null",
-      ".indexOn": ["timestamp"],
+      ".read": "auth != null && (root.child('admins').child(auth.uid).exists() || (query.orderByChild === 'type' && (query.equalTo === '공개' || query.equalTo === '익명 공개' || query.equalTo === '감사')) || (query.orderByChild === 'createdBy' && query.equalTo === auth.uid))",
+      ".indexOn": ["timestamp", "type", "createdBy"],
       "$prayerId": {
-        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && (!data.exists() || data.child('createdBy').val() === auth.uid || (newData.child('count').val() === data.child('count').val() + 1 && newData.child('text').val() === data.child('text').val() && newData.child('createdBy').val() === data.child('createdBy').val() && newData.child('timestamp').val() === data.child('timestamp').val()))))"
+        ".read": "auth != null && (root.child('admins').child(auth.uid).exists() || data.child('type').val() !== '교역자에게만 전달' || data.child('createdBy').val() === auth.uid)",
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.exists() && newData.child('createdBy').val() === auth.uid && newData.child('count').val() === 0) || (data.exists() && !newData.exists() && data.child('createdBy').val() === auth.uid) || (data.exists() && newData.exists() && data.child('createdBy').val() === auth.uid && newData.child('createdBy').val() === data.child('createdBy').val() && newData.child('timestamp').val() === data.child('timestamp').val() && newData.child('count').val() === data.child('count').val()) || (data.exists() && newData.exists() && root.child('prayedBy').child($prayerId).child(auth.uid).exists() && newData.child('count').val() === data.child('count').val() + 1 && newData.child('name').val() === data.child('name').val() && newData.child('type').val() === data.child('type').val() && newData.child('text').val() === data.child('text').val() && newData.child('createdBy').val() === data.child('createdBy').val() && newData.child('timestamp').val() === data.child('timestamp').val()))))",
+        ".validate": "!newData.exists() || newData.hasChildren(['name', 'type', 'text', 'count', 'createdBy', 'timestamp'])",
+        "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
+        "type": { ".validate": "newData.isString() && (newData.val() === '공개' || newData.val() === '익명 공개' || newData.val() === '교역자에게만 전달' || newData.val() === '감사')" },
+        "text": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 3000" },
+        "count": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "createdBy": { ".validate": "newData.isString()" },
+        "timestamp": { ".validate": "newData.isNumber()" },
+        "updatedAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "$other": { ".validate": false }
       }
     },
 
@@ -58,71 +122,99 @@
       ".read": "auth != null",
       "$prayerId": {
         "$uid": {
-          ".write": "auth != null && auth.uid === $uid && (root.child('admins').child(auth.uid).exists() || root.child('users').child(auth.uid).child('status').val() === 'approved')"
+          ".write": "auth != null && auth.uid === $uid && (root.child('admins').child(auth.uid).exists() || root.child('users').child(auth.uid).child('status').val() === 'approved')",
+          ".validate": "!newData.exists() || newData.val() === true"
         }
       }
     },
 
     "applications": {
       ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
-      ".indexOn": ["timestamp"],
+      ".indexOn": ["timestamp", "userUid", "roomId", "postId", "announcementId"],
       "$id": {
         ".read": "auth != null && (root.child('admins').child(auth.uid).exists() || data.child('userUid').val() === auth.uid)",
-        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.child('userUid').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('userUid').val() === auth.uid))))"
-      }
-    },
-
-    "fcmTokens": {
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
-      }
-    },
-
-    "users": {
-      ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
-      "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).exists())",
-        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (auth.uid === $uid && ((!data.exists() && newData.child('displayName').isString() && newData.child('phone').isString() && newData.child('role').isString() && newData.child('memberType').isString() && newData.child('status').isString()) || (data.exists() && (data.child('status').exists() && newData.child('status').val() === data.child('status').val() && newData.child('memberType').val() === data.child('memberType').val()) || (data.exists() && !data.child('status').exists() && newData.child('status').isString())))))"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.exists() && newData.child('userUid').val() === auth.uid) || (data.exists() && !newData.exists() && data.child('userUid').val() === auth.uid))))",
+        ".validate": "!newData.exists() || (newData.hasChildren(['kind', 'name', 'userUid', 'timestamp']) && newData.child('userUid').isString() && newData.child('userUid').val().length > 0)",
+        "kind": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 40" },
+        "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80" },
+        "phone": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 40)" },
+        "userUid": { ".validate": "newData.isString()" },
+        "timestamp": { ".validate": "newData.isNumber()" },
+        "count": { ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 1 && newData.val() <= 100)" },
+        "roomId": { ".validate": "!newData.exists() || newData.isString()" },
+        "postId": { ".validate": "!newData.exists() || newData.isString()" },
+        "announcementId": { ".validate": "!newData.exists() || newData.isString()" },
+        "roomTitle": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 120)" },
+        "eventTitle": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 160)" },
+        "type": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 120)" },
+        "time": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 120)" },
+        "date": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 20)" },
+        "message": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 3000)" },
+        "note": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 3000)" },
+        "address": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 300)" },
+        "how": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 120)" },
+        "serviceId": { ".validate": "!newData.exists() || newData.isString()" },
+        "serviceName": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 160)" },
+        "$other": { ".validate": false }
       }
     },
 
     "gallery": {
       ".read": true,
-      ".indexOn": ["timestamp"],
+      ".indexOn": ["timestamp", "uploaderUid"],
       "$id": {
-        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && (!data.exists() || data.child('uploaderUid').val() === auth.uid)))"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.child('uploaderUid').val() === auth.uid) || (data.exists() && data.child('uploaderUid').val() === auth.uid && newData.child('uploaderUid').val() === data.child('uploaderUid').val()))))"
       }
     },
 
-    "events": {
-      ".read": "auth != null",
-      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
-      ".indexOn": ["date"]
+    "fcmTokens": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
     },
 
     "feedback": {
       ".read": "auth != null && root.child('admins').child(auth.uid).exists()",
-      ".indexOn": ["timestamp"],
+      ".indexOn": ["timestamp", "authorUid", "status"],
       "$id": {
         ".read": "auth != null && (root.child('admins').child(auth.uid).exists() || data.child('authorUid').val() === auth.uid)",
-        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid && !newData.exists()))))"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.exists() && newData.child('authorUid').val() === auth.uid && newData.child('status').val() === 'open') || (data.exists() && !newData.exists() && data.child('authorUid').val() === auth.uid))))",
+        ".validate": "!newData.exists() || newData.hasChildren(['title', 'body', 'authorUid', 'timestamp', 'status'])"
       }
     },
 
     "userNotes": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
-        ".indexOn": ["timestamp"]
+        ".read": "auth != null && (auth.uid === $uid || root.child('admins').child(auth.uid).exists())",
+        ".write": "auth != null && auth.uid === $uid && root.child('users').child(auth.uid).child('status').val() === 'approved'"
       }
     },
 
     "posts": {
       ".read": "auth != null",
-      ".indexOn": ["timestamp"],
+      ".indexOn": ["timestamp", "authorUid", "deadline"],
       "$id": {
-        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || data.child('authorUid').val() === auth.uid || (data.exists() && newData.exists() && newData.child('title').val() === data.child('title').val() && newData.child('body').val() === data.child('body').val() && newData.child('authorUid').val() === data.child('authorUid').val() && newData.child('timestamp').val() === data.child('timestamp').val()))))"
+        ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.exists() && newData.child('authorUid').val() === auth.uid && newData.child('likeCount').val() === 0 && newData.child('commentCount').val() === 0 && newData.child('signupCount').val() === 0) || (data.exists() && !newData.exists() && data.child('authorUid').val() === auth.uid) || (data.exists() && newData.exists() && data.child('authorUid').val() === auth.uid && newData.child('authorUid').val() === data.child('authorUid').val() && newData.child('timestamp').val() === data.child('timestamp').val() && newData.child('likeCount').val() === data.child('likeCount').val() && newData.child('commentCount').val() === data.child('commentCount').val() && newData.child('signupCount').val() === data.child('signupCount').val()) || (data.exists() && newData.exists() && newData.child('title').val() === data.child('title').val() && newData.child('body').val() === data.child('body').val() && newData.child('authorUid').val() === data.child('authorUid').val() && newData.child('authorName').val() === data.child('authorName').val() && newData.child('authorRole').val() === data.child('authorRole').val() && newData.child('timestamp').val() === data.child('timestamp').val() && newData.child('imageUrl').val() === data.child('imageUrl').val() && newData.child('imageStoragePath').val() === data.child('imageStoragePath').val() && newData.child('imageUrls').val() === data.child('imageUrls').val() && newData.child('imageStoragePaths').val() === data.child('imageStoragePaths').val() && newData.child('signupEnabled').val() === data.child('signupEnabled').val() && newData.child('capacity').val() === data.child('capacity').val() && newData.child('deadline').val() === data.child('deadline').val() && newData.child('updatedAt').val() === data.child('updatedAt').val() && (((newData.child('likeCount').val() === data.child('likeCount').val() + 1 || newData.child('likeCount').val() === data.child('likeCount').val() - 1) && newData.child('commentCount').val() === data.child('commentCount').val() && newData.child('signupCount').val() === data.child('signupCount').val()) || ((newData.child('commentCount').val() === data.child('commentCount').val() + 1 || newData.child('commentCount').val() === data.child('commentCount').val() - 1) && newData.child('likeCount').val() === data.child('likeCount').val() && newData.child('signupCount').val() === data.child('signupCount').val()) || (newData.child('signupCount').isNumber() && newData.child('signupCount').val() >= 0 && newData.child('likeCount').val() === data.child('likeCount').val() && newData.child('commentCount').val() === data.child('commentCount').val()))))))",
+        ".validate": "!newData.exists() || newData.hasChildren(['title', 'body', 'authorUid', 'authorName', 'authorRole', 'likeCount', 'commentCount', 'signupCount', 'timestamp'])",
+        "title": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 160" },
+        "body": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 10000" },
+        "authorUid": { ".validate": "newData.isString()" },
+        "authorName": { ".validate": "newData.isString() && newData.val().length <= 80" },
+        "authorRole": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "likeCount": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "commentCount": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "signupCount": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "timestamp": { ".validate": "newData.isNumber()" },
+        "updatedAt": { ".validate": "!newData.exists() || newData.isNumber()" },
+        "signupEnabled": { ".validate": "!newData.exists() || newData.isBoolean()" },
+        "capacity": { ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 1 && newData.val() <= 10000)" },
+        "deadline": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 20)" },
+        "imageUrl": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 2048)" },
+        "imageStoragePath": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 512)" },
+        "imageUrls": { ".validate": "!newData.exists() || newData.hasChildren()" },
+        "imageStoragePaths": { ".validate": "!newData.exists() || newData.hasChildren()" },
+        "$other": { ".validate": false }
       }
     },
 
@@ -130,7 +222,8 @@
       ".read": "auth != null",
       "$postId": {
         "$uid": {
-          ".write": "auth != null && auth.uid === $uid && (root.child('admins').child(auth.uid).exists() || root.child('users').child(auth.uid).child('status').val() === 'approved')"
+          ".write": "auth != null && auth.uid === $uid && (root.child('admins').child(auth.uid).exists() || root.child('users').child(auth.uid).child('status').val() === 'approved')",
+          ".validate": "!newData.exists() || newData.val() === true"
         }
       }
     },
@@ -138,9 +231,16 @@
     "postComments": {
       ".read": "auth != null",
       "$postId": {
-        ".indexOn": ["timestamp"],
+        ".indexOn": ["timestamp", "authorUid"],
         "$commentId": {
-          ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid))))"
+          ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid && (!newData.exists() || newData.child('authorUid').val() === data.child('authorUid').val())))))",
+          ".validate": "!newData.exists() || newData.hasChildren(['body', 'authorUid', 'authorName', 'authorRole', 'timestamp'])",
+          "body": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 3000" },
+          "authorUid": { ".validate": "newData.isString()" },
+          "authorName": { ".validate": "newData.isString() && newData.val().length <= 80" },
+          "authorRole": { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "timestamp": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
         }
       }
     },
@@ -150,16 +250,15 @@
       "$roomId": {
         ".indexOn": ["timestamp"],
         "$postId": {
-          ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && data.child('authorUid').val() === auth.uid) || root.child('rooms').child($roomId).child('createdBy').val() === auth.uid)))"
+          ".write": "auth != null && (root.child('admins').child(auth.uid).exists() || (root.child('users').child(auth.uid).child('status').val() === 'approved' && root.child('rooms').child($roomId).child('createdBy').val() === auth.uid && ((!data.exists() && newData.child('authorUid').val() === auth.uid) || (data.exists() && (!newData.exists() || newData.child('authorUid').val() === data.child('authorUid').val())))))",
+          ".validate": "!newData.exists() || newData.hasChildren(['title', 'body', 'authorUid', 'authorName', 'timestamp'])"
         }
       }
     },
 
     "_seed": {
-      ".read": "auth != null",
-      "$key": {
-        ".write": "auth != null && !data.exists()"
-      }
+      ".read": false,
+      ".write": "auth != null && root.child('admins').child(auth.uid).exists()"
     }
   }
 }
