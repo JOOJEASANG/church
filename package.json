@@ -1,0 +1,13 @@
+{
+  "name": "namsan-church-pwa",
+  "version": "2.0.0",
+  "private": true,
+  "description": "천안남산교회 Firebase PWA",
+  "scripts": {
+    "patch:client": "node scripts/apply-client-hardening.mjs",
+    "check": "node scripts/validate-repo.mjs && npm --prefix functions run lint"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
