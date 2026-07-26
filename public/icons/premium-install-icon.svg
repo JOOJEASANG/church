@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="천안남산교회 앱 아이콘">
+  <defs>
+    <linearGradient id="navy" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#172844"/>
+      <stop offset="0.48" stop-color="#07162f"/>
+      <stop offset="1" stop-color="#020a19"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff2b5"/>
+      <stop offset="0.22" stop-color="#f9d46a"/>
+      <stop offset="0.52" stop-color="#c88a22"/>
+      <stop offset="0.76" stop-color="#ffe798"/>
+      <stop offset="1" stop-color="#9f6518"/>
+    </linearGradient>
+    <linearGradient id="door" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.45" stop-color="#fff4c8"/>
+      <stop offset="1" stop-color="#d9a63f"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="50%" cy="30%" r="42%">
+      <stop offset="0" stop-color="#fff5bd" stop-opacity=".72"/>
+      <stop offset=".28" stop-color="#f7c84d" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#f7c84d" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="1 0 0 0 .9  0 1 0 0 .58  0 0 1 0 .08  0 0 0 .8 0" result="g"/>
+      <feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity=".5"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="url(#navy)"/>
+  <rect width="512" height="512" rx="108" fill="url(#halo)"/>
+  <rect x="15" y="15" width="482" height="482" rx="96" fill="none" stroke="#2d1a05" stroke-width="16" opacity=".9"/>
+  <rect x="18" y="18" width="476" height="476" rx="92" fill="none" stroke="url(#gold)" stroke-width="8"/>
+  <rect x="31" y="31" width="450" height="450" rx="80" fill="none" stroke="#ffe89a" stroke-width="1.5" opacity=".65"/>
+  <g opacity=".2" stroke="#fbd36a" stroke-width="2">
+    <path d="M256 54v85"/><path d="M172 75l48 79"/><path d="M340 75l-48 79"/>
+    <path d="M111 130l91 55"/><path d="M401 130l-91 55"/>
+  </g>
+  <g filter="url(#glow)">
+    <path d="M235 85h42v84h77v42h-77v112h-42V211h-77v-42h77z" fill="url(#gold)" stroke="#fff4c8" stroke-width="3"/>
+    <circle cx="256" cy="190" r="5" fill="#fff"/>
+  </g>
+  <g filter="url(#softShadow)">
+    <path d="M256 260c-25 45-66 83-128 117 56-7 100-25 128-55 28 30 72 48 128 55-62-34-103-72-128-117z" fill="#06132a" stroke="url(#gold)" stroke-width="9" stroke-linejoin="round"/>
+    <path d="M199 351v91h114v-91l-57-47z" fill="#07162f"/>
+    <path d="M199 351l57-47 57 47" fill="none" stroke="url(#gold)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M256 365c-21 13-34 30-34 51v29h68v-29c0-21-13-38-34-51z" fill="url(#door)" stroke="#f8d66d" stroke-width="5"/>
+  </g>
+  <path d="M95 445c54-22 108-32 161-32s107 10 161 32" fill="none" stroke="#5e390d" stroke-width="13" opacity=".8"/>
+  <path d="M95 441c54-20 108-29 161-29s107 9 161 29" fill="none" stroke="url(#gold)" stroke-width="6"/>
+  <ellipse cx="256" cy="431" rx="55" ry="25" fill="#f9d568" opacity=".12"/>
+</svg>
