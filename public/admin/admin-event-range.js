@@ -221,7 +221,10 @@ function patchEventsList() {
     const event = rangeState.events.find((item) => item.id === button.dataset.editEv);
     const row = button.closest('tr');
     const dateCell = row?.querySelectorAll('td')?.[1];
-    if (event && dateCell) dateCell.textContent = formatRange(event);
+    if (event && dateCell) {
+      const nextText = formatRange(event);
+      if (dateCell.textContent !== nextText) dateCell.textContent = nextText;
+    }
   });
 }
 
