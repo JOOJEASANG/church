@@ -37,6 +37,7 @@ if (isAdminPage) {
   loadModule('/admin-google-login.js', 'admin-google-login');
   loadModule('/admin/admin-claims.js', 'admin-claims');
   loadModule('/admin/member-approval.js', 'member-approval');
+  loadModule('/admin/admin-event-range.js', 'admin-event-range');
 } else {
   loadModule('/talent-room-board.js', 'talent-room-board');
   loadModule('/talent-category-fix.js', 'talent-category-fix');
@@ -46,6 +47,7 @@ if (isAdminPage) {
   loadModule('/member-status.js', 'member-status');
   loadModule('/bible-daily-qt.js', 'bible-daily-qt');
   loadModule('/home-news-feed.js', 'home-news-feed');
+  loadModule('/event-range-ui.js', 'event-range-ui');
   loadModule('/volunteer-form-fix.js', 'volunteer-form-fix');
 }
 
