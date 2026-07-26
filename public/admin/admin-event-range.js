@@ -1,9 +1,9 @@
-/* 관리자 교회일정에 시작일·종료일 기간 설정을 추가합니다. */
+/* 관리자 교회일정에 시작일·종료일 기간 설정과 쉬운 바로 수정을 제공합니다. */
 import { db, auth } from '/firebase-init.js';
 import { ref, onValue, push, update } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
 
-const rangeState = { events: [] };
+const rangeState = { events: [], editingEventId: null };
 let eventsUnsubscribe = null;
 let listObserver = null;
 let patchTimer = null;
@@ -36,6 +36,11 @@ function validateRange(startDate, endDate) {
   return '';
 }
 
+function todayDateKey() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function formatDate(dateString) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateString || ''));
   if (!match) return String(dateString || '');
@@ -50,9 +55,74 @@ function formatRange(event) {
     : formatDate(startDate);
 }
 
+function injectStyles() {
+  if (document.getElementById('easyEventEditStyles')) return;
+  const style = document.createElement('style');
+  style.id = 'easyEventEditStyles';
+  style.textContent = `
+    #eventFormPanel.event-editing-panel {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(115,146,109,.13), var(--shadow-xs);
+    }
+    #eventEditBanner {
+      display: none;
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border: 1px solid #bed0b9;
+      border-radius: 10px;
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+      font-size: 13px;
+      font-weight: 700;
+    }
+    #eventEditBanner.show { display: flex; align-items: center; gap: 7px; }
+    #eventFormActions { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+    #eventFormActions #evSubmit { margin-top: 0 !important; min-width: 112px; }
+    #evCancelEdit { display: none; }
+    #evCancelEdit.show { display: inline-flex; }
+    #eventsEditHelp {
+      margin: 0 0 10px;
+      padding: 10px 12px;
+      border-radius: 9px;
+      background: var(--bg-2);
+      color: var(--muted);
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+    #eventsList tbody tr[data-easy-edit-id] { cursor: pointer; }
+    #eventsList tbody tr[data-easy-edit-id]:hover { background: var(--primary-soft); }
+    #eventsList tbody tr.event-row-editing {
+      background: var(--primary-soft);
+      box-shadow: inset 4px 0 0 var(--primary);
+    }
+    #eventsList [data-edit-ev] { white-space: nowrap; min-width: 72px; }
+    @media (max-width: 760px) {
+      #eventFormActions { align-items: stretch; }
+      #eventFormActions .btn { flex: 1; justify-content: center; }
+      #eventsEditHelp { line-height: 1.55; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function syncEndDate() {
+  const startInput = document.getElementById('evDate');
+  const endInput = document.getElementById('evEndDate');
+  if (!startInput || !endInput) return;
+  const startDate = startInput.value;
+  endInput.min = startDate || '';
+  if (startDate && (!endInput.value || endInput.value < startDate)) endInput.value = startDate;
+}
+
 function enhanceForm() {
   const startInput = document.getElementById('evDate');
   if (!startInput) return;
+
+  const panel = startInput.closest('.panel');
+  if (panel) panel.id = 'eventFormPanel';
+
+  const subtitle = panel?.querySelector('.sub');
+  if (subtitle) subtitle.textContent = '새 일정을 등록하거나, 아래 일정 목록을 눌러 바로 수정할 수 있습니다';
 
   const startWrap = startInput.parentElement;
   const startLabel = startWrap?.querySelector('label');
@@ -66,165 +136,182 @@ function enhanceForm() {
     endInput = endWrap.querySelector('#evEndDate');
   }
 
-  const syncEndDate = () => {
-    const startDate = startInput.value;
-    if (!endInput) return;
-    endInput.min = startDate || '';
-    if (startDate && (!endInput.value || endInput.value < startDate)) endInput.value = startDate;
-  };
+  if (!document.getElementById('eventEditBanner')) {
+    const banner = document.createElement('div');
+    banner.id = 'eventEditBanner';
+    banner.setAttribute('role', 'status');
+    subtitle?.insertAdjacentElement('afterend', banner);
+  }
+
+  const submitButton = document.getElementById('evSubmit');
+  if (submitButton && !document.getElementById('eventFormActions')) {
+    const actions = document.createElement('div');
+    actions.id = 'eventFormActions';
+    submitButton.insertAdjacentElement('beforebegin', actions);
+    actions.appendChild(submitButton);
+
+    const cancelButton = document.createElement('button');
+    cancelButton.id = 'evCancelEdit';
+    cancelButton.className = 'btn';
+    cancelButton.type = 'button';
+    cancelButton.textContent = '수정 취소';
+    actions.appendChild(cancelButton);
+  }
+
   startInput.addEventListener('change', syncEndDate);
   syncEndDate();
 }
 
-async function submitRangeEvent(button) {
+function setFormValue(id, value) {
+  const input = document.getElementById(id);
+  if (input) input.value = value ?? '';
+}
+
+function updateEditingUi() {
+  const event = rangeState.events.find((item) => item.id === rangeState.editingEventId);
+  const panel = document.getElementById('eventFormPanel');
+  const banner = document.getElementById('eventEditBanner');
+  const submitButton = document.getElementById('evSubmit');
+  const cancelButton = document.getElementById('evCancelEdit');
+
+  panel?.classList.toggle('event-editing-panel', Boolean(event));
+  cancelButton?.classList.toggle('show', Boolean(event));
+  if (submitButton) submitButton.textContent = event ? '수정 저장' : '일정 등록';
+
+  if (banner) {
+    banner.classList.toggle('show', Boolean(event));
+    banner.innerHTML = event
+      ? `<span>✏️</span><span>지금 <b>${escapeHtml(event.title || '일정')}</b> 일정을 수정하고 있습니다.</span>`
+      : '';
+  }
+
+  scheduleListPatch();
+}
+
+function resetEventForm({ keepDates = false } = {}) {
+  rangeState.editingEventId = null;
+  setFormValue('evTitle', '');
+  setFormValue('evTime', '');
+  setFormValue('evLocation', '');
+  setFormValue('evDesc', '');
+  setFormValue('evCategory', '예배');
+  if (!keepDates) {
+    const today = todayDateKey();
+    setFormValue('evDate', today);
+    setFormValue('evEndDate', today);
+  }
+  syncEndDate();
+  updateEditingUi();
+}
+
+function startEditingEvent(id) {
+  const event = rangeState.events.find((item) => item.id === id);
+  if (!event) return;
+
+  rangeState.editingEventId = id;
+  setFormValue('evTitle', event.title || '');
+  setFormValue('evDate', eventStart(event));
+  setFormValue('evEndDate', eventEnd(event));
+  setFormValue('evCategory', event.category || '기타');
+  setFormValue('evTime', event.time || '');
+  setFormValue('evLocation', event.location || '');
+  setFormValue('evDesc', event.desc || '');
+  syncEndDate();
+  updateEditingUi();
+
+  document.getElementById('eventFormPanel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  window.setTimeout(() => document.getElementById('evTitle')?.focus({ preventScroll: true }), 350);
+}
+
+function eventFormData() {
   const title = document.getElementById('evTitle')?.value.trim() || '';
   const startDate = document.getElementById('evDate')?.value || '';
   const endDate = document.getElementById('evEndDate')?.value || startDate;
-  const category = document.getElementById('evCategory')?.value || '기타';
-  const rangeError = validateRange(startDate, endDate);
+  return {
+    title,
+    startDate,
+    endDate,
+    category: document.getElementById('evCategory')?.value || '기타',
+    time: document.getElementById('evTime')?.value || '',
+    location: document.getElementById('evLocation')?.value.trim() || '',
+    desc: document.getElementById('evDesc')?.value.trim() || ''
+  };
+}
 
-  if (!title) { alert('일정 제목을 입력해주세요'); return; }
+async function submitRangeEvent(button) {
+  const data = eventFormData();
+  const rangeError = validateRange(data.startDate, data.endDate);
+  const editingId = rangeState.editingEventId;
+
+  if (!data.title) { alert('일정 제목을 입력해주세요'); return; }
   if (rangeError) { alert(rangeError); return; }
   if (!auth.currentUser) { alert('관리자 로그인 상태를 확인해주세요'); return; }
 
   button.disabled = true;
-  const originalText = button.textContent;
-  button.textContent = '등록 중...';
+  button.textContent = editingId ? '수정 중...' : '등록 중...';
   try {
-    await push(ref(db, 'events'), {
-      title,
-      date: startDate,
-      startDate,
-      endDate,
-      category,
-      time: document.getElementById('evTime')?.value || '',
-      location: document.getElementById('evLocation')?.value.trim() || '',
-      desc: document.getElementById('evDesc')?.value.trim() || '',
-      createdBy: auth.currentUser.uid,
-      createdAt: Date.now()
-    });
-    const titleInput = document.getElementById('evTitle');
-    const timeInput = document.getElementById('evTime');
-    const locationInput = document.getElementById('evLocation');
-    const descInput = document.getElementById('evDesc');
-    if (titleInput) titleInput.value = '';
-    if (timeInput) timeInput.value = '';
-    if (locationInput) locationInput.value = '';
-    if (descInput) descInput.value = '';
-    const endInput = document.getElementById('evEndDate');
-    if (endInput) endInput.value = startDate;
-    alert('일정이 등록되었습니다');
+    const payload = {
+      title: data.title,
+      date: data.startDate,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      category: data.category,
+      time: data.time,
+      location: data.location,
+      desc: data.desc
+    };
+
+    if (editingId) {
+      await update(ref(db, `events/${editingId}`), { ...payload, updatedAt: Date.now() });
+      resetEventForm();
+      alert('일정 수정이 저장되었습니다');
+    } else {
+      await push(ref(db, 'events'), {
+        ...payload,
+        createdBy: auth.currentUser.uid,
+        createdAt: Date.now()
+      });
+      resetEventForm({ keepDates: true });
+      alert('일정이 등록되었습니다');
+    }
   } catch (error) {
-    console.error('[admin-event-range] 등록 실패:', error);
-    alert('일정 등록 실패: ' + (error.code || error.message));
+    console.error('[admin-event-range] 저장 실패:', error);
+    alert('일정 저장 실패: ' + (error.code || error.message));
   } finally {
     button.disabled = false;
-    button.textContent = originalText;
+    updateEditingUi();
   }
 }
 
-function closeRangeEditModal() {
-  document.getElementById('eventRangeEditModal')?.remove();
-}
-
-function openRangeEditModal(id) {
-  const event = rangeState.events.find((item) => item.id === id);
-  if (!event) return;
-  closeRangeEditModal();
-
-  const startDate = eventStart(event);
-  const endDate = eventEnd(event);
-  const overlay = document.createElement('div');
-  overlay.className = 'edit-modal-bg show';
-  overlay.id = 'eventRangeEditModal';
-  overlay.innerHTML = `
-    <div class="edit-modal">
-      <div class="edit-modal-head">
-        <h3>일정 수정</h3>
-        <button class="edit-modal-close" type="button" aria-label="닫기">×</button>
-      </div>
-      <div class="edit-modal-body">
-        <label>제목</label>
-        <input class="field" name="title" type="text" value="${escapeHtml(event.title || '')}"/>
-        <div class="grid-2">
-          <div><label>시작일</label><input class="field" name="startDate" type="date" value="${escapeHtml(startDate)}"/></div>
-          <div><label>종료일</label><input class="field" name="endDate" type="date" value="${escapeHtml(endDate)}"/></div>
-        </div>
-        <label>분류</label>
-        <select class="field" name="category">
-          ${['예배','행사','교육','봉사','기타'].map((category) => `<option value="${category}" ${category === (event.category || '기타') ? 'selected' : ''}>${category}</option>`).join('')}
-        </select>
-        <label>시간 (선택)</label>
-        <input class="field" name="time" type="time" value="${escapeHtml(event.time || '')}"/>
-        <label>장소 (선택)</label>
-        <input class="field" name="location" type="text" value="${escapeHtml(event.location || '')}"/>
-        <label>설명 (선택)</label>
-        <textarea class="field" name="desc" rows="4">${escapeHtml(event.desc || '')}</textarea>
-      </div>
-      <div class="edit-modal-foot">
-        <button class="btn" data-range-cancel type="button">취소</button>
-        <button class="btn primary" data-range-save type="button">저장</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-
-  const startInput = overlay.querySelector('[name="startDate"]');
-  const endInput = overlay.querySelector('[name="endDate"]');
-  const syncMin = () => {
-    endInput.min = startInput.value || '';
-    if (startInput.value && (!endInput.value || endInput.value < startInput.value)) endInput.value = startInput.value;
-  };
-  startInput.addEventListener('change', syncMin);
-  syncMin();
-
-  const close = () => closeRangeEditModal();
-  overlay.querySelector('.edit-modal-close').addEventListener('click', close);
-  overlay.querySelector('[data-range-cancel]').addEventListener('click', close);
-  overlay.addEventListener('click', (clickEvent) => { if (clickEvent.target === overlay) close(); });
-  overlay.querySelector('[data-range-save]').addEventListener('click', async (clickEvent) => {
-    const saveButton = clickEvent.currentTarget;
-    const title = overlay.querySelector('[name="title"]').value.trim();
-    const nextStart = startInput.value;
-    const nextEnd = endInput.value || nextStart;
-    const rangeError = validateRange(nextStart, nextEnd);
-    if (!title) { alert('제목을 입력하세요'); return; }
-    if (rangeError) { alert(rangeError); return; }
-
-    saveButton.disabled = true;
-    saveButton.textContent = '저장 중...';
-    try {
-      await update(ref(db, `events/${id}`), {
-        title,
-        date: nextStart,
-        startDate: nextStart,
-        endDate: nextEnd,
-        category: overlay.querySelector('[name="category"]').value,
-        time: overlay.querySelector('[name="time"]').value,
-        location: overlay.querySelector('[name="location"]').value.trim(),
-        desc: overlay.querySelector('[name="desc"]').value.trim(),
-        updatedAt: Date.now()
-      });
-      close();
-    } catch (error) {
-      console.error('[admin-event-range] 수정 실패:', error);
-      alert('저장 실패: ' + (error.code || error.message));
-      saveButton.disabled = false;
-      saveButton.textContent = '저장';
-    }
-  });
+function ensureListHelp(list) {
+  if (document.getElementById('eventsEditHelp')) return;
+  const help = document.createElement('div');
+  help.id = 'eventsEditHelp';
+  help.textContent = '수정 방법: 일정 제목이나 줄 전체를 누르면 위 등록칸에 내용이 자동으로 표시됩니다.';
+  list.insertAdjacentElement('beforebegin', help);
 }
 
 function patchEventsList() {
   const list = document.getElementById('eventsList');
   if (!list) return;
+  ensureListHelp(list);
+
   list.querySelectorAll('[data-edit-ev]').forEach((button) => {
     const event = rangeState.events.find((item) => item.id === button.dataset.editEv);
     const row = button.closest('tr');
     const dateCell = row?.querySelectorAll('td')?.[1];
-    if (event && dateCell) {
-      const nextText = formatRange(event);
-      if (dateCell.textContent !== nextText) dateCell.textContent = nextText;
-    }
+    if (!event || !row) return;
+
+    const nextText = formatRange(event);
+    if (dateCell && dateCell.textContent !== nextText) dateCell.textContent = nextText;
+
+    button.textContent = '✏️ 수정';
+    row.dataset.easyEditId = event.id;
+    row.tabIndex = 0;
+    row.setAttribute('role', 'button');
+    row.setAttribute('aria-label', `${event.title || '일정'} 수정`);
+    row.title = '눌러서 일정 수정';
+    row.classList.toggle('event-row-editing', event.id === rangeState.editingEventId);
   });
 }
 
@@ -250,12 +337,37 @@ function handleCapturedClick(clickEvent) {
     return;
   }
 
+  const cancelButton = clickEvent.target.closest?.('#evCancelEdit');
+  if (cancelButton) {
+    clickEvent.preventDefault();
+    clickEvent.stopImmediatePropagation();
+    resetEventForm();
+    return;
+  }
+
+  if (clickEvent.target.closest?.('[data-del-ev]')) return;
+
   const editButton = clickEvent.target.closest?.('[data-edit-ev]');
   if (editButton) {
     clickEvent.preventDefault();
     clickEvent.stopImmediatePropagation();
-    openRangeEditModal(editButton.dataset.editEv);
+    startEditingEvent(editButton.dataset.editEv);
+    return;
   }
+
+  const row = clickEvent.target.closest?.('tr[data-easy-edit-id]');
+  if (row && !clickEvent.target.closest?.('button,a,input,select,textarea')) {
+    clickEvent.preventDefault();
+    startEditingEvent(row.dataset.easyEditId);
+  }
+}
+
+function handleRowKeyboard(keyEvent) {
+  if (keyEvent.key !== 'Enter' && keyEvent.key !== ' ') return;
+  const row = keyEvent.target.closest?.('tr[data-easy-edit-id]');
+  if (!row || keyEvent.target !== row) return;
+  keyEvent.preventDefault();
+  startEditingEvent(row.dataset.easyEditId);
 }
 
 function bindEvents() {
@@ -264,19 +376,29 @@ function bindEvents() {
     const events = [];
     snapshot.forEach((child) => events.push({ id: child.key, ...child.val() }));
     rangeState.events = events;
+
+    if (rangeState.editingEventId && !events.some((event) => event.id === rangeState.editingEventId)) {
+      resetEventForm();
+    } else {
+      updateEditingUi();
+    }
     scheduleListPatch();
   }, (error) => console.warn('[admin-event-range] 일정 읽기 실패:', error.code || error.message));
 }
 
 function boot() {
+  injectStyles();
   enhanceForm();
   observeEventsList();
   document.addEventListener('click', handleCapturedClick, true);
+  document.addEventListener('keydown', handleRowKeyboard);
   onAuthStateChanged(auth, (user) => {
     if (!user) {
       try { eventsUnsubscribe?.(); } catch {}
       eventsUnsubscribe = null;
       rangeState.events = [];
+      rangeState.editingEventId = null;
+      updateEditingUi();
       return;
     }
     bindEvents();
