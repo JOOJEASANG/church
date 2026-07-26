@@ -39,6 +39,14 @@ function seoulTodayKey(date = new Date()) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
+function eventStart(event) {
+  return event?.startDate || event?.date || '';
+}
+
+function eventEnd(event) {
+  return event?.endDate || eventStart(event);
+}
+
 function formatEventDate(dateString) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateString || ''));
   if (!match) return String(dateString || '');
@@ -48,12 +56,26 @@ function formatEventDate(dateString) {
   return `${Number(month)}월 ${Number(day)}일 (${weekday})`;
 }
 
+function formatEventRange(event) {
+  const startDate = eventStart(event);
+  const endDate = eventEnd(event);
+  if (!startDate) return '';
+  return endDate && endDate !== startDate
+    ? `${formatEventDate(startDate)} ~ ${formatEventDate(endDate)}`
+    : formatEventDate(startDate);
+}
+
 function upcomingEvents() {
   const today = seoulTodayKey();
   return [...localState.events]
-    .filter((event) => event && event.date && event.date >= today)
+    .filter((event) => event && eventStart(event) && eventEnd(event) >= today)
     .sort((a, b) => {
-      const byDate = String(a.date).localeCompare(String(b.date));
+      const aStart = eventStart(a);
+      const bStart = eventStart(b);
+      const aOngoing = aStart <= today && today <= eventEnd(a);
+      const bOngoing = bStart <= today && today <= eventEnd(b);
+      if (aOngoing !== bOngoing) return aOngoing ? -1 : 1;
+      const byDate = aStart.localeCompare(bStart);
       if (byDate) return byDate;
       return String(a.time || '').localeCompare(String(b.time || ''));
     })
@@ -61,19 +83,25 @@ function upcomingEvents() {
 }
 
 function eventCardHtml(event) {
+  const today = seoulTodayKey();
+  const startDate = eventStart(event);
+  const endDate = eventEnd(event);
+  const ongoing = startDate <= today && today <= endDate && startDate !== endDate;
+  const focusDate = ongoing ? today : startDate;
+  const period = formatEventRange(event);
   const detail = [
-    formatEventDate(event.date),
+    period,
     event.time ? `🕐 ${event.time}` : '',
     event.location ? `📍 ${event.location}` : ''
   ].filter(Boolean).join(' · ');
   const category = event.category && event.category !== '기타' ? ` · ${event.category}` : '';
   return `
     <article class="feed-card home-event-card" role="button" tabindex="0"
-      data-home-event-id="${escapeHtml(event.id)}" data-home-event-date="${escapeHtml(event.date)}"
+      data-home-event-id="${escapeHtml(event.id)}" data-home-event-date="${escapeHtml(focusDate)}"
       aria-label="${escapeHtml(`${event.title || '교회일정'} 일정 자세히 보기`)}" style="cursor:pointer;">
       <div class="top">
         <span class="tag event">📅 교회일정${escapeHtml(category)}</span>
-        <span class="time">${escapeHtml(formatEventDate(event.date))}</span>
+        <span class="time">${ongoing ? '진행 중 · ' : ''}${escapeHtml(period)}</span>
       </div>
       <h3>${escapeHtml(event.title || '교회일정')}</h3>
       <p>${escapeHtml(event.desc || '교회 캘린더에 등록된 일정입니다.')}</p>
@@ -136,7 +164,7 @@ function renderHomeEvents() {
   if (!feed) return;
 
   const events = upcomingEvents();
-  const signature = events.map((event) => `${event.id}:${event.date}:${event.time || ''}:${event.title || ''}`).join('|');
+  const signature = events.map((event) => `${event.id}:${eventStart(event)}:${eventEnd(event)}:${event.time || ''}:${event.title || ''}`).join('|');
   const currentCards = Array.from(feed.querySelectorAll('.home-event-card'));
   const currentIds = currentCards.map((card) => card.dataset.homeEventId || '').join('|');
   const desiredIds = events.map((event) => String(event.id || '')).join('|');
