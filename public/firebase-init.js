@@ -38,6 +38,7 @@ if (isAdminPage) {
   loadModule('/admin/admin-claims.js', 'admin-claims');
   loadModule('/admin/member-approval.js', 'member-approval');
   loadModule('/admin/admin-event-range.js', 'admin-event-range');
+  loadModule('/admin/event-edit-icon-style.js', 'event-edit-icon-style');
 } else {
   loadModule('/talent-room-board.js', 'talent-room-board');
   loadModule('/talent-category-fix.js', 'talent-category-fix');
