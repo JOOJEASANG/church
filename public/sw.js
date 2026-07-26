@@ -1,5 +1,6 @@
-const CACHE_NAME = 'namsan-church-v89';
-const PRECACHE_URLS = ['/offline.html', '/manifest.json', '/icons/icon.svg'];
+const CACHE_NAME = 'namsan-church-v90';
+const APP_ICON = '/icons/premium-install-icon.svg?v=20260726-1';
+const PRECACHE_URLS = ['/offline.html', '/manifest.json', '/icons/icon.svg', APP_ICON];
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
@@ -98,8 +99,8 @@ try {
     const url = payload.data?.url || '/';
     self.registration.showNotification(title, {
       body,
-      icon: '/icons/icon.svg',
-      badge: '/icons/icon.svg',
+      icon: APP_ICON,
+      badge: APP_ICON,
       data: { url },
       tag: payload.data?.tag || 'church-notification'
     });
