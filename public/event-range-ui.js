@@ -78,9 +78,13 @@ function patchCalendar() {
     const events = eventsForDate(dateKey);
     const dots = cell.querySelector('.cal-events');
     if (!dots) return;
-    dots.innerHTML = events.slice(0, 3).map((event) =>
-      `<div class="cal-dot cat-${escapeHtml(event.category || '기타')}" title="${escapeHtml(event.title || '')}"></div>`
-    ).join('');
+    const dotSignature = events.slice(0, 3).map((event) => `${event.id}:${event.category || ''}:${event.title || ''}`).join('|');
+    if (dots.dataset.rangeDotSignature !== dotSignature) {
+      dots.innerHTML = events.slice(0, 3).map((event) =>
+        `<div class="cal-dot cat-${escapeHtml(event.category || '기타')}" title="${escapeHtml(event.title || '')}"></div>`
+      ).join('');
+      dots.dataset.rangeDotSignature = dotSignature;
+    }
     cell.classList.toggle('has-events', events.length > 0);
     cell.setAttribute('aria-label', events.length ? `${dateKey}, 일정 ${events.length}개` : dateKey);
   });
