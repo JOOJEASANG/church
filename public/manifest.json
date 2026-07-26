@@ -6,13 +6,13 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f7f4ec",
-  "theme_color": "#73926d",
+  "background_color": "#07162f",
+  "theme_color": "#07162f",
   "lang": "ko",
   "categories": ["lifestyle", "social"],
   "icons": [
     {
-      "src": "/icons/icon.svg",
+      "src": "/icons/premium-install-icon.svg?v=20260726-1",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
@@ -23,13 +23,13 @@
       "name": "이번 주 말씀",
       "short_name": "말씀",
       "url": "/?tab=word",
-      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+      "icons": [{ "src": "/icons/premium-install-icon.svg?v=20260726-1", "sizes": "any", "type": "image/svg+xml" }]
     },
     {
       "name": "공동체",
       "short_name": "공동체",
       "url": "/?tab=community",
-      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+      "icons": [{ "src": "/icons/premium-install-icon.svg?v=20260726-1", "sizes": "any", "type": "image/svg+xml" }]
     }
   ]
 }
