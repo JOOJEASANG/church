@@ -1,6 +1,6 @@
-/* 관리자 교회일정에 시작일·종료일 기간 설정과 쉬운 바로 수정을 제공합니다. */
+/* 관리자 교회일정 기간 설정과 모든 일정의 안정적인 바로 수정을 제공합니다. */
 import { db, auth } from '/firebase-init.js';
-import { ref, onValue, push, update } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js';
+import { ref, onValue, push, update, get } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-database.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
 
 const rangeState = { events: [], editingEventId: null };
@@ -95,7 +95,13 @@ function injectStyles() {
       background: var(--primary-soft);
       box-shadow: inset 4px 0 0 var(--primary);
     }
-    #eventsList [data-edit-ev] { white-space: nowrap; min-width: 72px; }
+    #eventsList [data-edit-ev] {
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      min-width: 78px;
+      white-space: nowrap;
+    }
     @media (max-width: 760px) {
       #eventFormActions { align-items: stretch; }
       #eventFormActions .btn { flex: 1; justify-content: center; }
@@ -122,7 +128,7 @@ function enhanceForm() {
   if (panel) panel.id = 'eventFormPanel';
 
   const subtitle = panel?.querySelector('.sub');
-  if (subtitle) subtitle.textContent = '새 일정을 등록하거나, 아래 일정 목록을 눌러 바로 수정할 수 있습니다';
+  if (subtitle) subtitle.textContent = '새 일정을 등록하거나, 아래 일정의 ✏️ 수정 버튼을 눌러 바로 수정할 수 있습니다';
 
   const startWrap = startInput.parentElement;
   const startLabel = startWrap?.querySelector('label');
@@ -158,7 +164,10 @@ function enhanceForm() {
     actions.appendChild(cancelButton);
   }
 
-  startInput.addEventListener('change', syncEndDate);
+  if (startInput.dataset.rangeBound !== '1') {
+    startInput.dataset.rangeBound = '1';
+    startInput.addEventListener('change', syncEndDate);
+  }
   syncEndDate();
 }
 
@@ -204,9 +213,34 @@ function resetEventForm({ keepDates = false } = {}) {
   updateEditingUi();
 }
 
-function startEditingEvent(id) {
-  const event = rangeState.events.find((item) => item.id === id);
-  if (!event) return;
+function cacheEvent(event) {
+  const index = rangeState.events.findIndex((item) => item.id === event.id);
+  if (index >= 0) rangeState.events[index] = event;
+  else rangeState.events.push(event);
+  return event;
+}
+
+async function resolveEvent(id) {
+  const cached = rangeState.events.find((item) => item.id === id);
+  if (cached) return cached;
+
+  try {
+    const snapshot = await get(ref(db, `events/${id}`));
+    if (!snapshot.exists()) return null;
+    return cacheEvent({ id, ...snapshot.val() });
+  } catch (error) {
+    console.warn('[admin-event-range] 일정 직접 읽기 실패:', error.code || error.message);
+    return null;
+  }
+}
+
+async function startEditingEvent(id) {
+  if (!id) return;
+  const event = await resolveEvent(id);
+  if (!event) {
+    alert('해당 일정 내용을 불러오지 못했습니다. 페이지를 새로고침한 뒤 다시 눌러주세요.');
+    return;
+  }
 
   rangeState.editingEventId = id;
   setFormValue('evTitle', event.title || '');
@@ -287,7 +321,7 @@ function ensureListHelp(list) {
   if (document.getElementById('eventsEditHelp')) return;
   const help = document.createElement('div');
   help.id = 'eventsEditHelp';
-  help.textContent = '수정 방법: 일정 제목이나 줄 전체를 누르면 위 등록칸에 내용이 자동으로 표시됩니다.';
+  help.textContent = '수정 방법: 각 일정의 ✏️ 수정 버튼이나 일정 줄을 누르면 위 입력칸에 해당 내용이 표시됩니다.';
   list.insertAdjacentElement('beforebegin', help);
 }
 
@@ -297,21 +331,29 @@ function patchEventsList() {
   ensureListHelp(list);
 
   list.querySelectorAll('[data-edit-ev]').forEach((button) => {
-    const event = rangeState.events.find((item) => item.id === button.dataset.editEv);
+    const id = button.dataset.editEv || '';
+    const event = rangeState.events.find((item) => item.id === id);
     const row = button.closest('tr');
-    const dateCell = row?.querySelectorAll('td')?.[1];
-    if (!event || !row) return;
+    if (!id || !row) return;
 
-    const nextText = formatRange(event);
-    if (dateCell && dateCell.textContent !== nextText) dateCell.textContent = nextText;
+    if (button.dataset.easyEditReady !== '1') {
+      button.dataset.easyEditReady = '1';
+      button.textContent = '✏️ 수정';
+      button.type = 'button';
+    }
 
-    button.textContent = '✏️ 수정';
-    row.dataset.easyEditId = event.id;
+    row.dataset.easyEditId = id;
     row.tabIndex = 0;
     row.setAttribute('role', 'button');
-    row.setAttribute('aria-label', `${event.title || '일정'} 수정`);
+    row.setAttribute('aria-label', `${event?.title || '일정'} 수정`);
     row.title = '눌러서 일정 수정';
-    row.classList.toggle('event-row-editing', event.id === rangeState.editingEventId);
+    row.classList.toggle('event-row-editing', id === rangeState.editingEventId);
+
+    if (event) {
+      const dateCell = row.querySelectorAll('td')?.[1];
+      const nextText = formatRange(event);
+      if (dateCell && dateCell.textContent !== nextText) dateCell.textContent = nextText;
+    }
   });
 }
 
@@ -333,7 +375,7 @@ function handleCapturedClick(clickEvent) {
   if (submitButton) {
     clickEvent.preventDefault();
     clickEvent.stopImmediatePropagation();
-    submitRangeEvent(submitButton);
+    void submitRangeEvent(submitButton);
     return;
   }
 
@@ -351,14 +393,14 @@ function handleCapturedClick(clickEvent) {
   if (editButton) {
     clickEvent.preventDefault();
     clickEvent.stopImmediatePropagation();
-    startEditingEvent(editButton.dataset.editEv);
+    void startEditingEvent(editButton.dataset.editEv);
     return;
   }
 
   const row = clickEvent.target.closest?.('tr[data-easy-edit-id]');
   if (row && !clickEvent.target.closest?.('button,a,input,select,textarea')) {
     clickEvent.preventDefault();
-    startEditingEvent(row.dataset.easyEditId);
+    void startEditingEvent(row.dataset.easyEditId);
   }
 }
 
@@ -367,7 +409,7 @@ function handleRowKeyboard(keyEvent) {
   const row = keyEvent.target.closest?.('tr[data-easy-edit-id]');
   if (!row || keyEvent.target !== row) return;
   keyEvent.preventDefault();
-  startEditingEvent(row.dataset.easyEditId);
+  void startEditingEvent(row.dataset.easyEditId);
 }
 
 function bindEvents() {
@@ -378,7 +420,8 @@ function bindEvents() {
     rangeState.events = events;
 
     if (rangeState.editingEventId && !events.some((event) => event.id === rangeState.editingEventId)) {
-      resetEventForm();
+      rangeState.editingEventId = null;
+      updateEditingUi();
     } else {
       updateEditingUi();
     }
