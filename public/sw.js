@@ -1,4 +1,4 @@
-const CACHE_NAME = 'namsan-church-v92';
+const CACHE_NAME = 'namsan-church-v93';
 const APP_ICON = '/icons/premium-install-icon.svg?v=20260726-1';
 const PRECACHE_URLS = ['/offline.html', '/manifest.json', '/icons/icon.svg', APP_ICON];
 
