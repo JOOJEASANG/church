@@ -1,7 +1,7 @@
 /* 관리자 페이지 이동 버튼
  * - 사용자 페이지: 상단 검색 아이콘 오른쪽에 관리자 아이콘 버튼 표시
  * - 실제 관리 권한은 /admin/ 페이지의 기존 권한 검사에서 차단
- * - 관리자 페이지: 로그아웃 버튼 왼쪽에 홈페이지 이동 버튼 표시
+ * - 관리자 페이지: 홈페이지 / 로그아웃을 아이콘 버튼으로 표시
  * - MutationObserver는 .app-header / .topbar 한정 (성능 보호)
  */
 import { auth } from '/firebase-init.js';
@@ -26,7 +26,16 @@ function injectStyles() {
       color:var(--text,#15171a);
     }
     .admin-icon-shortcut:active{transform:translateY(1px)}
-    .admin-home-shortcut{background:var(--bg,#f7f7f4)!important;color:var(--text,#15171a)!important;border:1px solid var(--line,#ebece8)!important;border-radius:8px!important;padding:6px 12px!important;font-size:12px!important;font-weight:700!important;cursor:pointer;white-space:nowrap}
+    .admin-home-shortcut,.admin-logout-shortcut{
+      width:36px!important;height:36px!important;min-width:36px!important;padding:0!important;
+      display:inline-grid!important;place-items:center!important;border-radius:10px!important;
+      background:var(--bg,#f7f7f4)!important;color:var(--text,#15171a)!important;
+      border:1px solid var(--line,#ebece8)!important;cursor:pointer!important;
+    }
+    .admin-home-shortcut:hover,.admin-logout-shortcut:hover{background:var(--line,#ebece8)!important}
+    .admin-logout-shortcut{color:var(--danger,#c44a4a)!important}
+    .admin-home-shortcut svg,.admin-logout-shortcut svg{display:block;pointer-events:none}
+    html[data-admin-page] .topbar .row{gap:8px!important;flex-wrap:nowrap!important}
     html[data-admin-page] body,html[data-admin-page] .admin,html[data-admin-page] .layout,html[data-admin-page] .content{padding-bottom:max(12px,env(safe-area-inset-bottom,0px))!important}
     html[data-admin-page] .content::after{content:'';display:block;height:8px}
   `;
@@ -82,22 +91,47 @@ function ensureHeaderIcon() {
   }
 }
 
+function homeIcon() {
+  return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m3.5 10.5 8.5-7 8.5 7" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 9.5V20h13V9.5M9.5 20v-6h5v6" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></svg>';
+}
+
+function logoutIcon() {
+  return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M10 4H5.5A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20H10" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M14 8l4 4-4 4M8 12h10" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+
+function ensureLogoutIcon() {
+  const logout = document.getElementById('logoutBtn');
+  if (!logout) return;
+  logout.classList.add('admin-logout-shortcut');
+  logout.title = '로그아웃';
+  logout.setAttribute('aria-label', '로그아웃');
+  if (!logout.querySelector('svg')) logout.innerHTML = logoutIcon();
+}
+
 function ensureAdminHomeButton() {
   if (!isAdminPage()) return;
   document.documentElement.setAttribute('data-admin-page', 'true');
   cleanupOldProfileShortcut();
-  if (document.getElementById('adminHomeShortcutBtn')) return;
+  ensureLogoutIcon();
+
   const logout = document.getElementById('logoutBtn');
   const row = logout?.parentElement || document.querySelector('.topbar .row');
   if (!row) return;
-  const btn = document.createElement('button');
-  btn.id = 'adminHomeShortcutBtn';
-  btn.type = 'button';
+
+  let btn = document.getElementById('adminHomeShortcutBtn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'adminHomeShortcutBtn';
+    btn.type = 'button';
+    btn.addEventListener('click', goHome);
+  }
   btn.className = 'admin-home-shortcut';
-  btn.textContent = '홈페이지';
-  btn.addEventListener('click', goHome);
-  if (logout) row.insertBefore(btn, logout);
-  else row.prepend(btn);
+  btn.title = '홈페이지';
+  btn.setAttribute('aria-label', '홈페이지');
+  if (!btn.querySelector('svg')) btn.innerHTML = homeIcon();
+
+  if (logout && btn.nextSibling !== logout) row.insertBefore(btn, logout);
+  else if (!logout && btn.parentElement !== row) row.prepend(btn);
 }
 
 function removeShortcuts() {
