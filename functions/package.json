@@ -1,6 +1,6 @@
 {
   "name": "church-functions",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "private": true,
   "description": "천안남산교회 PWA Cloud Functions",
   "main": "main.js",
@@ -8,7 +8,7 @@
     "node": "20"
   },
   "scripts": {
-    "lint": "node --check main.js && node --check index.js && node --check bible-quiz.js && node --check bible-quiz-data.js && node --check bible-quiz-cleanup.js",
+    "lint": "node --check main.js && node --check index.js && node --check bible-quiz.js && node --check bible-quiz-data.js",
     "test": "node --test",
     "serve": "firebase emulators:start --only functions,database,storage",
     "deploy": "firebase deploy --only functions"
