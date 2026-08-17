@@ -50,6 +50,7 @@ if (isAdminPage) {
   loadModule('/event-range-ui.js', 'event-range-ui');
   loadModule('/volunteer-form-fix.js', 'volunteer-form-fix');
   loadModule('/bible-quiz.js', 'bible-quiz');
+  loadModule('/bible-quiz-v2.js', 'bible-quiz-v2');
 }
 
 loadModule('/meditation-sync.js', 'meditation-sync');
