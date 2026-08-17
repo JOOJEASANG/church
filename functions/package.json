@@ -1,11 +1,11 @@
 {
   "name": "church-functions",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "private": true,
   "description": "천안남산교회 PWA Cloud Functions",
   "main": "main.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "scripts": {
     "lint": "node --check main.js && node --check index.js && node --check bible-quiz.js && node --check bible-quiz-v2.js && node --check bible-quiz-data.js && node --check bible-quiz-expanded-data.js && node --check bible-quiz-taxonomy.js",
