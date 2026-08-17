@@ -3,10 +3,13 @@ name: Repository quality
 on:
   push:
     branches:
+      - main
       - "claude/church-website-app-HNkR5"
+      - "agent/full-audit-polish"
       - "agent/full-repository-hardening"
   pull_request:
     branches:
+      - main
       - "claude/church-website-app-HNkR5"
 
 permissions:
@@ -19,6 +22,7 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,7 +32,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Set up Java for Firebase emulators
         uses: actions/setup-java@v4
