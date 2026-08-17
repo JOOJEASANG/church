@@ -49,6 +49,7 @@ if (isAdminPage) {
   loadModule('/home-news-feed.js', 'home-news-feed');
   loadModule('/event-range-ui.js', 'event-range-ui');
   loadModule('/volunteer-form-fix.js', 'volunteer-form-fix');
+  loadModule('/bible-quiz.js', 'bible-quiz');
 }
 
 loadModule('/meditation-sync.js', 'meditation-sync');
