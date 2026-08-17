@@ -119,6 +119,7 @@ jobs:
             --project church-399cb \
             --only functions \
             --non-interactive \
+            --force \
             "${AUTH_ARGS[@]}"
 
       - name: Publish deployment success
