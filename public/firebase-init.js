@@ -58,3 +58,4 @@ loadModule('/meditation-sync.js', 'meditation-sync');
 loadModule('/admin-shortcut.js', 'admin-shortcut');
 loadModule('/church-contact.js', 'church-contact');
 loadModule('/ui-fixes.js', 'ui-fixes');
+loadModule('/app-polish.js', 'app-polish');
