@@ -1,4 +1,4 @@
-const CACHE_NAME = 'namsan-church-v91';
+const CACHE_NAME = 'namsan-church-v92';
 const APP_ICON = '/icons/premium-install-icon.svg?v=20260726-1';
 const PRECACHE_URLS = ['/offline.html', '/manifest.json', '/icons/icon.svg', APP_ICON];
 
@@ -31,104 +31,56 @@ async function networkFirst(request) {
     const response = await fetch(request);
     if (canCache(response)) {
       const cache = await caches.open(CACHE_NAME);
-      await cache.put(request, response.clone());
+      cache.put(request, response.clone()).catch(() => {});
     }
     return response;
-  } catch (error) {
+  } catch {
     const cached = await caches.match(request);
     if (cached) return cached;
-    if (request.mode === 'navigate') {
-      return (await caches.match('/offline.html')) || new Response('오프라인 상태입니다.', {
-        status: 503,
-        headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-      });
-    }
-    throw error;
+    if (request.mode === 'navigate') return caches.match('/offline.html');
+    throw new Error('offline');
   }
-}
-
-async function cacheFirst(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  const response = await fetch(request);
-  if (canCache(response)) {
-    const cache = await caches.open(CACHE_NAME);
-    await cache.put(request, response.clone());
-  }
-  return response;
 }
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  if (request.method !== 'GET' || request.headers.has('range')) return;
-
+  if (request.method !== 'GET') return;
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith('/__/') || url.pathname.startsWith('/api/')) return;
-
-  if (request.mode === 'navigate' || ['script', 'style', 'worker'].includes(request.destination)) {
-    event.respondWith(networkFirst(request));
-    return;
-  }
-
-  if (['image', 'font'].includes(request.destination)) {
-    event.respondWith(cacheFirst(request));
-  }
+  if (url.origin === self.location.origin) event.respondWith(networkFirst(request));
 });
 
-// FCM은 동일한 서비스워커 등록을 사용해 PWA 캐시와 충돌하지 않도록 합니다.
-try {
-  importScripts('https://www.gstatic.com/firebasejs/12.12.1/firebase-app-compat.js');
-  importScripts('https://www.gstatic.com/firebasejs/12.12.1/firebase-messaging-compat.js');
-
-  firebase.initializeApp({
-    apiKey: 'AIzaSyD3a8RXkKaGiq4mFHCUkArLRecifU_-uFQ',
-    authDomain: 'church-399cb.firebaseapp.com',
-    projectId: 'church-399cb',
-    storageBucket: 'church-399cb.firebasestorage.app',
-    messagingSenderId: '285920062728',
-    appId: '1:285920062728:web:534fd5cd1824c3658f90bd'
-  });
-
-  const messaging = firebase.messaging();
-  messaging.onBackgroundMessage((payload) => {
-    // notification payload는 FCM이 자동 표시합니다. data-only 메시지만 직접 표시합니다.
-    if (payload.notification) return;
-    const title = payload.data?.title || '천안남산교회';
-    const body = payload.data?.body || '새 소식이 있습니다.';
-    const url = payload.data?.url || '/';
-    self.registration.showNotification(title, {
-      body,
-      icon: APP_ICON,
-      badge: APP_ICON,
-      data: { url },
-      tag: payload.data?.tag || 'church-notification'
-    });
-  });
-} catch (error) {
-  console.warn('[sw] FCM 초기화 실패:', error?.message || error);
-}
-
-function safeNotificationUrl(value) {
-  try {
-    const url = new URL(value || '/', self.location.origin);
-    return url.origin === self.location.origin ? url.href : new URL('/', self.location.origin).href;
-  } catch {
-    return new URL('/', self.location.origin).href;
-  }
-}
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data?.json() || {}; } catch { data = { notification: { body: event.data?.text() || '' } }; }
+  const notification = data.notification || {};
+  const payload = data.data || {};
+  const title = notification.title || payload.title || '천안남산교회';
+  const options = {
+    body: notification.body || payload.body || '',
+    icon: APP_ICON,
+    badge: APP_ICON,
+    data: { url: payload.url || '/' },
+    tag: payload.tag || undefined
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = safeNotificationUrl(event.notification.data?.url);
   event.waitUntil((async () => {
+    const requested = event.notification.data?.url || '/';
+    let target = '/';
+    try {
+      const url = new URL(requested, self.location.origin);
+      if (url.origin === self.location.origin) target = `${url.pathname}${url.search}${url.hash}`;
+    } catch {}
     const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of windows) {
-      if (new URL(client.url).origin === self.location.origin) {
-        await client.navigate(targetUrl);
+      if ('focus' in client) {
+        await client.navigate(target).catch(() => {});
         return client.focus();
       }
     }
-    return clients.openWindow(targetUrl);
+    if (clients.openWindow) return clients.openWindow(target);
   })());
 });
