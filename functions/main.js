@@ -1,7 +1,7 @@
 /* Cloud Functions deployment entry.
  * Keep the production callable surface explicit so Firebase does not try to
  * create legacy database/Eventarc triggers in an unsupported trigger region.
- * Deployment surface version: 2.2.0
+ * Deployment surface version: 2.2.1
  */
 const existing = require('./index.js');
 const quiz = require('./bible-quiz.js');
