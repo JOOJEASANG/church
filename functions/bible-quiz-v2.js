@@ -294,7 +294,9 @@ async function roomAnswer(member, data) {
   if (room.status !== 'playing' || !q || !room.participants?.[member.uid]) throw new HttpsError('failed-precondition', '현재 답을 제출할 수 없습니다.');
   const correct = Number(q.answer) === selected; const elapsed = Math.max(0, Date.now() - (Number(room.currentStartedAt) || Date.now())); const points = correct ? 100 + Math.max(0, 50 - Math.floor(elapsed / 400)) : 0; let accepted = false;
   await getDatabase().ref(`quizV2CompetitionRooms/${roomId}/participants/${member.uid}`).transaction((p) => { if (!p || Number(p.lastAnsweredIndex) === index) return; accepted = true; p.score = (Number(p.score) || 0) + points; p.correctCount = (Number(p.correctCount) || 0) + (correct ? 1 : 0); p.answerCount = (Number(p.answerCount) || 0) + 1; p.lastAnsweredIndex = index; return p; });
-  if (!accepted) throw new HttpsError('already-exists', '이미 답한 문제입니다.'); return { correct, points };
+  if (!accepted) throw new HttpsError('already-exists', '이미 답한 문제입니다.');
+  await addWeeklyScore(member.uid, { correct: correct ? 1 : 0, total: 1, points: correct ? 1 : 0 });
+  return { correct, points };
 }
 async function roomNext(member, data) {
   const roomId = await resolveRoomId(data); const room = await roomById(roomId); if (room.hostUid !== member.uid) throw new HttpsError('permission-denied', '방장만 진행할 수 있습니다.');
