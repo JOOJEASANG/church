@@ -24,8 +24,11 @@ async function requireMember(uid) {
   ]);
   const user = userSnap.val() || {};
   const isAdmin = adminSnap.exists();
-  if (!isAdmin && user.status !== 'approved') {
-    throw new HttpsError('permission-denied', '승인된 교인만 성경퀴즈에 참여할 수 있습니다.');
+  if (!isAdmin && !userSnap.exists()) {
+    throw new HttpsError('permission-denied', '가입한 회원만 성경퀴즈에 참여할 수 있습니다.');
+  }
+  if (!isAdmin && user.status === 'suspended') {
+    throw new HttpsError('permission-denied', '현재 이용이 정지된 계정입니다.');
   }
   return {
     uid,
