@@ -32,8 +32,76 @@ async function requireMember(uid) {
   const [userSnap, adminSnap] = await Promise.all([db.ref(`users/${uid}`).get(), db.ref(`admins/${uid}`).get()]);
   const user = userSnap.val() || {};
   const admin = adminSnap.val() || {};
-  if (!adminSnap.exists() && user.status !== 'approved') throw new HttpsError('permission-denied', '승인된 교인만 이용할 수 있습니다.');
-  return { uid, name: clean(user.displayName || admin.name || '성도', 40) || '성도' };
+  if (!adminSnap.exists() && !userSnap.exists()) throw new HttpsError('permission-denied', '가입한 회원만 이용할 수 있습니다.');
+  if (!adminSnap.exists() && user.status === 'suspended') throw new HttpsError('permission-denied', '현재 이용이 정지된 계정입니다.');
+  return { uid, name: clean(user.displayName || admin.name || '성도', 40) || '성도', churchApproved: adminSnap.exists() || user.status === 'approved' };
+}
+
+function kstDate(ts = Date.now()) { return new Date(Number(ts) + (9 * 60 * 60 * 1000)); }
+function dayKey(ts = Date.now()) { return kstDate(ts).toISOString().slice(0, 10); }
+function weekKey(ts = Date.now()) {
+  const d = kstDate(ts);
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() - day + 1);
+  return d.toISOString().slice(0, 10);
+}
+function maskName(value) {
+  const name = clean(value || '성도', 40) || '성도';
+  if (name.length <= 1) return name;
+  if (name.length === 2) return name[0] + '*';
+  return name[0] + '*'.repeat(Math.min(2, name.length - 2)) + name[name.length - 1];
+}
+async function addWeeklyScore(uid, { correct = 0, total = 0, plays = 0, points = 0 } = {}) {
+  const now = Date.now();
+  const key = weekKey(now);
+  await getDatabase().ref(`quizWeekly/${key}/${uid}`).transaction((raw) => {
+    const s = raw && typeof raw === 'object' ? raw : {};
+    s.points = (Number(s.points) || 0) + Math.max(0, Number(points) || 0);
+    s.correct = (Number(s.correct) || 0) + Math.max(0, Number(correct) || 0);
+    s.total = (Number(s.total) || 0) + Math.max(0, Number(total) || 0);
+    s.plays = (Number(s.plays) || 0) + Math.max(0, Number(plays) || 0);
+    s.updatedAt = now;
+    return s;
+  });
+}
+async function markDaily(uid, missionId, extra = {}) {
+  const allowed = ['quiz', 'verse', 'prayer', 'encourage'];
+  if (!allowed.includes(missionId)) bad('지원하지 않는 미션입니다.');
+  const now = Date.now();
+  await getDatabase().ref(`platformDaily/${uid}/${dayKey(now)}/${missionId}`).set({ completed: true, completedAt: now, ...extra });
+}
+async function platformMeta(member) {
+  const now = Date.now();
+  const week = weekKey(now);
+  const today = dayKey(now);
+  const db = getDatabase();
+  const [weeklySnap, dailySnap] = await Promise.all([
+    db.ref(`quizWeekly/${week}`).get(),
+    db.ref(`platformDaily/${member.uid}/${today}`).get()
+  ]);
+  const rows = [];
+  weeklySnap.forEach((child) => {
+    const v = child.val() || {};
+    rows.push({ uid: child.key, points: Number(v.points) || 0, correct: Number(v.correct) || 0, total: Number(v.total) || 0, plays: Number(v.plays) || 0 });
+  });
+  rows.sort((a, b) => (b.points - a.points) || (b.correct - a.correct) || (b.plays - a.plays));
+  const top = rows.slice(0, 10);
+  const names = await Promise.all(top.map(async (row) => {
+    if (row.uid === member.uid) return member.name;
+    const snap = await db.ref(`users/${row.uid}/displayName`).get();
+    return snap.val() || '성도';
+  }));
+  const leaderboard = top.map((row, index) => ({ rank: index + 1, name: maskName(names[index]), points: row.points, correct: row.correct, plays: row.plays, isMe: row.uid === member.uid }));
+  const myIndex = rows.findIndex((row) => row.uid === member.uid);
+  const my = myIndex >= 0 ? { rank: myIndex + 1, ...rows[myIndex] } : { rank: null, points: 0, correct: 0, total: 0, plays: 0 };
+  const daily = dailySnap.val() || {};
+  const missions = {
+    quiz: Boolean(daily.quiz?.completed),
+    verse: Boolean(daily.verse?.completed),
+    prayer: Boolean(daily.prayer?.completed),
+    encourage: Boolean(daily.encourage?.completed)
+  };
+  return { week, today, leaderboard, me: my, missions, completedCount: Object.values(missions).filter(Boolean).length, bankCount: BANK.length, churchApproved: member.churchApproved };
 }
 
 function publicQuestion(q) {
@@ -164,6 +232,10 @@ async function practiceFinish(uid, data) {
     s.plays = (Number(s.plays) || 0) + 1; s.totalCorrect = (Number(s.totalCorrect) || 0) + score; s.totalQuestions = (Number(s.totalQuestions) || 0) + total;
     s.bestPercent = Math.max(Number(s.bestPercent) || 0, percent); s.lastPlayedAt = now; s.hintsUsed = (Number(s.hintsUsed) || 0) + hintCount; return s;
   });
+  await Promise.all([
+    addWeeklyScore(uid, { correct: score, total, plays: 1, points: score }),
+    markDaily(uid, 'quiz', { score, total })
+  ]);
   await ref.child('finishedAt').set(now);
   return { score, total, percent, hintCount };
 }
@@ -233,6 +305,13 @@ async function roomNext(member, data) {
 exports.bibleQuizV2 = onCall({ cors: true }, async (request) => {
   const uid = requireUid(request); const member = await requireMember(uid); const data = request.data && typeof request.data === 'object' ? request.data : {}; const action = clean(data.action, 40);
   switch (action) {
+    case 'platformMeta': return platformMeta(member);
+    case 'missionComplete': {
+      const missionId = clean(data.missionId, 30);
+      if (missionId === 'quiz') throw new HttpsError('failed-precondition', '퀴즈 미션은 퀴즈를 완료하면 자동으로 체크됩니다.');
+      await markDaily(uid, missionId);
+      return platformMeta(member);
+    }
     case 'meta': {
       const [statsSnap, customs] = await Promise.all([getDatabase().ref(`quizStatsServer/${uid}`).get(), customQuestions(uid)]);
       const bookCounts = {}; for (const q of BANK) { const book = questionBook(q); if (book) bookCounts[book] = (bookCounts[book] || 0) + 1; }
