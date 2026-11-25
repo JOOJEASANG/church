@@ -1,7 +1,7 @@
 {
   "name": "천안남산교회",
   "short_name": "남산교회",
-  "description": "천안남산교회 성도 모두를 위한 공식 앱 - 말씀, 기도, 나눔",
+  "description": "기독교인이 성경퀴즈와 말씀공부, 실시간 대결을 함께 즐기고 교제하는 공간",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,7 +9,10 @@
   "background_color": "#07162f",
   "theme_color": "#07162f",
   "lang": "ko",
-  "categories": ["lifestyle", "social"],
+  "categories": [
+    "lifestyle",
+    "social"
+  ],
   "icons": [
     {
       "src": "/icons/premium-install-icon.svg?v=20260726-1",
@@ -20,16 +23,40 @@
   ],
   "shortcuts": [
     {
-      "name": "이번 주 말씀",
-      "short_name": "말씀",
-      "url": "/?tab=word",
-      "icons": [{ "src": "/icons/premium-install-icon.svg?v=20260726-1", "sizes": "any", "type": "image/svg+xml" }]
+      "name": "오늘의 성경퀴즈",
+      "short_name": "퀴즈",
+      "url": "/?play=quiz",
+      "icons": [
+        {
+          "src": "/icons/premium-install-icon.svg?v=20260726-1",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
     },
     {
-      "name": "공동체",
-      "short_name": "공동체",
+      "name": "실시간 성경퀴즈 대결",
+      "short_name": "대결",
+      "url": "/?play=competition",
+      "icons": [
+        {
+          "src": "/icons/premium-install-icon.svg?v=20260726-1",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "우리교회",
+      "short_name": "교회",
       "url": "/?tab=community",
-      "icons": [{ "src": "/icons/premium-install-icon.svg?v=20260726-1", "sizes": "any", "type": "image/svg+xml" }]
+      "icons": [
+        {
+          "src": "/icons/premium-install-icon.svg?v=20260726-1",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
     }
   ]
 }
