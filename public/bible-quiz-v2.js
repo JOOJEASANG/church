@@ -37,7 +37,7 @@ function body(html) { $('#bq2Body').innerHTML=html; }
 function head(title, back=true) { $('#bq2Title').textContent=title; $('#bq2Back').style.visibility=back?'visible':'hidden'; }
 function loading(text='불러오는 중...') { body(`<div class="bq2-panel" style="text-align:center;padding:45px 15px;color:var(--muted,#777)">${esc(text)}</div>`); }
 function stopPoll(){ if(state.poll) clearTimeout(state.poll); state.poll=null; }
-function closeQuiz(){ stopPoll(); $('#bq2Overlay')?.classList.remove('show'); document.body.style.overflow=''; }
+function closeQuiz(){ stopPoll(); $('#bq2Overlay')?.classList.remove('show'); document.body.style.overflow=''; document.dispatchEvent(new CustomEvent('christian-platform:refresh')); }
 
 async function openQuiz(){
   overlay(); $('#bq2Overlay').classList.add('show'); document.body.style.overflow='hidden';
