@@ -52,6 +52,7 @@ if (isAdminPage) {
   loadModule('/bible-quiz.js', 'bible-quiz');
   loadModule('/bible-quiz-v2.js', 'bible-quiz-v2');
   loadModule('/bible-quiz-copy.js', 'bible-quiz-copy');
+  loadModule('/platform-home.js', 'platform-home');
 }
 
 loadModule('/meditation-sync.js', 'meditation-sync');
