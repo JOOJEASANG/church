@@ -53,7 +53,7 @@ function renderStatus(status) {
   banner.classList.add('show', currentStatus === 'suspended' ? 'suspended' : 'pending');
   banner.textContent = currentStatus === 'suspended'
     ? '관리자에 의해 이용이 정지되었습니다. 교회 관리자에게 문의해주세요.'
-    : '회원 승인 대기 중입니다. 열람은 가능하며, 승인 후 글쓰기·신청·업로드 기능을 사용할 수 있습니다.';
+    : '플랫폼 퀴즈·미션·랭킹은 바로 이용할 수 있습니다. 기도·봉사·교회 신청 등 우리교회 기능은 관리자 승인 후 사용할 수 있습니다.';
 }
 
 async function refreshClaims() {
