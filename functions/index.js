@@ -463,6 +463,19 @@ async function collectUidMarkers(updates, path, uid) {
   });
 }
 
+async function collectQuizRoomDeletes(updates, roomsPath, codesPath, uid) {
+  const snap = await getDatabase().ref(roomsPath).get();
+  snap.forEach((room) => {
+    const value = room.val() || {};
+    if (value.hostUid === uid) {
+      updates[`${roomsPath}/${room.key}`] = null;
+      if (value.code) updates[`${codesPath}/${value.code}`] = null;
+    } else if (room.child('participants').child(uid).exists()) {
+      updates[`${roomsPath}/${room.key}/participants/${uid}`] = null;
+    }
+  });
+}
+
 function compactUpdates(updates) {
   const result = {};
   const paths = Object.keys(updates).sort((a, b) => {
@@ -519,7 +532,10 @@ exports.deleteMyAccount = onCall({ timeoutSeconds: 120, memory: '512MiB' }, asyn
     collectNestedAuthorDeletes(updates, 'postComments', uid),
     collectNestedAuthorDeletes(updates, 'roomBoards', uid),
     collectUidMarkers(updates, 'postLikes', uid),
-    collectUidMarkers(updates, 'prayedBy', uid)
+    collectUidMarkers(updates, 'prayedBy', uid),
+    collectUidMarkers(updates, 'quizWeekly', uid),
+    collectQuizRoomDeletes(updates, 'quizCompetitionRooms', 'quizCompetitionCodes', uid),
+    collectQuizRoomDeletes(updates, 'quizV2CompetitionRooms', 'quizV2CompetitionCodes', uid)
   ]);
 
   for (const postId of ownPostIds) {
@@ -531,6 +547,11 @@ exports.deleteMyAccount = onCall({ timeoutSeconds: 120, memory: '512MiB' }, asyn
 
   updates[`fcmTokens/${uid}`] = null;
   updates[`userNotes/${uid}`] = null;
+  updates[`quizCustomQuestionsServer/${uid}`] = null;
+  updates[`quizPracticeSessions/${uid}`] = null;
+  updates[`quizV2PracticeSessions/${uid}`] = null;
+  updates[`quizStatsServer/${uid}`] = null;
+  updates[`platformDaily/${uid}`] = null;
   updates[`users/${uid}`] = null;
 
   try {
