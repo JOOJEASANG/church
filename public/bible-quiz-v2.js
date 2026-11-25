@@ -41,13 +41,13 @@ function closeQuiz(){ stopPoll(); $('#bq2Overlay')?.classList.remove('show'); do
 
 async function openQuiz(){
   overlay(); $('#bq2Overlay').classList.add('show'); document.body.style.overflow='hidden';
-  if(!auth.currentUser){ head('성경퀴즈',false); body('<div class="bq2-panel"><h3>로그인이 필요합니다</h3><p class="bq2-sub">승인된 교회 회원으로 로그인한 뒤 이용해주세요.</p></div>'); return; }
+  if(!auth.currentUser){ head('성경퀴즈',false); body('<div class="bq2-panel"><h3>로그인이 필요합니다</h3><p class="bq2-sub">로그인한 회원이면 바로 이용할 수 있습니다.</p></div>'); return; }
   loading('성경퀴즈를 준비하고 있습니다...');
   try { state.meta=await api('meta'); updateLaunchText(); if(state.inviteCode) renderInvite(state.inviteCode); else renderHome(); }
   catch(e){ body(`<div class="bq2-panel"><h3>불러오지 못했습니다</h3><p class="bq2-sub">${esc(err(e))}</p></div>`); }
 }
 function updateLaunchText(){
-  const copy=$('#bqLaunch .bq-launch-copy span'); if(copy&&state.meta) copy.textContent=`성경 66권 · ${Number(state.meta.bankCount)||212}문제 · 힌트와 해설 · 교인 대회`;
+  const copy=$('#bqLaunch .bq-launch-copy span'); if(copy&&state.meta) copy.textContent=`성경 66권 · ${Number(state.meta.bankCount)||212}문제 · 힌트와 해설 · 실시간 대결`;
 }
 function optionList(values,current,suffix=''){ return values.map(v=>`<option value="${esc(v)}" ${v===current?'selected':''}>${esc(v)}${suffix}</option>`).join(''); }
 function bookOptions(){
@@ -76,7 +76,7 @@ function renderHome(){
   stopPoll(); head('성경퀴즈 · 말씀공부',false); const m=state.meta||{}; const st=m.stats||{};
   body(`<div class="bq2-hero"><small>BIBLE STUDY & QUIZ 2.0</small><h2>성경 66권을<br>재미있게 배우고 기억해요</h2><p>연령·난이도·성경책을 골라 공부하고, 막히면 힌트를 보고 정답 뒤에는 해설까지 확인할 수 있습니다.</p><div class="bq2-stats"><div class="bq2-stat"><b>${Number(m.bankCount)||212}</b><span>기본 문제</span></div><div class="bq2-stat"><b>66</b><span>성경 전체</span></div><div class="bq2-stat"><b>${Number(st.bestPercent)||0}%</b><span>최고 점수</span></div></div></div>
   <div class="bq2-panel"><h3>오늘 무엇을 공부할까요?</h3><p class="bq2-sub">조건을 여러 개 고르면 모두 만족하는 문제만 출제됩니다.</p>${filters()}<label class="bq2-check"><input type="checkbox" id="bq2Custom" ${state.includeCustom?'checked':''} ${Number(m.customCount)>0?'':'disabled'}> 내가 만든 문제도 섞기 ${Number(m.customCount)>0?`(${m.customCount}개)`:''}</label></div>
-  <div class="bq2-actions"><button class="bq2-card" id="bq2Quiz"><div class="ico">🏆</div><b>퀴즈 도전</b><span>기록을 남기며 풀고 필요하면 힌트를 사용합니다.</span></button><button class="bq2-card" id="bq2Study"><div class="ico">📚</div><b>공부 모드</b><span>문제마다 성경 위치와 해설을 확인합니다.</span></button><button class="bq2-card featured" id="bq2Comp"><div class="ico">⚡</div><b>교인들과 대회</b><span>같은 문제를 동시에 풀고 실시간 순위를 확인합니다.</span></button><button class="bq2-card" id="bq2Make"><div class="ico">✍️</div><b>내가 문제 내기</b><span>힌트와 정답 해설까지 직접 만들 수 있습니다.</span></button><button class="bq2-card" id="bq2Mine"><div class="ico">🗂️</div><b>내 문제 관리</b><span>직접 만든 문제를 확인하고 삭제합니다.</span></button></div>`);
+  <div class="bq2-actions"><button class="bq2-card" id="bq2Quiz"><div class="ico">🏆</div><b>퀴즈 도전</b><span>기록을 남기며 풀고 필요하면 힌트를 사용합니다.</span></button><button class="bq2-card" id="bq2Study"><div class="ico">📚</div><b>공부 모드</b><span>문제마다 성경 위치와 해설을 확인합니다.</span></button><button class="bq2-card featured" id="bq2Comp"><div class="ico">⚡</div><b>실시간 대결</b><span>성도들과 같은 문제를 풀고 실시간 순위를 확인합니다.</span></button><button class="bq2-card" id="bq2Make"><div class="ico">✍️</div><b>내가 문제 내기</b><span>힌트와 정답 해설까지 직접 만들 수 있습니다.</span></button><button class="bq2-card" id="bq2Mine"><div class="ico">🗂️</div><b>내 문제 관리</b><span>직접 만든 문제를 확인하고 삭제합니다.</span></button></div>`);
   bindFilters(); $('#bq2Custom').onchange=e=>state.includeCustom=e.target.checked; $('#bq2Quiz').onclick=()=>startPractice('quiz'); $('#bq2Study').onclick=()=>startPractice('study'); $('#bq2Comp').onclick=renderCompetitionMenu; $('#bq2Make').onclick=renderCustomForm; $('#bq2Mine').onclick=renderCustomList;
 }
 function filterPayload(){ return { category:state.category,testament:state.testament,book:state.book,difficulty:state.difficulty,audience:state.audience,count:state.count,includeCustom:state.includeCustom }; }
@@ -124,12 +124,12 @@ async function renderCustomList(){
   catch(e){body(`<div class="bq2-panel"><p class="bq2-sub">${esc(err(e))}</p></div>`);}
 }
 function renderCompetitionMenu(){
-  stopPoll(); head('교인들과 성경퀴즈 대회'); body(`<div class="bq2-panel"><h3>새 대회 만들기</h3><p class="bq2-sub">대회에서는 공정성을 위해 힌트와 정답 해설이 문제 진행 중에는 표시되지 않습니다.</p><label class="bq2-label">대회 이름</label><input class="bq2-field" id="bq2RoomTitle" value="우리 교회 성경퀴즈">${filters('bq2R')}<label class="bq2-check"><input type="checkbox" id="bq2RCustom" ${Number(state.meta?.customCount)>0?'':'disabled'}> 내가 만든 문제도 섞기</label><button class="bq2-primary" id="bq2CreateRoom">대회 방 만들기</button></div><div class="bq2-panel"><h3>참가 코드로 들어가기</h3><input class="bq2-field" id="bq2JoinCode" maxlength="6" style="text-transform:uppercase;text-align:center;font-size:19px;letter-spacing:4px" placeholder="6자리 코드"><button class="bq2-primary" id="bq2Join">대회 참가</button></div>`); bindFilters('bq2R'); $('#bq2CreateRoom').onclick=createRoom; $('#bq2Join').onclick=()=>joinRoom($('#bq2JoinCode').value);
+  stopPoll(); head('교인들과 성경퀴즈 대회'); body(`<div class="bq2-panel"><h3>새 대회 만들기</h3><p class="bq2-sub">대회에서는 공정성을 위해 힌트와 정답 해설이 문제 진행 중에는 표시되지 않습니다.</p><label class="bq2-label">대회 이름</label><input class="bq2-field" id="bq2RoomTitle" value="성경퀴즈 대회">${filters('bq2R')}<label class="bq2-check"><input type="checkbox" id="bq2RCustom" ${Number(state.meta?.customCount)>0?'':'disabled'}> 내가 만든 문제도 섞기</label><button class="bq2-primary" id="bq2CreateRoom">대회 방 만들기</button></div><div class="bq2-panel"><h3>참가 코드로 들어가기</h3><input class="bq2-field" id="bq2JoinCode" maxlength="6" style="text-transform:uppercase;text-align:center;font-size:19px;letter-spacing:4px" placeholder="6자리 코드"><button class="bq2-primary" id="bq2Join">대회 참가</button></div>`); bindFilters('bq2R'); $('#bq2CreateRoom').onclick=createRoom; $('#bq2Join').onclick=()=>joinRoom($('#bq2JoinCode').value);
 }
 async function createRoom(){
-  loading('대회 방을 만들고 있습니다...'); try {const room=await api('roomCreate',{title:$('#bq2RoomTitle')?.value||'우리 교회 성경퀴즈',...filterPayload(),includeCustom:$('#bq2RCustom')?.checked||false}); state.roomId=room.roomId;state.room=room;renderRoom(room);schedulePoll();}catch(e){toast(err(e));renderCompetitionMenu();}
+  loading('대회 방을 만들고 있습니다...'); try {const room=await api('roomCreate',{title:$('#bq2RoomTitle')?.value||'성경퀴즈 대회',...filterPayload(),includeCustom:$('#bq2RCustom')?.checked||false}); state.roomId=room.roomId;state.room=room;renderRoom(room);schedulePoll();}catch(e){toast(err(e));renderCompetitionMenu();}
 }
-function renderInvite(code){ state.inviteCode=''; head('성경퀴즈 대회 초대'); body(`<div class="bq2-panel" style="text-align:center"><h3>대회에 초대받았습니다</h3><p class="bq2-sub">아래 코드로 교인들과 함께 참여할 수 있습니다.</p><div class="bq2-code">${esc(String(code).toUpperCase())}</div><button class="bq2-primary" id="bq2InviteJoin">대회 참가하기</button><button class="bq2-secondary" id="bq2InviteHome">성경퀴즈 홈</button></div>`); $('#bq2InviteJoin').onclick=()=>joinRoom(code); $('#bq2InviteHome').onclick=renderHome; }
+function renderInvite(code){ state.inviteCode=''; head('성경퀴즈 대회 초대'); body(`<div class="bq2-panel" style="text-align:center"><h3>대회에 초대받았습니다</h3><p class="bq2-sub">아래 코드로 함께 참여할 수 있습니다.</p><div class="bq2-code">${esc(String(code).toUpperCase())}</div><button class="bq2-primary" id="bq2InviteJoin">대회 참가하기</button><button class="bq2-secondary" id="bq2InviteHome">성경퀴즈 홈</button></div>`); $('#bq2InviteJoin').onclick=()=>joinRoom(code); $('#bq2InviteHome').onclick=renderHome; }
 async function joinRoom(code){code=String(code||'').trim().toUpperCase();if(!code){toast('참가 코드를 입력해주세요');return;}loading('대회 방에 들어가는 중...');try{const room=await api('roomJoin',{code});state.roomId=room.roomId;state.room=room;renderRoom(room);schedulePoll();const u=new URL(location.href);u.searchParams.delete('quiz2Room');history.replaceState({},'',u);}catch(e){body(`<div class="bq2-panel"><h3>참가하지 못했습니다</h3><p class="bq2-sub">${esc(err(e))}</p><button class="bq2-secondary" id="bq2RetryJoin">다시 입력</button></div>`);$('#bq2RetryJoin').onclick=renderCompetitionMenu;}}
 function people(room){return (room.participants||[]).map((p,i)=>`<div class="bq2-person"><span class="rank">${i+1}</span><span>${esc(p.name)}${p.uid===room.hostUid?' · 방장':''}</span><span class="score">${Number(p.score)||0}점</span></div>`).join('');}
 function renderRoom(room){
@@ -141,10 +141,24 @@ async function startRoom(){loading('대회를 시작합니다...');try{const r=a
 async function answerRoom(selected){$$('#bq2RoomOpts .bq2-option').forEach(b=>b.disabled=true);try{const r=await api('roomAnswer',{roomId:state.roomId,selected});toast(r.correct?`정답! +${r.points}점`:'아쉽습니다. 다음 문제에 도전!');state.room=await api('roomGet',{roomId:state.roomId});renderRoom(state.room);schedulePoll();}catch(e){toast(err(e));renderRoom(state.room);}}
 async function nextRoom(){try{const r=await api('roomNext',{roomId:state.roomId});state.room=r;renderRoom(r);if(r.status!=='finished')schedulePoll();}catch(e){toast(err(e));}}
 function schedulePoll(){stopPoll();state.poll=setTimeout(async()=>{if(!state.roomId||!$('#bq2Overlay')?.classList.contains('show'))return;try{state.room=await api('roomGet',{roomId:state.roomId});renderRoom(state.room);if(state.room.status!=='finished')schedulePoll();}catch(e){toast(err(e));state.poll=setTimeout(schedulePoll,3000);}},1500);}
-async function shareRoom(room){const u=new URL(location.origin+location.pathname);u.searchParams.set('quiz2Room',room.code);const data={title:'천안남산교회 성경퀴즈',text:`성경퀴즈 대회에 초대합니다! 참가 코드: ${room.code}`,url:u.toString()};try{if(navigator.share){await navigator.share(data);return;}await navigator.clipboard.writeText(`${data.text}\n${data.url}`);toast('초대 링크를 복사했습니다');}catch(e){if(e?.name!=='AbortError')toast('공유하지 못했습니다');}}
+async function shareRoom(room){const u=new URL(location.origin+location.pathname);u.searchParams.set('quiz2Room',room.code);const data={title:'성경퀴즈 실시간 대결',text:`성경퀴즈 대회에 초대합니다! 참가 코드: ${room.code}`,url:u.toString()};try{if(navigator.share){await navigator.share(data);return;}await navigator.clipboard.writeText(`${data.text}\n${data.url}`);toast('초대 링크를 복사했습니다');}catch(e){if(e?.name!=='AbortError')toast('공유하지 못했습니다');}}
 
 function hookLaunch(){
   for(const selector of ['#bqLaunch','#bqMeMenu']){const el=$(selector);if(!el||el.dataset.bq2Hook)return;el.dataset.bq2Hook='1';el.addEventListener('click',(e)=>{e.preventDefault();e.stopImmediatePropagation();openQuiz();},true);}
 }
-function boot(){styles();overlay();hookLaunch();const ob=new MutationObserver(hookLaunch);ob.observe(document.body,{childList:true,subtree:true});onAuthStateChanged(auth,(user)=>{if(user&&state.inviteCode)setTimeout(openQuiz,550);});}
+async function openPlatformMode(mode){
+  await openQuiz();
+  if(!auth.currentUser || !state.meta) return;
+  if(mode==='quiz') return startPractice('quiz');
+  if(mode==='study') return startPractice('study');
+  if(mode==='competition') return renderCompetitionMenu();
+  if(mode==='make') return renderCustomForm();
+  return renderHome();
+}
+function boot(){
+  styles();overlay();hookLaunch();
+  const ob=new MutationObserver(hookLaunch);ob.observe(document.body,{childList:true,subtree:true});
+  document.addEventListener('christian-platform:quiz',(event)=>openPlatformMode(event.detail?.mode||'home'));
+  onAuthStateChanged(auth,(user)=>{if(user&&state.inviteCode)setTimeout(openQuiz,550);});
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
